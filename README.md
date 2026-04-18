@@ -1,11 +1,49 @@
-<div align="center">
+# Calculador Técnico de Carpintería
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Esta es una herramienta especializada para carpintería de aluminio, diseñada para convertir medidas de huecos (vano) en listas de corte precisas para ventanas correderas.
 
-  <h1>Built with AI Studio</h2>
+## Características
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+-   **Precisión de 1/16"**: Cálculos exactos basados en estándares técnicos.
+-   **Interfaz Minimalista**: Diseño limpio y profesional optimizado para la producción.
+-   **Lista de Corte Detallada**: Desglose automático para Marcos, Hojas y Cristales.
+-   **Valores Predeterminados**: Incluye deducciones estándar para ensamblaje y traslape.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Instalación y Desarrollo Local
 
-</div>
+Para ejecutar este proyecto en tu propia máquina:
+
+1.  Clona el repositorio.
+2.  Instala las dependencias:
+    ```bash
+    npm install
+    ```
+3.  Inicia el servidor de desarrollo:
+    ```bash
+    npm run dev
+    ```
+4.  Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+
+## Despliegue en Vercel
+
+Este proyecto está listo para ser desplegado en Vercel como una **Vite Single Page Application (SPA)**.
+
+1.  Conecta tu repositorio de GitHub a Vercel.
+2.  Vercel detectará automáticamente la configuración de Vite.
+3.  Asegúrate de que el comando de construcción sea `npm run build` y el directorio de salida sea `dist`.
+4.  ¡Despliega!
+
+## Tecnologías Utilizadas
+
+-   **React 19**
+-   **Vite**
+-   **Tailwind CSS** (v4)
+-   **Lucide React** (Iconos)
+-   **Frammer Motion** (Animaciones)
+
+## Lógica de Cálculo
+
+El sistema aplica las siguientes reglas:
+-   **Marco Exterior**: Descuento de 7/8" en el ancho para ensamblaje.
+-   **Hojas**: Descuento de 1 3/4" en altura y cálculo de ancho basado en traslape de 1 1/8".
+-   **Vidrios**: Descuento perimetral de 2 1/4" respecto a la medida de la hoja.

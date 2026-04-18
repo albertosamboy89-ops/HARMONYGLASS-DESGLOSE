@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-accent: #3b82f6; /* Electric Blue */
+  --color-brand-bg: #0f172a;     /* Deep Slate */
+  --color-brand-sidebar: #1e293b; /* Slate 800 */
+  --color-brand-border: #334155;  /* Slate 700 */
+  --color-brand-text: #f8fafc;    /* Slate 50 */
+  --color-brand-muted: #94a3b8;   /* Slate 400 */
+  --color-brand-category: #1e293b;
+  
+  --font-sans: "Inter", "Geist", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Space Mono", monospace;
+}
