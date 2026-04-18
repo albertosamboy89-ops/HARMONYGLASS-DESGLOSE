@@ -68,7 +68,7 @@ function formatFraction(sixteenths: number): string {
     n /= 2;
     d /= 2;
   }
-  return whole === 0 ? `${n}/${d}"` : `${whole} ${n}/${d}"`;
+  return whole === 0 ? `${n}/${d}"` : `${whole}x${n}/${d}`;
 }
 
 // --- Components ---
@@ -253,16 +253,16 @@ function ResultsBreakdown({
     });
   };
 
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
       {[
         { title: "M. Marco", items: results.marco, color: "blue" },
         { title: "M. Hojas", items: results.hojas, color: "purple" },
         { title: "M. Cristal", items: results.vidrios, color: "emerald" }
       ].map((cat) => (
-        <div key={cat.title} className="bg-brand-sidebar/40 border border-brand-border p-4 rounded-[1.5rem] relative overflow-hidden">
-          <h5 className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-muted mb-4 px-1">{cat.title}</h5>
-          <div className="space-y-3">
+        <div key={cat.title} className="bg-brand-sidebar/40 border border-brand-border p-3 rounded-[1.2rem] relative overflow-hidden">
+          <h5 className="text-[7px] font-black uppercase tracking-[0.4em] text-brand-muted mb-3 px-1">{cat.title}</h5>
+          <div className="space-y-1.5">
              {sortItems(cat.items).map(item => {
                const isDone = completedCuts.includes(item.id);
                return (
@@ -270,41 +270,41 @@ function ResultsBreakdown({
                    layout
                    key={item.id} 
                    onClick={() => onToggleCut?.(item.id)}
-                   className={`flex justify-between items-center p-3 rounded-xl border transition-all cursor-pointer group ${
+                   className={`flex justify-between items-center px-2 py-1.5 rounded-lg border transition-all cursor-pointer group ${
                      isDone 
                       ? 'bg-red-500/10 border-red-500/30' 
                       : 'bg-white/5 border-transparent hover:border-brand-accent/30'
                    }`}
                  >
-                   <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                   <div className="flex items-center gap-2 overflow-hidden">
+                      <div className={`w-3.5 h-3.5 rounded-sm border-2 flex items-center justify-center transition-all shrink-0 ${
                         isDone 
                           ? 'bg-red-500 border-red-500' 
                           : 'border-brand-border bg-brand-bg/50'
                       }`}>
-                        {isDone && <Check size={10} strokeWidth={4} className="text-white" />}
+                        {isDone && <Check size={8} strokeWidth={4} className="text-white" />}
                       </div>
                       
-                      <div>
-                        <p className={`text-[11px] font-bold uppercase tracking-tight leading-tight ${isDone ? 'text-red-400' : 'text-white'}`}>
+                      <div className="overflow-hidden">
+                        <p className={`text-[9px] font-black uppercase tracking-tight leading-none whitespace-nowrap truncate ${isDone ? 'text-red-400' : 'text-white'}`}>
                           {item.piece}
                         </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                           <p className={`text-base font-black italic tabular-nums ${isDone ? 'text-red-300' : 'text-brand-accent'}`}>
+                        <div className="flex items-center gap-1 mt-0.5">
+                           <p className={`text-[11px] font-black italic tabular-nums leading-none ${isDone ? 'text-red-300' : 'text-brand-accent'}`}>
                              {item.qty}
                            </p>
-                           <p className={`text-[8px] font-black uppercase tracking-widest opacity-30 ${isDone ? 'text-red-300' : 'text-brand-muted'}`}>
+                           <p className={`text-[6px] font-black uppercase tracking-widest opacity-20 leading-none ${isDone ? 'text-red-300' : 'text-brand-muted'}`}>
                              Piezas
                            </p>
                         </div>
                         {item.formula && (
-                          <p className={`text-[7px] font-black uppercase tracking-widest leading-none mt-1 opacity-20 ${isDone ? 'text-red-400/50' : 'text-brand-accent/50'}`}>
+                          <p className={`text-[6px] font-bold uppercase tracking-wider leading-none mt-0.5 opacity-10 ${isDone ? 'text-red-400/50' : 'text-brand-accent/50'} truncate`}>
                             {item.formula}
                           </p>
                         )}
                       </div>
                    </div>
-                   <p className={`text-base font-mono font-black italic tabular-nums ${isDone ? 'text-red-500' : 'text-brand-accent'}`}>
+                   <p className={`text-xs font-mono font-black italic tabular-nums shrink-0 ml-2 ${isDone ? 'text-red-500' : 'text-brand-accent'}`}>
                       {item.dimensions || formatFraction(item.size)}
                    </p>
                  </motion.div>
