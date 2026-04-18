@@ -60,15 +60,15 @@ const FRACTIONS = [
 
 function formatFraction(sixteenths: number): string {
   const whole = Math.floor(sixteenths / 16);
-  const rem = sixteenths % 16;
-  if (rem === 0) return `${whole} 0/0"`;
+  const rem = Math.round(sixteenths % 16);
+  if (rem === 0) return `${whole}"`;
   let n = rem;
   let d = 16;
   while (n % 2 === 0 && d % 2 === 0) {
     n /= 2;
     d /= 2;
   }
-  return `${whole} ${n}/${d}"`;
+  return whole === 0 ? `${n}/${d}"` : `${whole} ${n}/${d}"`;
 }
 
 // --- Components ---
@@ -289,9 +289,19 @@ function ResultsBreakdown({
                         <p className={`text-[11px] font-bold uppercase tracking-tight leading-tight ${isDone ? 'text-red-400' : 'text-white'}`}>
                           {item.piece}
                         </p>
-                        <p className={`text-[9px] font-mono opacity-50 italic uppercase ${isDone ? 'text-red-300' : 'text-brand-muted'}`}>
-                          x{item.qty}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                           <p className={`text-base font-black italic tabular-nums ${isDone ? 'text-red-300' : 'text-brand-accent'}`}>
+                             {item.qty}
+                           </p>
+                           <p className={`text-[8px] font-black uppercase tracking-widest opacity-30 ${isDone ? 'text-red-300' : 'text-brand-muted'}`}>
+                             Piezas
+                           </p>
+                        </div>
+                        {item.formula && (
+                          <p className={`text-[7px] font-black uppercase tracking-widest leading-none mt-1 opacity-20 ${isDone ? 'text-red-400/50' : 'text-brand-accent/50'}`}>
+                            {item.formula}
+                          </p>
+                        )}
                       </div>
                    </div>
                    <p className={`text-base font-mono font-black italic tabular-nums ${isDone ? 'text-red-500' : 'text-brand-accent'}`}>
@@ -307,10 +317,10 @@ function ResultsBreakdown({
   );
 }
 
-function WindowPreview({ width, height, vias = 2 }: { width: number; height: number; vias?: number }) {
+function WindowPreview({ width, height, vias = 2, large = false, windowType = 'P65' }: { width: number; height: number; vias?: number; large?: boolean; windowType?: string }) {
   const ratio = width / height;
-  const maxWidth = 140; // Increased
-  const maxHeight = 110; // Increased
+  const maxWidth = large ? 200 : 140; 
+  const maxHeight = large ? 120 : 110; 
   
   let w = maxWidth;
   let h = maxWidth / ratio;
@@ -321,30 +331,30 @@ function WindowPreview({ width, height, vias = 2 }: { width: number; height: num
   }
 
   return (
-    <div className="flex items-center justify-center p-4 bg-black/20 rounded-2xl border border-white/5 h-32 w-full shadow-inner relative overflow-hidden group">
+    <div className={`flex items-center justify-center bg-black/40 rounded-[2rem] border border-white/5 relative overflow-hidden group shadow-2xl ${large ? 'h-48 w-full p-6' : 'h-32 w-full p-4'}`}>
       {/* Background Decorative Grid */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+      <div className="absolute inset-0 opacity-[0.05] pointer-events-none" 
+           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '15px 15px' }} />
       
       <div 
-        className="border-2 border-brand-accent/40 rounded-sm relative flex bg-brand-accent/5 overflow-hidden shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+        className="border-[3px] border-brand-accent/50 rounded-md relative flex bg-brand-accent/5 overflow-hidden shadow-2xl transition-all duration-700 hover:scale-[1.02]"
         style={{ width: w, height: h }}
       >
         {/* Outer Frame Bevel */}
-        <div className="absolute inset-0 border border-white/10 pointer-events-none z-20" />
+        <div className="absolute inset-0 border border-white/5 pointer-events-none z-20" />
 
         {Array.from({ length: vias }).map((_, i) => {
           const widthPct = 100 / vias;
-          const overlapWidth = widthPct * 1.15;
-          const isSelected = i % 2 !== 0; // Simulate slider depth
+          const overlapWidth = widthPct * 1.12;
+          const isSelected = i % 2 !== 0; 
           
           return (
             <div 
               key={i}
-              className={`absolute top-0.5 bottom-0.5 border-2 transition-all duration-500 flex items-center justify-center ${
+              className={`absolute top-0.5 bottom-0.5 border-2 transition-all duration-700 flex items-center justify-center ${
                 isSelected 
-                  ? 'z-10 bg-brand-accent/20 border-brand-accent shadow-[0_0_15px_rgba(59,130,246,0.3)]' 
-                  : 'z-0 bg-brand-accent/5 border-brand-accent/30'
+                  ? 'z-10 bg-brand-accent/30 border-brand-accent shadow-[0_0_25px_rgba(59,130,246,0.5)]' 
+                  : 'z-0 bg-brand-accent/10 border-brand-accent/40'
               }`}
               style={{ 
                 width: `${overlapWidth}%`, 
@@ -353,24 +363,42 @@ function WindowPreview({ width, height, vias = 2 }: { width: number; height: num
               }}
             >
                {/* Glass Reflection Effect */}
-               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 opacity-60" />
-               <div className="absolute top-0 left-0 w-full h-[1px] bg-white/20" />
-               <div className="absolute bottom-0 left-0 w-full h-[1px] bg-black/20" />
+               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/20 opacity-40" />
+               <div className="absolute top-0 left-0 w-full h-[1px] bg-white/30" />
                
-               {/* Center Handle simulation */}
-               <div className={`w-0.5 h-1/4 rounded-full ${isSelected ? 'bg-brand-accent/60' : 'bg-brand-accent/20'} absolute ${i === 0 ? 'right-1' : 'left-1'}`} />
+               {/* Professional Handle simulation */}
+               <div className={`w-[2.5px] h-1/4 rounded-full ${isSelected ? 'bg-white shadow-[0_0_5px_white]' : 'bg-brand-accent/30'} absolute ${i === 0 ? 'right-1' : 'left-1'}`} />
             </div>
           );
         })}
         
-        {/* Dimension Labels - More readable */}
-        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
-           {formatFraction(width)}
-        </div>
-        <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
-           {formatFraction(height)}
-        </div>
+        {!large && (
+          <>
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
+               {formatFraction(width)}
+            </div>
+            <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
+               {formatFraction(height)}
+            </div>
+          </>
+        )}
       </div>
+      
+      {large && (
+        <>
+          <div className="absolute top-4 left-6 right-6 flex justify-between items-start pointer-events-none">
+             <div className="space-y-0.5">
+                <p className="text-[6px] font-black text-brand-muted uppercase tracking-[0.4em]">Configuración</p>
+                <h4 className="text-[10px] font-black text-white italic tracking-tighter uppercase">{vias} Hojas / {windowType}</h4>
+             </div>
+          </div>
+          <div className="absolute bottom-4 left-6 right-6 flex justify-center pointer-events-none">
+             <p className="text-[10px] font-mono font-bold text-brand-accent italic tabular-nums bg-brand-bg/80 px-3 py-1 rounded-full border border-brand-accent/30 shadow-lg">
+                {formatFraction(width)} X {formatFraction(height)}
+             </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -450,6 +478,7 @@ export default function App() {
   const [passInput, setPassInput] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [pendingDeleteClient, setPendingDeleteClient] = useState<string | null>(null);
+  const [pendingChangeProfile, setPendingChangeProfile] = useState(false);
 
   // Load from localStorage
   useEffect(() => {
@@ -472,40 +501,65 @@ export default function App() {
     const totalWidth = widthWhole * 16 + widthFrac;
     const totalHeight = heightWhole * 16 + heightFrac;
 
-    const m7_8 = 14; 
-    const m1_3_4 = 16 + 12;
-    const m1_1_8 = 16 + 2;
-    const m2_1_4 = 32 + 4;
+    // European Profile Deductions (in 1/16ths)
+    let leafVertDeduction = 28;    // 1 3/4" (Default P65)
+    let leafOverlap = 18;          // 1 1/8" (Default P65)
+    let glassDeduction = 52;       // 3 1/4" (Default P65)
+    let frameHorizDeduction = 14;  // 7/8"
+    
+    let profileName = "P65";
+
+    if (windowType === 'P92') {
+      profileName = "P92";
+      leafVertDeduction = 34;   // 2 1/8"
+      leafOverlap = 25;         // 1 9/16"
+      glassDeduction = 60;      // 3 3/4"
+    } else if (windowType === 'P40') {
+      profileName = "P40";
+      leafVertDeduction = 26;   // 1 5/8"
+      leafOverlap = 16;         // 1"
+      glassDeduction = 44;      // 2 3/4"
+    } else if (windowType === 'VENTILADA') {
+      profileName = "VENT";
+      leafVertDeduction = 28;
+      leafOverlap = 16;
+      glassDeduction = 48;
+    }
 
     const sideRailsSize = totalHeight;
-    const sillSize = totalWidth - m7_8;
-    const leafVerticalSize = totalHeight - m1_3_4;
-    const leafHorizontalSize = Math.floor(totalWidth / vias) - m1_1_8;
-    const glassWidth = leafHorizontalSize - m2_1_4;
-    const glassHeight = leafVerticalSize - m2_1_4;
+    const sillSize = totalWidth - frameHorizDeduction;
+    const leafVerticalSize = totalHeight - leafVertDeduction;
+    
+    // Width Logic based on Vias
+    // 2 vias: 1 overlap. 3 vias: 2 overlaps. 4 vias: 1 overlap (central meeting)
+    const numOverlaps = (vias === 4) ? 1 : (vias - 1);
+    const leafHorizontalSize = Math.floor((totalWidth + (numOverlaps * leafOverlap)) / vias);
+    
+    const glassWidth = leafHorizontalSize - glassDeduction;
+    const glassHeight = leafVerticalSize - glassDeduction;
 
     return {
-      inputs: { w: totalWidth, h: totalHeight },
+      inputs: { w: totalWidth, h: totalHeight, type: windowType, vias },
       marco: [
         { id: 'side', piece: "Rieles Laterales", qty: 2, size: sideRailsSize, formula: `Alto (${formatFraction(totalHeight)})` },
-        { id: 'sill', piece: "Alféizar / Cabezal", qty: 2, size: sillSize, formula: `Ancho (${formatFraction(totalWidth)}) - 7/8"` },
+        { id: 'sill', piece: "Alféizar / Cabezal", qty: 2, size: sillSize, formula: `Ancho - ${formatFraction(frameHorizDeduction)}` },
       ],
       hojas: [
-        { id: 'vert', piece: "Jamba / Llavín", qty: vias * 2, size: leafVerticalSize, formula: `Alto - 1 3/4"` },
-        { id: 'horiz', piece: "Zócalo / Cabezal", qty: vias * 2, size: leafHorizontalSize, formula: `(Ancho/${vias}) - 1 1/8"` },
+        { id: 'vert', piece: "Jamba / Llavín", qty: vias * 2, size: leafVerticalSize, formula: `Alto - ${formatFraction(leafVertDeduction)} (${profileName})` },
+        { id: 'horiz', piece: "Zócalo / Cabezal", qty: vias * 2, size: leafHorizontalSize, formula: `(Ancho + ${numOverlaps > 0 ? formatFraction(numOverlaps * leafOverlap) : '0'}) / ${vias}` },
       ],
       vidrios: [
         { 
           id: 'glass', 
           piece: "Cristal", 
           qty: vias, 
-          size: glassWidth, // base size for logic
+          size: glassWidth, 
           dimensions: `${formatFraction(glassWidth)} X ${formatFraction(glassHeight)}`,
-          formula: `H.Horiz x H.Vert (-2 1/4")` 
+          formula: `H.Horiz x H.Vert (- ${formatFraction(glassDeduction)})` 
         }
       ]
     };
-  }, [widthWhole, widthFrac, heightWhole, heightFrac, vias]);
+  }, [widthWhole, widthFrac, heightWhole, heightFrac, vias, windowType]);
 
   const handleCalculate = () => {
     setIsCalculating(true);
@@ -545,6 +599,7 @@ export default function App() {
   const deleteProject = (id: string) => {
     setPendingDeleteId(id);
     setPendingDeleteClient(null);
+    setPendingChangeProfile(false);
     setIsAuthModalOpen(true);
     setPassInput("");
   };
@@ -552,6 +607,15 @@ export default function App() {
   const deleteClientGroup = (name: string) => {
     setPendingDeleteClient(name);
     setPendingDeleteId(null);
+    setPendingChangeProfile(false);
+    setIsAuthModalOpen(true);
+    setPassInput("");
+  };
+
+  const requestProfileChange = () => {
+    setPendingChangeProfile(true);
+    setPendingDeleteId(null);
+    setPendingDeleteClient(null);
     setIsAuthModalOpen(true);
     setPassInput("");
   };
@@ -568,10 +632,13 @@ export default function App() {
         if (selectedClientName === pendingDeleteClient) {
           setSelectedClientName(null);
         }
+      } else if (pendingChangeProfile) {
+        setOrderStep(2);
       }
       setIsAuthModalOpen(false);
       setPendingDeleteId(null);
       setPendingDeleteClient(null);
+      setPendingChangeProfile(false);
       setPassInput("");
     } else {
       setPassInput("");
@@ -901,19 +968,32 @@ export default function App() {
                              <p className="text-[8px] text-brand-muted uppercase font-mono tracking-widest opacity-60">Perfil Seleccionado</p>
                           </div>
                        </div>
-                       <button onClick={() => setOrderStep(2)} className="p-2 hover:bg-white/5 rounded-lg text-brand-muted transition-all"><RotateCcw size={14} /></button>
+                       <button onClick={requestProfileChange} className="p-2 hover:bg-white/5 rounded-lg text-brand-muted transition-all"><RotateCcw size={14} /></button>
                     </div>
                   </div>
 </div>
 
                   {/* Calculator Console */}
-                  <section className="bg-brand-sidebar border border-brand-border p-6 sm:p-8 rounded-[2rem] sm:rounded-[3rem] shadow-2xl space-y-6 sm:space-y-8">
+                  <section className="bg-brand-sidebar border border-brand-border p-5 sm:p-2 rounded-[2rem] sm:rounded-[3rem] shadow-2xl space-y-6 sm:space-y-8 overflow-hidden">
+                    <div className="p-1">
+                       <WindowPreview 
+                         width={widthWhole * 16 + widthFrac} 
+                         height={heightWhole * 16 + heightFrac} 
+                         vias={vias} 
+                         large={true}
+                         windowType={windowType}
+                       />
+                    </div>
+
+                    <div className="p-6 sm:p-8 pt-0 space-y-6 sm:space-y-8">
                     <header className="flex flex-col sm:flex-row items-center justify-between gap-4">
                       <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <span className="w-6 h-1 bg-brand-accent rounded-full" />
-                        <h2 className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-muted">Calculadora</h2>
+                        <span className="w-12 h-1 bg-brand-accent rounded-full animate-pulse" />
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white italic">Consola Técnica</h2>
                       </div>
-                      <div className="w-full sm:w-auto scale-100 sm:scale-110"><WindowPreview width={widthWhole * 16 + widthFrac} height={heightWhole * 16 + heightFrac} vias={vias} /></div>
+                      <div className="px-3 py-1.5 bg-brand-accent/10 border border-brand-accent/20 rounded-lg">
+                        <p className="text-[8px] font-black text-brand-accent uppercase tracking-widest">{windowType} EUROPEO</p>
+                      </div>
                     </header>
 
                     <div className="space-y-6">
@@ -976,9 +1056,8 @@ export default function App() {
                         </button>
                       </motion.div>
                     )}
-
-
-                  </section>
+                  </div>
+                </section>
 
                   {/* Batch Summary */}
                   {orderWindows.length > 0 && (
