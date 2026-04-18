@@ -15,6 +15,7 @@ interface CutDetail {
   qty: number;
   size: number;
   formula: string;
+  dimensions?: string;
 }
 
 interface WindowProject {
@@ -23,6 +24,7 @@ interface WindowProject {
   clientName: string;
   width: number; // sixteenths
   height: number; // sixteenths
+  vias: 2 | 3 | 4;
   results: {
     marco: CutDetail[];
     hojas: CutDetail[];
@@ -292,7 +294,7 @@ function ResultsBreakdown({
                       </div>
                    </div>
                    <p className={`text-base font-mono font-black italic tabular-nums ${isDone ? 'text-red-500' : 'text-brand-accent'}`}>
-                      {formatFraction(item.size)}
+                      {item.dimensions || formatFraction(item.size)}
                    </p>
                  </motion.div>
                );
@@ -304,10 +306,10 @@ function ResultsBreakdown({
   );
 }
 
-function WindowPreview({ width, height }: { width: number; height: number }) {
+function WindowPreview({ width, height, vias = 2 }: { width: number; height: number; vias?: number }) {
   const ratio = width / height;
-  const maxWidth = 120;
-  const maxHeight = 100;
+  const maxWidth = 140; // Increased
+  const maxHeight = 110; // Increased
   
   let w = maxWidth;
   let h = maxWidth / ratio;
@@ -318,19 +320,53 @@ function WindowPreview({ width, height }: { width: number; height: number }) {
   }
 
   return (
-    <div className="flex items-center justify-center p-3 bg-white/5 rounded-xl border border-white/5 h-24 w-full">
+    <div className="flex items-center justify-center p-4 bg-black/20 rounded-2xl border border-white/5 h-32 w-full shadow-inner relative overflow-hidden group">
+      {/* Background Decorative Grid */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+      
       <div 
-        className="border border-brand-accent/50 rounded-sm relative flex bg-brand-accent/5 overflow-hidden group"
-        style={{ width: w * 0.7, height: h * 0.7 }}
+        className="border-2 border-brand-accent/40 rounded-sm relative flex bg-brand-accent/5 overflow-hidden shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+        style={{ width: w, height: h }}
       >
-        <div className="absolute top-1 left-1 bottom-1 w-[55%] border border-brand-accent/30 bg-white/5 z-0" />
-        <div className="absolute top-1 right-1 bottom-1 w-[55%] border border-brand-accent bg-brand-accent/20 z-10 shadow-sm" />
+        {/* Outer Frame Bevel */}
+        <div className="absolute inset-0 border border-white/10 pointer-events-none z-20" />
+
+        {Array.from({ length: vias }).map((_, i) => {
+          const widthPct = 100 / vias;
+          const overlapWidth = widthPct * 1.15;
+          const isSelected = i % 2 !== 0; // Simulate slider depth
+          
+          return (
+            <div 
+              key={i}
+              className={`absolute top-0.5 bottom-0.5 border-2 transition-all duration-500 flex items-center justify-center ${
+                isSelected 
+                  ? 'z-10 bg-brand-accent/20 border-brand-accent shadow-[0_0_15px_rgba(59,130,246,0.3)]' 
+                  : 'z-0 bg-brand-accent/5 border-brand-accent/30'
+              }`}
+              style={{ 
+                width: `${overlapWidth}%`, 
+                left: `${(100 / vias) * i - (i > 0 ? 3 : 0)}%`,
+                borderRadius: '1px'
+              }}
+            >
+               {/* Glass Reflection Effect */}
+               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 opacity-60" />
+               <div className="absolute top-0 left-0 w-full h-[1px] bg-white/20" />
+               <div className="absolute bottom-0 left-0 w-full h-[1px] bg-black/20" />
+               
+               {/* Center Handle simulation */}
+               <div className={`w-0.5 h-1/4 rounded-full ${isSelected ? 'bg-brand-accent/60' : 'bg-brand-accent/20'} absolute ${i === 0 ? 'right-1' : 'left-1'}`} />
+            </div>
+          );
+        })}
         
-        {/* Dimension Labels */}
-        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] font-mono text-brand-muted whitespace-nowrap">
+        {/* Dimension Labels - More readable */}
+        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
            {formatFraction(width)}
         </div>
-        <div className="absolute -left-10 top-1/2 -translate-y-1/2 -rotate-90 text-[8px] font-mono text-brand-muted whitespace-nowrap">
+        <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
            {formatFraction(height)}
         </div>
       </div>
@@ -394,6 +430,7 @@ export default function App() {
   const [widthFrac, setWidthFrac] = useState<number>(0);
   const [heightWhole, setHeightWhole] = useState<number>(48);
   const [heightFrac, setHeightFrac] = useState<number>(0);
+  const [vias, setVias] = useState<2 | 3 | 4>(2);
   const [showResults, setShowResults] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   
@@ -440,7 +477,7 @@ export default function App() {
     const sideRailsSize = totalHeight;
     const sillSize = totalWidth - m7_8;
     const leafVerticalSize = totalHeight - m1_3_4;
-    const leafHorizontalSize = Math.floor(totalWidth / 2) - m1_1_8;
+    const leafHorizontalSize = Math.floor(totalWidth / vias) - m1_1_8;
     const glassWidth = leafHorizontalSize - m2_1_4;
     const glassHeight = leafVerticalSize - m2_1_4;
 
@@ -451,15 +488,21 @@ export default function App() {
         { id: 'sill', piece: "Alféizar / Cabezal", qty: 2, size: sillSize, formula: `Ancho (${formatFraction(totalWidth)}) - 7/8"` },
       ],
       hojas: [
-        { id: 'vert', piece: "Jamba / Llavín", qty: 4, size: leafVerticalSize, formula: `Alto - 1 3/4"` },
-        { id: 'horiz', piece: "Zócalo / Cabezal", qty: 4, size: leafHorizontalSize, formula: `(Ancho/2) - 1 1/8"` },
+        { id: 'vert', piece: "Jamba / Llavín", qty: vias * 2, size: leafVerticalSize, formula: `Alto - 1 3/4"` },
+        { id: 'horiz', piece: "Zócalo / Cabezal", qty: vias * 2, size: leafHorizontalSize, formula: `(Ancho/${vias}) - 1 1/8"` },
       ],
       vidrios: [
-        { id: 'glass_w', piece: "Cristal (Ancho)", qty: 2, size: glassWidth, formula: `H.Horiz - 2 1/4"` },
-        { id: 'glass_h', piece: "Cristal (Alto)", qty: 2, size: glassHeight, formula: `H.Vert - 2 1/4"` }
+        { 
+          id: 'glass', 
+          piece: "Cristal", 
+          qty: vias, 
+          size: glassWidth, // base size for logic
+          dimensions: `${formatFraction(glassWidth)} X ${formatFraction(glassHeight)}`,
+          formula: `H.Horiz x H.Vert (-2 1/4")` 
+        }
       ]
     };
-  }, [widthWhole, widthFrac, heightWhole, heightFrac]);
+  }, [widthWhole, widthFrac, heightWhole, heightFrac, vias]);
 
   const handleCalculate = () => {
     setIsCalculating(true);
@@ -472,26 +515,7 @@ export default function App() {
     }, 600);
   };
 
-  const addToQueue = () => {
-    const nextNum = projects.length + 2;
-    const nextTag = `Ventana ${nextNum.toString().padStart(2, '0')}`;
-
-    const newProject: WindowProject = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: windowTag || `Ventana ${(projects.length + 1).toString().padStart(2, '0')}`,
-      clientName: clientName || "Cliente Genérico",
-      width: widthWhole * 16 + widthFrac,
-      height: heightWhole * 16 + heightFrac,
-      results,
-      completedCuts: [],
-      status: 'pending',
-      createdAt: Date.now(),
-      deliveryDate: deliveryDate
-    };
-    setProjects(prev => [newProject, ...prev]);
-    setShowResults(false);
-    setWindowTag(nextTag);
-  };
+  /* addToQueue was redundant, replaced by addToBatch flow */
 
   const toggleProjectStatus = (id: string) => {
     setProjects(prev => prev.map(p => 
@@ -541,6 +565,7 @@ export default function App() {
     setWidthFrac(0);
     setHeightWhole(48);
     setHeightFrac(0);
+    setVias(2);
     setShowResults(false);
     setWindowTag("Ventana 01");
     setClientName("");
@@ -576,6 +601,7 @@ export default function App() {
       clientName: clientName || "Cliente Genérico",
       width: widthWhole * 16 + widthFrac,
       height: heightWhole * 16 + heightFrac,
+      vias,
       results,
       completedCuts: [],
       status: 'pending',
@@ -776,7 +802,7 @@ export default function App() {
                         <span className="w-6 h-1 bg-brand-accent rounded-full" />
                         <h2 className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-muted">Calculadora</h2>
                       </div>
-                      <div className="w-full sm:w-auto scale-90 sm:scale-100"><WindowPreview width={widthWhole * 16 + widthFrac} height={heightWhole * 16 + heightFrac} /></div>
+                      <div className="w-full sm:w-auto scale-100 sm:scale-110"><WindowPreview width={widthWhole * 16 + widthFrac} height={heightWhole * 16 + heightFrac} vias={vias} /></div>
                     </header>
 
                     <div className="space-y-6">
@@ -793,6 +819,31 @@ export default function App() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <DimensionInput label="Ancho" whole={widthWhole} fraction={widthFrac} onWholeChange={setWidthWhole} onFractionChange={setWidthFrac} />
                         <DimensionInput label="Alto" whole={heightWhole} fraction={heightFrac} onWholeChange={setHeightWhole} onFractionChange={setHeightFrac} />
+                      </div>
+
+                      <div className="space-y-4">
+                        <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">Configuración de Hojas (Vías)</label>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[2, 3, 4].map((v) => (
+                            <button
+                              key={v}
+                              onClick={() => setVias(v as 2 | 3 | 4)}
+                              className={`group relative h-32 rounded-2xl border-2 transition-all flex flex-col items-center justify-between p-3 ${vias === v ? 'bg-brand-accent/10 border-brand-accent shadow-[0_0_20px_rgba(59,130,246,0.2)]' : 'bg-brand-bg border-brand-border text-brand-muted hover:border-brand-accent/50'}`}
+                            >
+                               <div className="w-full pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
+                                  <WindowPreview width={v === 2 ? 60 * 16 : v === 3 ? 90 * 16 : 120 * 16} height={60 * 16} vias={v} />
+                               </div>
+                               <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${vias === v ? 'text-brand-accent' : 'text-brand-muted group-hover:text-white'}`}>
+                                 {v} Hojas
+                               </span>
+                               {vias === v && (
+                                 <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-accent text-white flex items-center justify-center shadow-md">
+                                    <Check size={8} strokeWidth={4} />
+                                 </div>
+                               )}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       <button 
@@ -829,9 +880,9 @@ export default function App() {
                         {orderWindows.map(p => (
                           <div key={p.id} className="p-5 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                               <div className="w-12 h-12 scale-50"><WindowPreview width={p.width} height={p.height} /></div>
+                               <div className="w-12 h-12 scale-50"><WindowPreview width={p.width} height={p.height} vias={p.vias} /></div>
                                <div>
-                                  <p className="text-sm font-black text-white uppercase italic">{p.name}</p>
+                                  <p className="text-sm font-black text-white uppercase italic">{p.name} ({p.vias} Vías)</p>
                                   <p className="text-[10px] font-mono text-brand-muted">{formatFraction(p.width)} x {formatFraction(p.height)}</p>
                                </div>
                             </div>
@@ -1025,7 +1076,7 @@ export default function App() {
                                          <div className="flex justify-between items-start">
                                             <div className="space-y-1">
                                                <div className="flex items-center gap-2">
-                                                 <h4 className={`text-base font-black uppercase truncate pr-4 ${isFullyCut ? 'text-red-400' : 'text-white'}`}>{project.name}</h4>
+                                                 <h4 className={`text-base font-black uppercase truncate pr-4 ${isFullyCut ? 'text-red-400' : 'text-white'}`}>{project.name} ({project.vias} Vías)</h4>
                                                  <Info size={14} className={isFullyCut ? 'text-red-500' : 'text-brand-accent opacity-50'} />
                                                </div>
                                                <div className="flex items-center gap-3">
@@ -1044,7 +1095,7 @@ export default function App() {
                   
                                          <div className="relative h-20 flex items-center -mx-2">
                                             <div className={`absolute inset-0 opacity-10 blur-xl rounded-full scale-50 ${isFullyCut ? 'bg-red-500' : 'bg-brand-accent'}`} />
-                                            <WindowPreview width={project.width} height={project.height} />
+                                            <WindowPreview width={project.width} height={project.height} vias={project.vias} />
                                          </div>
                   
                                          <button 
