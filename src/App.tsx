@@ -170,23 +170,23 @@ function ClientDashboard({ projects, onClientClick, selectedClientName, title, s
                 isSelected 
                   ? 'bg-brand-sidebar border-brand-accent ring-4 ring-brand-accent/20 scale-[1.02]' 
                   : isComplete 
-                    ? 'bg-red-500/5 border-red-500/40 hover:border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.1)]' 
+                    ? 'bg-emerald-500/5 border-emerald-500/40 hover:border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
                     : `${clientColor.bg} ${clientColor.border} hover:border-white/20 transition-all hover:scale-[1.01]`
               }`}
             >
               <div className="absolute top-0 right-0 p-5 opacity-[0.03] pointer-events-none group-hover:scale-110 group-hover:opacity-10 transition-all duration-500">
-                <User size={100} className={isComplete ? 'text-red-500' : clientColor.accent} />
+                <User size={100} className={isComplete ? 'text-emerald-500' : clientColor.accent} />
               </div>
 
               <div className="relative z-10 space-y-5">
                 <div className="space-y-1">
                   <div className="flex justify-between items-start">
-                    <p className={`text-[8px] font-black uppercase tracking-widest opacity-70 ${isComplete ? 'text-red-400' : clientColor.accent}`}>Cliente</p>
+                    <p className={`text-[8px] font-black uppercase tracking-widest opacity-70 ${isComplete ? 'text-emerald-400' : clientColor.accent}`}>Cliente</p>
                     {isComplete && (
-                      <span className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[7px] font-black uppercase tracking-widest animate-pulse">Completado</span>
+                      <span className="px-2 py-0.5 bg-emerald-500 text-white rounded-full text-[7px] font-black uppercase tracking-widest animate-pulse">Completado</span>
                     )}
                   </div>
-                  <h3 className={`text-xl font-black italic truncate pr-4 ${isComplete ? 'text-red-100' : 'text-white'}`}>{name}</h3>
+                  <h3 className={`text-xl font-black italic truncate pr-4 ${isComplete ? 'text-emerald-100' : 'text-white'}`}>{name}</h3>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -200,9 +200,9 @@ function ClientDashboard({ projects, onClientClick, selectedClientName, title, s
                   </div>
                   <div className="space-y-1">
                     <p className="text-[8px] text-brand-muted uppercase font-black tracking-tighter opacity-50 flex items-center gap-1">
-                      <RotateCcw size={8} className={isComplete ? 'text-red-400' : clientColor.accent} /> Termina
+                      <RotateCcw size={8} className={isComplete ? 'text-emerald-400' : clientColor.accent} /> Termina
                     </p>
-                    <p className={`text-[10px] font-mono font-bold ${isComplete ? 'text-red-400' : clientColor.accent}`}>
+                    <p className={`text-[10px] font-mono font-bold ${isComplete ? 'text-emerald-400' : clientColor.accent}`}>
                       {data.exitDate ? new Date(data.exitDate).toLocaleDateString() : 'Pendiente'}
                     </p>
                   </div>
@@ -211,14 +211,14 @@ function ClientDashboard({ projects, onClientClick, selectedClientName, title, s
                 <div className="space-y-2">
                    <p className="text-[8px] text-brand-muted uppercase font-black tracking-widest opacity-50">Detalles de Orden</p>
                    <div className="flex justify-between items-center mb-1 px-0.5">
-                      <p className={`text-[10px] font-black uppercase tracking-widest ${isComplete ? 'text-red-400' : clientColor.accent}`}>{data.count} Ventanas</p>
-                      <p className={`text-xs font-black italic tabular-nums ${isComplete ? 'text-red-100' : 'text-white'}`}>{progress}%</p>
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${isComplete ? 'text-emerald-400' : clientColor.accent}`}>{data.count} Ventanas</p>
+                      <p className={`text-xs font-black italic tabular-nums ${isComplete ? 'text-emerald-100' : 'text-white'}`}>{progress}%</p>
                    </div>
                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
-                        className={`h-full ${isComplete ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : `${clientColor.bar} shadow-[0_0_10px_${clientColor.bar === 'bg-blue-500' ? 'rgba(59,130,246,0.5)' : 'rgba(0,0,0,0.5)'}]`}`}
+                        className={`h-full ${isComplete ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : `${clientColor.bar} shadow-[0_0_10px_${clientColor.bar === 'bg-blue-500' ? 'rgba(59,130,246,0.5)' : 'rgba(0,0,0,0.5)'}]`}`}
                         style={{ backgroundColor: isComplete ? undefined : clientColor.bar.replace('bg-', '') }}
                       />
                    </div>
@@ -660,7 +660,7 @@ export default function App() {
               ease: "easeInOut" 
             }}
             whileHover={{ scale: 1.1, rotate: 15 }}
-            className="p-2.5 bg-gradient-to-br from-red-500 via-blue-500 to-blue-700 rounded-2xl text-white shadow-[0_0_20px_rgba(239,68,68,0.2)] border border-white/10 cursor-pointer"
+            className="p-2.5 bg-gradient-to-br from-brand-accent via-blue-600 to-blue-800 rounded-2xl text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] border border-white/10 cursor-pointer"
           >
             <Hammer size={22} strokeWidth={2.5} className="drop-shadow-lg" />
           </motion.div>
@@ -903,7 +903,7 @@ export default function App() {
           {/* 3. Production by Client */}
           {selectedClientName && (
           <section className="space-y-12">
-            <div className="flex items-center justify-between gap-4 px-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 px-1">
                <div className="flex items-center gap-4">
                   <div className="p-2.5 bg-brand-accent/10 border border-brand-accent/20 rounded-xl text-brand-accent shadow-sm">
                      <ClipboardList size={20} />
@@ -913,12 +913,30 @@ export default function App() {
                      <p className="text-[10px] text-brand-muted uppercase tracking-[0.2em] font-medium">Detalles de producción</p>
                   </div>
                </div>
-               <button 
-                onClick={() => setSelectedClientName(null)}
-                className="px-5 h-10 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
-               >
-                 <ArrowLeft size={14} /> Regresar
-               </button>
+               <div className="flex items-center gap-3 w-full sm:w-auto">
+                 <button 
+                  onClick={() => {
+                    const pass = window.prompt("Ingrese contraseña para ELIMINAR CLIENTE:");
+                    if (pass === "1989") {
+                      if (window.confirm(`¿Seguro que desea eliminar a ${selectedClientName} y todas sus ordenes?`)) {
+                        setProjects(prev => prev.filter(p => p.clientName !== selectedClientName));
+                        setSelectedClientName(null);
+                      }
+                    } else if (pass !== null) {
+                      window.alert("Contraseña Incorrecta");
+                    }
+                  }}
+                  className="flex-1 sm:flex-none px-5 h-10 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-500/20 transition-all flex items-center justify-center gap-2"
+                 >
+                   <Trash2 size={14} /> Eliminar
+                 </button>
+                 <button 
+                  onClick={() => setSelectedClientName(null)}
+                  className="flex-1 sm:flex-none px-5 h-10 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                 >
+                   <ArrowLeft size={14} /> Regresar
+                 </button>
+               </div>
             </div>
 
             <div className="space-y-24">
