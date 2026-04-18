@@ -22,6 +22,7 @@ interface WindowProject {
   id: string;
   name: string;
   clientName: string;
+  type: 'P65' | 'P92' | 'P40' | 'VENTILADA';
   width: number; // sixteenths
   height: number; // sixteenths
   vias: 2 | 3 | 4;
@@ -431,6 +432,7 @@ export default function App() {
   const [heightWhole, setHeightWhole] = useState<number>(48);
   const [heightFrac, setHeightFrac] = useState<number>(0);
   const [vias, setVias] = useState<2 | 3 | 4>(2);
+  const [windowType, setWindowType] = useState<'P65' | 'P92' | 'P40' | 'VENTILADA'>('P65');
   const [showResults, setShowResults] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   
@@ -440,13 +442,14 @@ export default function App() {
   
   // Navigation & Order Creation State
   const [activeView, setActiveView] = useState<'dashboard' | 'history' | 'new-order'>('dashboard');
-  const [orderStep, setOrderStep] = useState<1 | 2>(1);
+  const [orderStep, setOrderStep] = useState<1 | 2 | 3>(1);
   const [orderWindows, setOrderWindows] = useState<WindowProject[]>([]);
 
   // Security State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [passInput, setPassInput] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingDeleteClient, setPendingDeleteClient] = useState<string | null>(null);
 
   // Load from localStorage
   useEffect(() => {
@@ -541,21 +544,36 @@ export default function App() {
 
   const deleteProject = (id: string) => {
     setPendingDeleteId(id);
+    setPendingDeleteClient(null);
+    setIsAuthModalOpen(true);
+    setPassInput("");
+  };
+
+  const deleteClientGroup = (name: string) => {
+    setPendingDeleteClient(name);
+    setPendingDeleteId(null);
     setIsAuthModalOpen(true);
     setPassInput("");
   };
 
   const confirmDeletion = () => {
     if (passInput === "1989") {
-      setProjects(prev => prev.filter(p => p.id !== pendingDeleteId));
+      if (pendingDeleteId) {
+        setProjects(prev => prev.filter(p => p.id !== pendingDeleteId));
+        if (selectedProject?.id === pendingDeleteId) {
+          setSelectedProject(null);
+        }
+      } else if (pendingDeleteClient) {
+        setProjects(prev => prev.filter(p => p.clientName !== pendingDeleteClient));
+        if (selectedClientName === pendingDeleteClient) {
+          setSelectedClientName(null);
+        }
+      }
       setIsAuthModalOpen(false);
       setPendingDeleteId(null);
+      setPendingDeleteClient(null);
       setPassInput("");
-      if (selectedProject?.id === pendingDeleteId) {
-        setSelectedProject(null);
-      }
     } else {
-      // Shaking effect handled by motion
       setPassInput("");
     }
   };
@@ -599,6 +617,7 @@ export default function App() {
       id: Math.random().toString(36).substr(2, 9),
       name: windowTag || `Ventana ${(orderWindows.length + 1).toString().padStart(2, '0')}`,
       clientName: clientName || "Cliente Genérico",
+      type: windowType,
       width: widthWhole * 16 + widthFrac,
       height: heightWhole * 16 + heightFrac,
       vias,
@@ -722,7 +741,7 @@ export default function App() {
                     <ArrowLeft size={14} /> Volver
                  </button>
                  <div className="flex items-center gap-3">
-                    {[1, 2].map((step) => (
+                    {[1, 2, 3].map((step) => (
                       <div key={step}>
                         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black border transition-all ${orderStep === step ? 'bg-brand-accent border-brand-accent text-white shadow-lg scale-105' : 'bg-white/5 border-white/10 text-brand-muted'}`}>
                           {step}
@@ -732,7 +751,7 @@ export default function App() {
                  </div>
               </div>
 
-              {orderStep === 1 ? (
+               {orderStep === 1 ? (<>
                 <section className="bg-brand-sidebar border border-brand-border p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl space-y-6 relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none -mr-4 -mt-4">
                      <User size={80} />
@@ -769,31 +788,123 @@ export default function App() {
                     whileTap={{ scale: 0.98 }}
                     onClick={() => clientName && setOrderStep(2)}
                     disabled={!clientName}
-                    className="w-full h-12 sm:h-14 bg-brand-accent rounded-[1rem] sm:rounded-[1.2rem] flex items-center justify-center gap-4 text-white font-black uppercase text-[10px] sm:text-xs shadow-xl disabled:opacity-20 disabled:grayscale transition-all"
+                    className="w-full h-12 sm:h-14 bg-red-600 rounded-[1rem] sm:rounded-[1.2rem] flex items-center justify-center gap-4 text-white font-black uppercase text-[10px] sm:text-xs shadow-xl disabled:opacity-20 disabled:grayscale transition-all"
                   >
                     Siguiente Paso <ArrowRight size={16} />
                   </motion.button>
                 </section>
-              ) : (
-                <div className="space-y-6">
-                  {/* Step 2: Add Windows to this Client */}
-                  <div className="bg-brand-accent/10 border border-brand-accent/20 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-brand-accent flex items-center justify-center text-white shrink-0">
-                           <User size={16} />
+
+                {allByClient.length > 0 && (
+                  <div className="space-y-4 pt-4">
+                    <h3 className="text-[10px] font-black text-brand-muted uppercase tracking-[0.3em] px-1 opacity-50">Clientes Existentes</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-20">
+                      {allByClient.map(client => (
+                        <div key={client.name} className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group hover:border-brand-accent/30 transition-all">
+                          <div className="overflow-hidden">
+                            <p className="text-sm font-black text-white italic truncate leading-none mb-1">{client.name}</p>
+                            <p className="text-[9px] text-brand-muted uppercase font-mono">{client.totalWindows} Ventanas</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <button 
+                               onClick={() => deleteClientGroup(client.name)}
+                               className="p-2 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                             >
+                               <Trash2 size={14} />
+                             </button>
+                             <button 
+                               onClick={() => { setClientName(client.name); setOrderStep(2); }}
+                               className="px-4 h-10 bg-red-600 rounded-xl text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-red-500 transition-all"
+                             >
+                               Seleccionar
+                             </button>
+                          </div>
                         </div>
-                        <div className="overflow-hidden">
-                           <h4 className="text-sm sm:text-lg font-black text-white uppercase italic truncate">{clientName}</h4>
-                           <p className="text-[8px] text-brand-muted uppercase font-mono tracking-widest opacity-60">Carga de ventanas</p>
-                        </div>
-                     </div>
-                     <button 
-                       onClick={() => setOrderStep(1)}
-                       className="px-3 py-1.5 bg-white/5 border border-white/5 rounded-lg text-[8px] font-black text-brand-muted hover:text-white uppercase transition-all shrink-0"
-                     >
-                        Editar
-                     </button>
+                      ))}
+                    </div>
                   </div>
+                )}
+                </>
+              ) : orderStep === 2 ? (
+                <section className="bg-brand-sidebar border border-brand-border p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl space-y-8 relative overflow-hidden">
+                   <div className="flex items-center justify-between">
+                     <div className="space-y-1">
+                        <h2 className="text-xl sm:text-2xl font-black text-white italic tracking-tighter uppercase">Tipo de Ventana</h2>
+                        <p className="text-[8px] text-brand-muted uppercase tracking-[0.3em] font-medium opacity-60">Seleccione el perfil de fabricación</p>
+                     </div>
+                     <button onClick={() => setOrderStep(1)} className="p-2 bg-white/5 rounded-lg text-brand-muted hover:text-white transition-all">
+                        <ArrowLeft size={16} />
+                     </button>
+                   </div>
+
+                   <div className="grid grid-cols-2 gap-4">
+                      {([
+                        { id: 'P65', desc: 'Series 65 Premium' },
+                        { id: 'P92', desc: 'Industrial Heavy' },
+                        { id: 'P40', desc: 'Residencial Slim' },
+                        { id: 'VENTILADA', desc: 'Flujo de Aire' }
+                      ] as const).map((type) => (
+                        <motion.button
+                          key={type.id}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => {
+                            setWindowType(type.id);
+                            setOrderStep(3);
+                          }}
+                          className={`p-6 rounded-[1.5rem] border-2 text-left transition-all relative overflow-hidden group ${windowType === type.id ? 'bg-brand-accent/10 border-brand-accent shadow-[0_0_25px_rgba(59,130,246,0.15)]' : 'bg-brand-bg border-brand-border hover:border-brand-accent/40'}`}
+                        >
+                           <div className="relative z-10">
+                              <h3 className={`text-xl font-black italic mb-1 ${windowType === type.id ? 'text-brand-accent' : 'text-white'}`}>{type.id}</h3>
+                              <p className="text-[9px] font-mono text-brand-muted uppercase tracking-tight">{type.desc}</p>
+                           </div>
+                           <div className={`absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity ${windowType === type.id ? 'opacity-10 text-brand-accent' : 'text-white'}`}>
+                              <Calculator size={100} />
+                           </div>
+                        </motion.button>
+                      ))}
+                   </div>
+
+                   <div className="flex items-center gap-3 p-4 bg-brand-accent/5 border border-brand-accent/10 rounded-xl">
+                      <div className="w-8 h-8 rounded-lg bg-brand-accent/20 flex items-center justify-center text-brand-accent shrink-0">
+                         <User size={16} />
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="text-[8px] text-brand-muted font-black uppercase tracking-widest leading-tight">Configurando para:</p>
+                        <p className="text-xs font-black text-white uppercase italic truncate">{clientName}</p>
+                      </div>
+                   </div>
+                </section>
+              ) : (<>
+                  <div className="space-y-6">
+                  {/* Step 3: Add Windows to this Client */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-brand-accent/10 border border-brand-accent/20 p-4 rounded-[1.5rem] flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-brand-accent flex items-center justify-center text-white shrink-0">
+                             <User size={16} />
+                          </div>
+                          <div className="overflow-hidden">
+                             <h4 className="text-sm font-black text-white uppercase italic truncate">{clientName}</h4>
+                             <p className="text-[8px] text-brand-muted uppercase font-mono tracking-widest opacity-60">Cliente</p>
+                          </div>
+                       </div>
+                       <button onClick={() => setOrderStep(1)} className="p-2 hover:bg-white/5 rounded-lg text-brand-muted transition-all"><ArrowLeft size={14} /></button>
+                    </div>
+
+                    <div className="bg-white/5 border border-white/10 p-4 rounded-[1.5rem] flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-brand-sidebar border border-white/5 flex items-center justify-center text-brand-accent shrink-0">
+                             <Calculator size={16} />
+                          </div>
+                          <div className="overflow-hidden">
+                             <h4 className="text-sm font-black text-white uppercase italic truncate">{windowType}</h4>
+                             <p className="text-[8px] text-brand-muted uppercase font-mono tracking-widest opacity-60">Perfil Seleccionado</p>
+                          </div>
+                       </div>
+                       <button onClick={() => setOrderStep(2)} className="p-2 hover:bg-white/5 rounded-lg text-brand-muted transition-all"><RotateCcw size={14} /></button>
+                    </div>
+                  </div>
+</div>
 
                   {/* Calculator Console */}
                   <section className="bg-brand-sidebar border border-brand-border p-6 sm:p-8 rounded-[2rem] sm:rounded-[3rem] shadow-2xl space-y-6 sm:space-y-8">
@@ -865,6 +976,8 @@ export default function App() {
                         </button>
                       </motion.div>
                     )}
+
+
                   </section>
 
                   {/* Batch Summary */}
@@ -882,7 +995,7 @@ export default function App() {
                             <div className="flex items-center gap-4">
                                <div className="w-12 h-12 scale-50"><WindowPreview width={p.width} height={p.height} vias={p.vias} /></div>
                                <div>
-                                  <p className="text-sm font-black text-white uppercase italic">{p.name} ({p.vias} Vías)</p>
+                                  <p className="text-sm font-black text-white uppercase italic">{p.name} ({p.vias} Vías - {p.type})</p>
                                   <p className="text-[10px] font-mono text-brand-muted">{formatFraction(p.width)} x {formatFraction(p.height)}</p>
                                </div>
                             </div>
@@ -893,9 +1006,9 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
+                )}
+                  </>
+               )}
             </motion.div>
           ) : (
             <motion.div 
@@ -939,7 +1052,7 @@ export default function App() {
                   <CheckCircle2 size={40} className="mx-auto mb-4 text-emerald-500" />
                   <p className="text-xs font-black uppercase tracking-[0.5em]">¡Todo al día! — No hay ordenes activas</p>
                 </div>
-              )}
+                )}
 
               {!selectedClientName && activeView === 'history' && projects.filter(p => {
                 const group = allByClient.find(g => g.name === p.clientName);
@@ -949,7 +1062,7 @@ export default function App() {
                   <History size={40} className="mx-auto mb-4 text-brand-muted" />
                   <p className="text-xs font-black uppercase tracking-[0.5em]">Historial Vacío</p>
                 </div>
-              )}
+                )}
 
           {/* 3. Production by Client */}
           {selectedClientName && (
@@ -1022,7 +1135,7 @@ export default function App() {
                                    <Clock size={12} />
                                    <span>Egresó: {new Date(group.exitDate).toLocaleDateString()}</span>
                                  </div>
-                               )}
+                )}
                                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/20 text-emerald-500">
                                  <CheckCircle2 size={12} />
                                  <span>{group.doneWindows} / {group.totalWindows} Entregadas</span>
@@ -1076,7 +1189,7 @@ export default function App() {
                                          <div className="flex justify-between items-start">
                                             <div className="space-y-1">
                                                <div className="flex items-center gap-2">
-                                                 <h4 className={`text-base font-black uppercase truncate pr-4 ${isFullyCut ? 'text-red-400' : 'text-white'}`}>{project.name} ({project.vias} Vías)</h4>
+                                                 <h4 className={`text-base font-black uppercase truncate pr-4 ${isFullyCut ? 'text-red-400' : 'text-white'}`}>{project.name} ({project.vias} Vías - {project.type})</h4>
                                                  <Info size={14} className={isFullyCut ? 'text-red-500' : 'text-brand-accent opacity-50'} />
                                                </div>
                                                <div className="flex items-center gap-3">
@@ -1115,7 +1228,7 @@ export default function App() {
                                 </AnimatePresence>
                               </div>
                            </div>
-                         )}
+                )}
 
                          {/* Completed Windows */}
                          {group.completed.length > 0 && (
@@ -1147,22 +1260,25 @@ export default function App() {
                                 ))}
                               </div>
                            </div>
-                         )}
+                )}
                       </div>
                    </div>
                  </motion.div>
-               ))}
+                ))}
+
                
                {projects.length === 0 && (
                  <div className="py-20 text-center opacity-10">
                     <p className="text-xs font-black uppercase tracking-[0.5em]">Sistema Vacío — Añada una orden arriba</p>
                  </div>
-               )}
+                )}
             </div>
           </section>
-          )}
-        </motion.div>
-      )}
+                  )}
+               </motion.div>
+            )}
+
+
     </div>
   </main>
 
@@ -1281,7 +1397,7 @@ export default function App() {
                                  <p className="text-[7px] text-brand-muted uppercase font-black opacity-30">Salida</p>
                                  <p className="text-[9px] font-mono text-brand-accent">{new Date(selectedProject.deliveryDate).toLocaleDateString()}</p>
                               </div>
-                            )}
+                )}
                          </div>
                       </div>
                    </div>
@@ -1327,7 +1443,7 @@ export default function App() {
                 </div>
              </motion.div>
           </div>
-        )}
+                )}
       </AnimatePresence>
 
       {/* Security Check Portal (Modal) */}
@@ -1398,7 +1514,7 @@ export default function App() {
                 </button>
              </motion.div>
           </div>
-        )}
+                )}
       </AnimatePresence>
 
       <style>{`
