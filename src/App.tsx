@@ -70,6 +70,15 @@ function formatFraction(sixteenths: number): string {
 
 // --- Components ---
 
+const CLIENT_COLORS = [
+  { bg: 'bg-blue-500/5', border: 'border-blue-500/20', accent: 'text-blue-400', bar: 'bg-blue-500', shadow: 'shadow-blue-500/20' },
+  { bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', accent: 'text-emerald-400', bar: 'bg-emerald-500', shadow: 'shadow-emerald-500/20' },
+  { bg: 'bg-violet-500/5', border: 'border-violet-500/20', accent: 'text-violet-400', bar: 'bg-violet-500', shadow: 'shadow-violet-500/20' },
+  { bg: 'bg-amber-500/5', border: 'border-amber-500/20', accent: 'text-amber-400', bar: 'bg-amber-500', shadow: 'shadow-amber-500/20' },
+  { bg: 'bg-rose-500/5', border: 'border-rose-500/20', accent: 'text-rose-400', bar: 'bg-rose-500', shadow: 'shadow-rose-500/20' },
+  { bg: 'bg-cyan-500/5', border: 'border-cyan-500/20', accent: 'text-cyan-400', bar: 'bg-cyan-500', shadow: 'shadow-cyan-500/20' },
+];
+
 function ClientDashboard({ projects, onClientClick, selectedClientName, title, subtitle }: { 
   projects: WindowProject[], 
   onClientClick?: (clientName: string) => void,
@@ -146,6 +155,10 @@ function ClientDashboard({ projects, onClientClick, selectedClientName, title, s
           const isComplete = progress === 100;
           const isSelected = selectedClientName === name;
 
+          // Deterministic color based on name
+          const colorIndex = Math.abs(name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % CLIENT_COLORS.length;
+          const clientColor = CLIENT_COLORS[colorIndex];
+
           return (
             <motion.div 
               layout
@@ -157,18 +170,18 @@ function ClientDashboard({ projects, onClientClick, selectedClientName, title, s
                 isSelected 
                   ? 'bg-brand-sidebar border-brand-accent ring-4 ring-brand-accent/20 scale-[1.02]' 
                   : isComplete 
-                    ? 'bg-red-500/5 border-red-500/40 hover:border-red-500/60' 
-                    : 'bg-brand-sidebar border-brand-border hover:border-brand-accent/30'
+                    ? 'bg-red-500/5 border-red-500/40 hover:border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.1)]' 
+                    : `${clientColor.bg} ${clientColor.border} hover:border-white/20 transition-all hover:scale-[1.01]`
               }`}
             >
               <div className="absolute top-0 right-0 p-5 opacity-[0.03] pointer-events-none group-hover:scale-110 group-hover:opacity-10 transition-all duration-500">
-                <User size={100} className={isComplete ? 'text-red-500' : 'text-brand-accent'} />
+                <User size={100} className={isComplete ? 'text-red-500' : clientColor.accent} />
               </div>
 
               <div className="relative z-10 space-y-5">
                 <div className="space-y-1">
                   <div className="flex justify-between items-start">
-                    <p className={`text-[8px] font-black uppercase tracking-widest opacity-70 ${isComplete ? 'text-red-400' : 'text-brand-accent'}`}>Cliente</p>
+                    <p className={`text-[8px] font-black uppercase tracking-widest opacity-70 ${isComplete ? 'text-red-400' : clientColor.accent}`}>Cliente</p>
                     {isComplete && (
                       <span className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[7px] font-black uppercase tracking-widest animate-pulse">Completado</span>
                     )}
@@ -187,9 +200,9 @@ function ClientDashboard({ projects, onClientClick, selectedClientName, title, s
                   </div>
                   <div className="space-y-1">
                     <p className="text-[8px] text-brand-muted uppercase font-black tracking-tighter opacity-50 flex items-center gap-1">
-                      <RotateCcw size={8} className={isComplete ? 'text-red-400' : 'text-brand-accent'} /> Termina
+                      <RotateCcw size={8} className={isComplete ? 'text-red-400' : clientColor.accent} /> Termina
                     </p>
-                    <p className={`text-[10px] font-mono font-bold ${isComplete ? 'text-red-400' : 'text-brand-accent'}`}>
+                    <p className={`text-[10px] font-mono font-bold ${isComplete ? 'text-red-400' : clientColor.accent}`}>
                       {data.exitDate ? new Date(data.exitDate).toLocaleDateString() : 'Pendiente'}
                     </p>
                   </div>
@@ -198,14 +211,15 @@ function ClientDashboard({ projects, onClientClick, selectedClientName, title, s
                 <div className="space-y-2">
                    <p className="text-[8px] text-brand-muted uppercase font-black tracking-widest opacity-50">Detalles de Orden</p>
                    <div className="flex justify-between items-center mb-1 px-0.5">
-                      <p className={`text-[10px] font-black uppercase tracking-widest ${isComplete ? 'text-red-400' : 'text-brand-accent'}`}>{data.count} Ventanas</p>
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${isComplete ? 'text-red-400' : clientColor.accent}`}>{data.count} Ventanas</p>
                       <p className={`text-xs font-black italic tabular-nums ${isComplete ? 'text-red-100' : 'text-white'}`}>{progress}%</p>
                    </div>
                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
-                        className={`h-full ${isComplete ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-brand-accent shadow-[0_0_10px_rgba(59,130,246,0.5)]'}`}
+                        className={`h-full ${isComplete ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : `${clientColor.bar} shadow-[0_0_10px_${clientColor.bar === 'bg-blue-500' ? 'rgba(59,130,246,0.5)' : 'rgba(0,0,0,0.5)'}]`}`}
+                        style={{ backgroundColor: isComplete ? undefined : clientColor.bar.replace('bg-', '') }}
                       />
                    </div>
                 </div>
