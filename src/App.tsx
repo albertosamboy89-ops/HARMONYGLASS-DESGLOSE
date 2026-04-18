@@ -656,26 +656,9 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/5">
-           <button 
-             onClick={() => setActiveView('dashboard')}
-             className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'dashboard' ? 'bg-brand-accent text-white shadow-lg' : 'text-brand-muted hover:text-white'}`}
-           >
-             <LayoutDashboard size={14} />
-             <span className="hidden sm:inline">Panel</span>
-           </button>
-           <button 
-             onClick={startNewOrder}
-             className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'new-order' ? 'bg-brand-accent text-white shadow-lg' : 'text-brand-muted hover:text-white'}`}
-           >
-             <Plus size={14} />
-             <span className="hidden sm:inline">Nueva Orden</span>
-           </button>
-        </nav>
-
         <button 
           onClick={handleReset} 
-          className="p-3 bg-white/5 rounded-xl text-brand-muted hover:text-white transition-all ml-2"
+          className="p-3 bg-white/5 rounded-xl text-brand-muted hover:text-white transition-all ml-auto"
         >
           <RotateCcw size={18} />
         </button>
@@ -1101,16 +1084,24 @@ export default function App() {
   </main>
 
       {/* Global Bottom Navigation */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] w-[92%] max-w-lg flex items-center gap-2 p-1.5 bg-brand-sidebar/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] w-[92%] max-w-lg flex items-center gap-1 p-1 bg-brand-sidebar/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
         <button 
           onClick={() => {
             setActiveView('dashboard');
             setSelectedClientName(null);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          className={`flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[9px] tracking-widest transition-all ${activeView === 'dashboard' ? 'bg-white/10 text-brand-accent border border-brand-accent/20' : 'text-brand-muted hover:text-white'}`}
+          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[9px] tracking-widest transition-all z-10 ${activeView === 'dashboard' ? 'text-white' : 'text-brand-muted hover:text-white'}`}
         >
-          <LayoutDashboard size={16} /> Principal
+          {activeView === 'dashboard' && (
+            <motion.div 
+              layoutId="nav-pill"
+              className="absolute inset-0 bg-red-600 rounded-[1.5rem] shadow-[0_0_20px_rgba(220,38,38,0.4)]"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <LayoutDashboard size={16} className="relative z-10" /> 
+          <span className="relative z-10">Principal</span>
         </button>
         <button 
           onClick={() => {
@@ -1118,15 +1109,31 @@ export default function App() {
             setSelectedClientName(null);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          className={`flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[9px] tracking-widest transition-all ${activeView === 'history' ? 'bg-white/10 text-brand-accent border border-brand-accent/20' : 'text-brand-muted hover:text-white'}`}
+          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[9px] tracking-widest transition-all z-10 ${activeView === 'history' ? 'text-white' : 'text-brand-muted hover:text-white'}`}
         >
-          <History size={16} /> Historial
+          {activeView === 'history' && (
+            <motion.div 
+              layoutId="nav-pill"
+              className="absolute inset-0 bg-red-600 rounded-[1.5rem] shadow-[0_0_20px_rgba(220,38,38,0.4)]"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <History size={16} className="relative z-10" /> 
+          <span className="relative z-10">Historial</span>
         </button>
         <button 
           onClick={startNewOrder}
-          className={`flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[9px] tracking-widest transition-all ${activeView === 'new-order' ? 'bg-brand-accent text-white shadow-lg' : 'bg-brand-accent/10 text-brand-accent border border-brand-accent/10 hover:bg-brand-accent/20'}`}
+          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[9px] tracking-widest transition-all z-10 ${activeView === 'new-order' ? 'text-white' : 'text-brand-muted hover:text-white'}`}
         >
-          <Plus size={16} strokeWidth={3} /> Nueva Orden
+          {activeView === 'new-order' && (
+            <motion.div 
+              layoutId="nav-pill"
+              className="absolute inset-0 bg-red-600 rounded-[1.5rem] shadow-[0_0_20px_rgba(220,38,38,0.4)]"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <Plus size={16} className="relative z-10" strokeWidth={3} /> 
+          <span className="relative z-10">Nueva Orden</span>
         </button>
       </nav>
 
