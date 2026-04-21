@@ -655,7 +655,6 @@ export default function App() {
     if (vias === 3) {
       leafOverlap = 4;               // Cabezal 0.25"
       frameHorizDeduction = 22;      // Riel 1.375"
-      glassWidthDeduction = 42;      // Vidrio Ancho 2.625"
     }
 
     let profileName = windowType;
@@ -665,9 +664,8 @@ export default function App() {
     const leafVerticalSize = totalHeight - leafVertDeduction;
     
     // Width Logic based on Vias
-    // 2 vias: 1 overlap. 3 vias: 2 overlaps. 4 vias: 1 overlap (central meeting)
-    const numOverlaps = (vias === 4) ? 1 : (vias - 1);
-    const leafHorizontalSize = Math.floor((totalWidth + (numOverlaps * leafOverlap)) / vias);
+    // Use user formula: ancho / vias - 0.625
+    const leafHorizontalSize = Math.floor((totalWidth / vias) - 10);
     
     const glassWidth = leafHorizontalSize - glassWidthDeduction;
     const glassHeight = leafVerticalSize - glassHeightDeduction;
@@ -680,7 +678,7 @@ export default function App() {
       ],
       hojas: [
         { id: 'vert', piece: "Jamba / Llavín", qty: vias * 2, size: leafVerticalSize, formula: `Alto - ${formatFraction(leafVertDeduction)}` },
-        { id: 'alf_rueda', piece: "Alf / Rueda", qty: vias * 2, size: leafHorizontalSize, formula: `Ancho Pan.` },
+        { id: 'alf_rueda', piece: "Alf / Rueda", qty: vias * 2, size: leafHorizontalSize, formula: "Ancho/vias - 0.625" },
       ],
       vidrios: [
         { 
@@ -689,7 +687,7 @@ export default function App() {
           qty: vias, 
           size: glassWidth, 
           dimensions: formatDimensionSet(glassWidth, glassHeight),
-          formula: `Ancho Pan. - ${formatFraction(glassWidthDeduction)} / Alto Pan. - ${formatFraction(glassHeightDeduction)}` 
+          formula: `Alf/Rueda - 2.75 / Jamba - ${formatFraction(glassHeightDeduction)}` 
         }
       ]
     };
