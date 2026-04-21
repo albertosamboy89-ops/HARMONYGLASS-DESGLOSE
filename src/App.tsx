@@ -147,13 +147,23 @@ function PrintReport({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.print()}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.print();
+              }}
               className="px-6 h-8 bg-red-600 text-white rounded-lg font-black uppercase text-[10px] flex items-center gap-2 shadow-lg hover:bg-red-700 transition-all"
             >
               <Printer size={14} /> Imprimir Reporte
             </button>
             <button
-              onClick={onExit}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onExit();
+              }}
               className="px-4 h-8 bg-black text-white rounded-lg font-black uppercase text-[10px] flex items-center gap-2"
             >
               <X size={14} /> Cerrar
@@ -1691,12 +1701,7 @@ export default function App() {
               {/* Dashboard Main View (Principal or History) */}
               {!selectedClientName && activeView === "dashboard" && (
                 <ClientDashboard
-                  projects={projects.filter((p) => {
-                    const group = allByClient.find(
-                      (g) => g.name === p.clientName,
-                    );
-                    return !group || group.progress < 100;
-                  })}
+                  projects={projects.filter((p) => p.status === "pending")}
                   onClientClick={(name) => setSelectedClientName(name)}
                   selectedClientName={selectedClientName}
                   title="Panel de Control"
@@ -1706,12 +1711,7 @@ export default function App() {
 
               {!selectedClientName && activeView === "history" && (
                 <ClientDashboard
-                  projects={projects.filter((p) => {
-                    const group = allByClient.find(
-                      (g) => g.name === p.clientName,
-                    );
-                    return group && group.progress === 100;
-                  })}
+                  projects={projects.filter((p) => p.status === "completed")}
                   onClientClick={(name) => setSelectedClientName(name)}
                   selectedClientName={selectedClientName}
                   title="Historial"
@@ -1722,12 +1722,7 @@ export default function App() {
               {/* Empty States */}
               {!selectedClientName &&
                 activeView === "dashboard" &&
-                projects.filter((p) => {
-                  const group = allByClient.find(
-                    (g) => g.name === p.clientName,
-                  );
-                  return !group || group.progress < 100;
-                }).length === 0 && (
+                projects.filter((p) => p.status === "pending").length === 0 && (
                   <div className="py-20 text-center opacity-20">
                     <CheckCircle2
                       size={40}
@@ -1741,12 +1736,8 @@ export default function App() {
 
               {!selectedClientName &&
                 activeView === "history" &&
-                projects.filter((p) => {
-                  const group = allByClient.find(
-                    (g) => g.name === p.clientName,
-                  );
-                  return group && group.progress === 100;
-                }).length === 0 && (
+                projects.filter((p) => p.status === "completed").length ===
+                  0 && (
                   <div className="py-20 text-center opacity-20">
                     <History
                       size={40}
@@ -1775,14 +1766,45 @@ export default function App() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                       <button
-                        onClick={() => setIsPrintMode(true)}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsPrintMode(true);
+                        }}
                         className="flex-1 sm:flex-none px-5 h-10 bg-brand-accent/20 border border-brand-accent/30 rounded-xl text-[10px] font-black text-brand-accent uppercase tracking-widest hover:bg-brand-accent/30 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-accent/10"
                       >
                         <Printer size={14} /> Reporte PDF
                       </button>
+                      {allByClient.find((g) => g.name === selectedClientName)
+                        ?.progress === 100 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "¿Desea finalizar esta orden y moverla al historial?",
+                              )
+                            ) {
+                              setProjects((prev) =>
+                                prev.map((p) =>
+                                  p.clientName === selectedClientName
+                                    ? { ...p, status: "completed" }
+                                    : p,
+                                ),
+                              );
+                              setSelectedClientName(null);
+                            }
+                          }}
+                          className="flex-1 sm:flex-none px-5 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:bg-emerald-500/30 transition-all flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle2 size={14} /> Finalizar Pedido
+                        </button>
+                      )}
                       <button
+                        type="button"
                         onClick={() => setSelectedClientName(null)}
                         className="flex-1 sm:flex-none px-5 h-10 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2"
                       >
