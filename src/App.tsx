@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Hammer, Info, RotateCcw, ChevronDown, AlertTriangle, Calculator, Check, Trash2, Plus, Clock, History, ClipboardList, User, Calendar, CheckCircle2, LayoutDashboard, ArrowLeft, ArrowRight, Save } from "lucide-react";
+import { Hammer, Info, RotateCcw, ChevronDown, AlertTriangle, Calculator, Check, Trash2, Plus, Clock, History, ClipboardList, User, Calendar, CheckCircle2, LayoutDashboard, ArrowLeft, ArrowRight, Save, Printer, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 // --- Types ---
@@ -68,7 +68,148 @@ function formatFraction(sixteenths: number): string {
     n /= 2;
     d /= 2;
   }
-  return whole === 0 ? `${n}/${d}"` : `${whole}x${n}/${d}`;
+  return whole === 0 ? `${n}/${d}"` : `${whole} ${n}/${d}"`;
+}
+
+function formatDimensionSet(w: number, h: number): string {
+  const fw = formatFraction(w).replace('"', '');
+  const fh = formatFraction(h).replace('"', '');
+  return `${fw} x ${fh}`;
+}
+
+function PrintReport({ clientName, projects, onExit }: { clientName: string, projects: WindowProject[], onExit: () => void }) {
+  // Helper to find a dimension by piece name
+  const getS = (items: CutDetail[], name: string) => {
+    const item = items.find(i => i.piece.toLowerCase().includes(name.toLowerCase()));
+    return item ? formatFraction(item.size) : '';
+  };
+
+  const getD = (items: CutDetail[], name: string) => {
+    const item = items.find(i => i.piece.toLowerCase().includes(name.toLowerCase()));
+    return item?.dimensions || (item ? formatFraction(item.size) : '');
+  };
+
+  // Group by Window Type (Equipo)
+  const grouped = projects.reduce((acc, p) => {
+    const type = p.type;
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(p);
+    return acc;
+  }, {} as Record<string, WindowProject[]>);
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0">
+      <div className="max-w-5xl mx-auto space-y-4">
+        {/* Header Section */}
+        <div className="flex justify-between items-center border-b-2 border-black pb-2 print:hidden">
+          <div className="flex items-center gap-3">
+             <Printer size={18} />
+             <h1 className="text-base font-black uppercase tracking-tighter">Planilla Técnica de Corte</h1>
+          </div>
+          <button 
+            onClick={onExit}
+            className="px-4 h-8 bg-black text-white rounded-lg font-black uppercase text-[10px] flex items-center gap-2"
+          >
+            <X size={14} /> Cerrar
+          </button>
+        </div>
+
+        <div className="flex justify-between items-baseline border-b border-gray-100 pb-1">
+           <div className="flex items-baseline gap-2">
+              <span className="text-[7px] font-black uppercase tracking-widest text-gray-400">Cliente:</span>
+              <h2 className="text-lg font-black uppercase tracking-tighter">{clientName}</h2>
+           </div>
+        </div>
+        {/* Grouped Tables */}
+        {Object.entries(grouped).map(([type, typeProjects]) => (
+          <div key={type} className="space-y-2 break-inside-avoid shadow-none pt-1">
+            <div className="border-b border-black pb-0.5">
+               <h3 className="text-[9px] font-black uppercase tracking-widest text-black">SISTEMA: {type}</h3>
+            </div>
+            
+            <div className="overflow-x-auto print:overflow-visible">
+              <table className="w-full border-collapse border border-black text-[10px]">
+                <thead>
+                  <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
+                    <th className="border border-black px-1 py-1 w-12">#</th>
+                    <th className="border border-black px-1 py-1 w-20">Hueco</th>
+                    <th className="border border-black px-1 py-1">Jamba</th>
+                    <th className="border border-black px-1 py-1">Alf / Rueda</th>
+                    <th className="border border-black px-1 py-1">Lateral</th>
+                    <th className="border border-black px-1 py-1">Rieles</th>
+                    <th className="border border-black px-1 py-1 w-32">CRISTAL (VIDRIO)</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono font-bold">
+                  {typeProjects.map((p, pIdx) => {
+                    const combinedHoja = p.results.hojas;
+                    const combinedMarco = p.results.marco;
+                    const combinedVidrio = p.results.vidrios;
+
+                    return (
+                      <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
+                        <td className="border border-black px-0.5 py-0.5 text-black leading-none bg-gray-50/50">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="text-[11px] font-black">{pIdx + 1}</span>
+                            <span className="text-[7px] uppercase tracking-tighter opacity-50 whitespace-nowrap">{p.vias} Vías</span>
+                            {p.name && (
+                              <span className="text-[5px] font-black uppercase tracking-widest text-gray-400 not-italic truncate w-10">{p.name}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="border border-black px-1 py-0.5">
+                           <div className="flex items-center justify-center min-w-[75px] leading-tight text-[12px] font-black text-black">
+                              {formatDimensionSet(p.width, p.height)}
+                           </div>
+                        </td>
+                        
+                        <td className="border border-black px-0.5 py-0.5">
+                           <div className="flex items-center justify-center gap-1 leading-none">
+                              <span className="text-[12px] font-black text-black">{getS(combinedHoja, 'Jamba')}</span>
+                              <span className="text-[9px] font-black text-gray-400">x{p.vias*2}</span>
+                           </div>
+                        </td>
+                        <td className="border border-black px-0.5 py-0.5">
+                           <div className="flex items-center justify-center gap-1 leading-none">
+                              <span className="text-[12px] font-black text-black">{getS(combinedHoja, 'Alf / Rueda')}</span>
+                              <span className="text-[9px] font-black text-gray-400">x{p.vias*2}</span>
+                           </div>
+                        </td>
+                        <td className="border border-black px-0.5 py-0.5">
+                           <div className="flex items-center justify-center gap-1 leading-none">
+                              <span className="text-[12px] font-black text-black">{getS(combinedMarco, 'Lateral')}</span>
+                              <span className="text-[9px] font-black text-gray-400">x2</span>
+                           </div>
+                        </td>
+                        <td className="border border-black px-0.5 py-0.5">
+                           <div className="flex items-center justify-center gap-1 leading-none">
+                              <span className="text-[12px] font-black text-black">{getS(combinedMarco, 'Rieles')}</span>
+                              <span className="text-[9px] font-black text-gray-400">x2</span>
+                           </div>
+                        </td>
+                        
+                        <td className="border border-black px-1 py-0.5 font-black text-black">
+                           <div className="flex items-center justify-center gap-2">
+                              <span className="text-[13px] tracking-tight tabular-nums leading-none">{getD(combinedVidrio, 'Cristal')}</span>
+                              <span className="text-[9px] font-black text-gray-400">x{p.vias}</span>
+                           </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex justify-between items-center pt-2 italic opacity-20 text-[7px] font-black uppercase tracking-widest leading-none">
+           <span>EUROPEO TECHNICAL SHEET — 8.5 x 11</span>
+           <span>{new Date().toLocaleDateString()}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // --- Components ---
@@ -479,6 +620,7 @@ export default function App() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [pendingDeleteClient, setPendingDeleteClient] = useState<string | null>(null);
   const [pendingChangeProfile, setPendingChangeProfile] = useState(false);
+  const [isPrintMode, setIsPrintMode] = useState(false);
 
   // Load from localStorage
   useEffect(() => {
@@ -501,32 +643,24 @@ export default function App() {
     const totalWidth = widthWhole * 16 + widthFrac;
     const totalHeight = heightWhole * 16 + heightFrac;
 
-    // European Profile Deductions (in 1/16ths)
-    let leafVertDeduction = 28;    // 1 3/4" (Default P65)
-    let leafOverlap = 18;          // 1 1/8" (Default P65)
-    let glassDeduction = 52;       // 3 1/4" (Default P65)
-    let frameHorizDeduction = 14;  // 7/8"
+    // Specific European Workshop Deductions (Sixteenths)
+    let leafVertDeduction = 34;      // Jamba 2.125"
+    let leafOverlap = 10;            // Cabezal 0.625" (Default 2-vias)
+    let glassWidthDeduction = 44;    // Vidrio Ancho 2.75"
+    let glassHeightDeduction = 46;   // Vidrio Alto 2.875"
+    let frameHorizDeduction = 24;    // Riel 1.5" (Default 2-vias)
+    let frameVertDeduction = 2;      // Lateral 0.125"
     
-    let profileName = "P65";
-
-    if (windowType === 'P92') {
-      profileName = "P92";
-      leafVertDeduction = 34;   // 2 1/8"
-      leafOverlap = 25;         // 1 9/16"
-      glassDeduction = 60;      // 3 3/4"
-    } else if (windowType === 'P40') {
-      profileName = "P40";
-      leafVertDeduction = 26;   // 1 5/8"
-      leafOverlap = 16;         // 1"
-      glassDeduction = 44;      // 2 3/4"
-    } else if (windowType === 'VENTILADA') {
-      profileName = "VENT";
-      leafVertDeduction = 28;
-      leafOverlap = 16;
-      glassDeduction = 48;
+    // Adjustments based on Vias
+    if (vias === 3) {
+      leafOverlap = 4;               // Cabezal 0.25"
+      frameHorizDeduction = 22;      // Riel 1.375"
+      glassWidthDeduction = 42;      // Vidrio Ancho 2.625"
     }
 
-    const sideRailsSize = totalHeight;
+    let profileName = windowType;
+
+    const sideRailsSize = totalHeight - frameVertDeduction;
     const sillSize = totalWidth - frameHorizDeduction;
     const leafVerticalSize = totalHeight - leafVertDeduction;
     
@@ -535,18 +669,18 @@ export default function App() {
     const numOverlaps = (vias === 4) ? 1 : (vias - 1);
     const leafHorizontalSize = Math.floor((totalWidth + (numOverlaps * leafOverlap)) / vias);
     
-    const glassWidth = leafHorizontalSize - glassDeduction;
-    const glassHeight = leafVerticalSize - glassDeduction;
+    const glassWidth = leafHorizontalSize - glassWidthDeduction;
+    const glassHeight = leafVerticalSize - glassHeightDeduction;
 
     return {
       inputs: { w: totalWidth, h: totalHeight, type: windowType, vias },
       marco: [
-        { id: 'side', piece: "Rieles Laterales", qty: 2, size: sideRailsSize, formula: `Alto (${formatFraction(totalHeight)})` },
-        { id: 'sill', piece: "Alféizar / Cabezal", qty: 2, size: sillSize, formula: `Ancho - ${formatFraction(frameHorizDeduction)}` },
+        { id: 'side', piece: "Laterales", qty: 2, size: sideRailsSize, formula: `Alto - ${formatFraction(frameVertDeduction)}` },
+        { id: 'riel_up_down', piece: "Rieles (Arr/Aba)", qty: 2, size: sillSize, formula: `Ancho - ${formatFraction(frameHorizDeduction)}` },
       ],
       hojas: [
-        { id: 'vert', piece: "Jamba / Llavín", qty: vias * 2, size: leafVerticalSize, formula: `Alto - ${formatFraction(leafVertDeduction)} (${profileName})` },
-        { id: 'horiz', piece: "Zócalo / Cabezal", qty: vias * 2, size: leafHorizontalSize, formula: `(Ancho + ${numOverlaps > 0 ? formatFraction(numOverlaps * leafOverlap) : '0'}) / ${vias}` },
+        { id: 'vert', piece: "Jamba / Llavín", qty: vias * 2, size: leafVerticalSize, formula: `Alto - ${formatFraction(leafVertDeduction)}` },
+        { id: 'alf_rueda', piece: "Alf / Rueda", qty: vias * 2, size: leafHorizontalSize, formula: `Ancho Pan.` },
       ],
       vidrios: [
         { 
@@ -554,8 +688,8 @@ export default function App() {
           piece: "Cristal", 
           qty: vias, 
           size: glassWidth, 
-          dimensions: `${formatFraction(glassWidth)} X ${formatFraction(glassHeight)}`,
-          formula: `H.Horiz x H.Vert (- ${formatFraction(glassDeduction)})` 
+          dimensions: formatDimensionSet(glassWidth, glassHeight),
+          formula: `Ancho Pan. - ${formatFraction(glassWidthDeduction)} / Alto Pan. - ${formatFraction(glassHeightDeduction)}` 
         }
       ]
     };
@@ -671,7 +805,7 @@ export default function App() {
 
   const saveBatchOrder = () => {
     if (orderWindows.length === 0) return;
-    setProjects(prev => [...orderWindows, ...prev]);
+    setProjects(prev => [...prev, ...orderWindows]);
     setActiveView('dashboard');
     setOrderWindows([]);
   };
@@ -694,7 +828,7 @@ export default function App() {
       createdAt: Date.now(),
       deliveryDate: deliveryDate
     };
-    setOrderWindows(prev => [newWindow, ...prev]);
+    setOrderWindows(prev => [...prev, newWindow]);
     setShowResults(false);
     setWindowTag(nextTag);
   };
@@ -1158,6 +1292,12 @@ export default function App() {
                </div>
                <div className="flex items-center gap-3 w-full sm:w-auto">
                  <button 
+                  onClick={() => setIsPrintMode(true)}
+                  className="flex-1 sm:flex-none px-5 h-10 bg-brand-accent/20 border border-brand-accent/30 rounded-xl text-[10px] font-black text-brand-accent uppercase tracking-widest hover:bg-brand-accent/30 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-accent/10"
+                 >
+                   <Printer size={14} /> Reporte PDF
+                 </button>
+                 <button 
                   onClick={() => {
                     const pass = window.prompt("Ingrese contraseña para ELIMINAR CLIENTE:");
                     if (pass === "1989") {
@@ -1360,6 +1500,14 @@ export default function App() {
 
     </div>
   </main>
+
+  {isPrintMode && selectedClientName && (
+    <PrintReport 
+      clientName={selectedClientName}
+      projects={projects.filter(p => p.clientName === selectedClientName)}
+      onExit={() => setIsPrintMode(false)}
+    />
+  )}
 
       {/* Global Bottom Navigation */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] w-[92%] max-w-lg flex items-center gap-1 p-1 bg-brand-sidebar/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
