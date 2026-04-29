@@ -923,10 +923,10 @@ export default function App() {
 
     // Specific European Workshop Deductions (Sixteenths)
     let leafVertDeduction = 34; // Jamba 2.125"
-    let leafOverlap = 10; // Cabezal 0.625" (Default 2-vias)
-    let glassWidthDeduction = 44; // Vidrio Ancho 2.75"
-    let glassHeightDeduction = 46; // Vidrio Alto 2.875"
-    let frameHorizDeduction = 24; // Riel 1.5" (Default 2-vias)
+    let leafOverlap = 8; // Cabezal 0.5"
+    let glassWidthFrameDeduction = 100; // 6.25"
+    let glassHeightFrameDeduction = 80; // 5.0"
+    let frameHorizDeduction = 22; // Riel 1.375" (Updated from 1.5")
     let frameVertDeduction = 2; // Lateral 0.125"
 
     // Adjustments based on Vias
@@ -942,11 +942,14 @@ export default function App() {
     const leafVerticalSize = totalHeight - leafVertDeduction;
 
     // Width Logic based on Vias
-    // Use user formula: ancho / vias - 0.625
-    const leafHorizontalSize = Math.floor(totalWidth / vias - 10);
+    // Target for 23.63: 11.31 (181/16). 378/2 - 8 = 181.
+    const leafHorizontalSize = Math.floor(totalWidth / vias - leafOverlap);
 
-    const glassWidth = leafHorizontalSize - glassWidthDeduction;
-    const glassHeight = leafVerticalSize - glassHeightDeduction;
+    // GLASS FORMULA PER USER: 
+    // Width target for 23.63: 8.69 (139/16). (378 - 100) / 2 = 139.
+    const glassWidth = Math.floor((totalWidth - glassWidthFrameDeduction) / vias);
+    // Height target for 23.63: 18.63 (298/16). 378 - 80 = 298.
+    const glassHeight = totalHeight - glassHeightFrameDeduction;
 
     return {
       inputs: { w: totalWidth, h: totalHeight, type: windowType, vias },
@@ -979,7 +982,7 @@ export default function App() {
           piece: "Alf / Rueda",
           qty: vias * 2,
           size: leafHorizontalSize,
-          formula: "Ancho/vias - 0.625",
+          formula: `Ancho/vias - ${formatFraction(leafOverlap)}`,
         },
       ],
       vidrios: [
@@ -989,7 +992,7 @@ export default function App() {
           qty: vias,
           size: glassWidth,
           dimensions: formatDimensionSet(glassWidth, glassHeight),
-          formula: `Alf/Rueda - 2.75 / Jamba - ${formatFraction(glassHeightDeduction)}`,
+          formula: `(Ancho - 6.25) / ${vias} | Alto - 5.0`,
         },
       ],
     };
