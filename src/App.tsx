@@ -1769,16 +1769,10 @@ export default function App() {
                   {/* Batch Summary */}
                   {orderWindows.length > 0 && (
                     <div className="space-y-6 pt-12">
-                      <div className="flex items-center justify-between px-4">
+                      <div className="flex items-center px-4">
                         <h5 className="text-xs font-black text-brand-muted uppercase tracking-[0.4em]">
                           Resumen de Carga ({orderWindows.length})
                         </h5>
-                        <button
-                          onClick={saveBatchOrder}
-                          className="px-8 py-4 bg-emerald-500 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2"
-                        >
-                          <Save size={14} /> Confirmar Pedido
-                        </button>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {orderWindows.map((p) => (
@@ -1816,6 +1810,15 @@ export default function App() {
                             </button>
                           </div>
                         ))}
+                      </div>
+                      
+                      <div className="pt-4 px-4 pb-12">
+                        <button
+                          onClick={saveBatchOrder}
+                          className="w-full py-6 bg-emerald-500 rounded-3xl text-white font-black uppercase tracking-[0.2em] shadow-2xl flex items-center justify-center gap-3 hover:bg-emerald-600 transition-all scale-100 active:scale-[0.98]"
+                        >
+                          <Save size={20} /> Guardar y Confirmar Pedido Completo
+                        </button>
                       </div>
                     </div>
                   )}
