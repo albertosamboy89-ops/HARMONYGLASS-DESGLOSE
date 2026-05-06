@@ -193,15 +193,18 @@ function PrintReport({
               width: 100% !important;
               border-collapse: collapse !important;
               table-layout: fixed !important;
+              margin-bottom: 10px !important;
             }
             td, th {
-              border: 0.5px solid black !important;
-              padding: 2px 4px !important;
-              font-size: 9px !important;
-              line-height: 1 !important;
+              border: 1px solid black !important;
+              padding: 4px 2px !important;
+              font-size: 11px !important;
+              line-height: 1.1 !important;
             }
             th {
-              background: #f0f0f0 !important;
+              background: #eeeeee !important;
+              font-size: 8px !important;
+              text-transform: uppercase !important;
               -webkit-print-color-adjust: exact !important;
             }
             
@@ -209,12 +212,19 @@ function PrintReport({
               page-break-inside: avoid !important;
             }
             
-            h2 { font-size: 18px !important; }
-            h3 { font-size: 12px !important; }
+            h2 { font-size: 20px !important; margin-bottom: 5px !important; }
+            h3 { font-size: 11px !important; margin-top: 10px !important; margin-bottom: 2px !important; border-bottom: 1px solid black !important; padding-bottom: 2px !important; }
+            
+            .qty-tag {
+              font-size: 7px !important;
+              font-weight: bold !important;
+              display: block !important;
+              opacity: 0.6 !important;
+            }
           }
         `}
       </style>
-      <div className="print-report-wrapper max-w-[7.5in] mx-auto space-y-4 bg-white min-h-screen print:min-h-0 print:space-y-2">
+      <div className="print-report-wrapper max-w-[7.5in] mx-auto space-y-4 bg-white min-h-screen print:min-h-0 print:space-y-0">
         {/* Header Section - Non-printing controls */}
         <div className="flex justify-between items-center border-b border-gray-100 pb-2 print:hidden no-print">
           <div className="flex items-center gap-3 text-gray-400">
@@ -261,8 +271,11 @@ function PrintReport({
             key={type}
             className="space-y-1 break-inside-avoid"
           >
+            <h3 className="hidden print:block font-black uppercase tracking-tight">
+              SISTEMA: {type}
+            </h3>
             <div className="overflow-x-auto print:overflow-visible">
-              <table className="w-full border-collapse border border-black text-[9px]">
+              <table className="w-full border-collapse border border-black text-[10px]">
                 <thead>
                   {type === "GAVETAS" ? (
                     <tr className="bg-gray-100 text-black font-black uppercase tracking-tighter text-[7px] border-b border-black">
@@ -273,9 +286,9 @@ function PrintReport({
                     </tr>
                   ) : (
                     <tr className="bg-gray-100 text-black font-black uppercase tracking-tighter text-[7px] border-b border-black">
-                      <th className="border border-black px-1 py-1 w-[30px]">#</th>
+                      <th className="border border-black px-1 py-1 w-[25px]">#</th>
                       <th className="border border-black px-1 py-1 w-[15px]">V</th>
-                      <th className="border border-black px-1 py-1 w-[85px]">HUECO</th>
+                      <th className="border border-black px-1 py-1 w-[80px]">HUECO</th>
                       <th className="border border-black px-1 py-1">JAMBA</th>
                       <th className="border border-black px-1 py-1">ALF/RUEDA</th>
                       <th className="border border-black px-1 py-1">LATERAL</th>
@@ -296,35 +309,31 @@ function PrintReport({
                       
                       return (
                         <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
-                          <td className="border border-black px-1 py-0.5">
-                            <span className="text-[10px] font-black">{pIdx + 1}</span>
+                          <td className="border border-black px-1 py-1">
+                            <span className="text-[12px] font-black">{pIdx + 1}</span>
                           </td>
-                          <td className="border border-black px-1 py-0.5">
-                            <div className="text-[11px] font-black">
+                          <td className="border border-black px-1 py-1">
+                            <div className="text-[12px] font-black">
                               {formatDimensionSet(p.width, p.height)}
                             </div>
                           </td>
-                          <td className="border border-black px-1 py-0.5" colSpan={2}>
+                          <td className="border border-black px-1 py-1" colSpan={2}>
                             {moldura && (
                               <div className="flex flex-col leading-none">
-                                <span className="text-[12px] font-black">
+                                <span className="text-[14px] font-black">
                                   {formatFraction(moldura.size)}
                                 </span>
-                                <span className="text-[6px] font-bold opacity-60">
-                                  {moldura.formula}
-                                </span>
+                                <span className="qty-tag">CANT: {p.vias * 2}</span>
                               </div>
                             )}
                           </td>
-                          <td className="border border-black px-1 py-0.5" colSpan={2}>
+                          <td className="border border-black px-1 py-1" colSpan={2}>
                             {facia && (
                               <div className="flex flex-col leading-none">
-                                <span className="text-[12px] font-black">
+                                <span className="text-[14px] font-black">
                                   {formatFraction(facia.size)}
                                 </span>
-                                <span className="text-[6px] font-bold opacity-60">
-                                  {facia.formula}
-                                </span>
+                                <span className="qty-tag">CANT: {p.vias * 2}</span>
                               </div>
                             )}
                           </td>
@@ -334,31 +343,36 @@ function PrintReport({
 
                     return (
                       <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
-                        <td className="border border-black px-1 py-0.5">
-                          <span className="text-[10px] font-black">{pIdx + 1}</span>
+                        <td className="border border-black px-1 py-1">
+                          <span className="text-[12px] font-black">{pIdx + 1}</span>
                         </td>
-                        <td className="border border-black px-1 py-0.5">
-                          <span className="text-[8px] font-bold">{p.vias}</span>
+                        <td className="border border-black px-1 py-1">
+                          <span className="text-[10px] font-bold">{p.vias}</span>
                         </td>
-                        <td className="border border-black px-1 py-0.5">
-                          <div className="text-[11px] font-black leading-none whitespace-nowrap">
+                        <td className="border border-black px-1 py-1">
+                          <div className="text-[12px] font-black leading-none whitespace-nowrap">
                             {formatDimensionSet(p.width, p.height)}
                           </div>
                         </td>
-                        <td className="border border-black px-1 py-0.5 font-black text-[11px]">
-                          {getS(combinedHoja, "Jamba")}
+                        <td className="border border-black px-1 py-1">
+                          <span className="text-[13px] font-black block">{getS(combinedHoja, "Jamba")}</span>
+                          <span className="qty-tag">x{p.vias * 2}</span>
                         </td>
-                        <td className="border border-black px-1 py-0.5 font-black text-[11px]">
-                          {getS(combinedHoja, "Alf / Rueda")}
+                        <td className="border border-black px-1 py-1">
+                          <span className="text-[13px] font-black block">{getS(combinedHoja, "Alf / Rueda")}</span>
+                          <span className="qty-tag">x{p.vias * 2}</span>
                         </td>
-                        <td className="border border-black px-1 py-0.5 font-black text-[11px]">
-                          {getS(combinedMarco, "Lateral")}
+                        <td className="border border-black px-1 py-1">
+                          <span className="text-[13px] font-black block">{getS(combinedMarco, "Lateral")}</span>
+                          <span className="qty-tag">x2</span>
                         </td>
-                        <td className="border border-black px-1 py-0.5 font-black text-[11px]">
-                          {getS(combinedMarco, "Rieles")}
+                        <td className="border border-black px-1 py-1">
+                          <span className="text-[13px] font-black block">{getS(combinedMarco, "Rieles")}</span>
+                          <span className="qty-tag">x2</span>
                         </td>
-                        <td className="border border-black px-1 py-0.5 font-black text-[11px]">
-                          {getD(combinedVidrio, "Cristal")}
+                        <td className="border border-black px-1 py-1">
+                          <span className="text-[13px] font-black block">{getD(combinedVidrio, "Cristal")}</span>
+                          <span className="qty-tag">x{p.vias}</span>
                         </td>
                       </tr>
                     );
