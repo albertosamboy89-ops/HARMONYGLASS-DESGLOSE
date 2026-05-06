@@ -148,7 +148,7 @@ function PrintReport({
         {`
           @page {
             size: letter;
-            margin: 0.15in;
+            margin: 0.25in;
           }
           @media print {
             html, body {
@@ -161,13 +161,15 @@ function PrintReport({
               print-color-adjust: exact !important;
             }
             
-            /* Hide EVERYTHING except the print content */
             #root > *:not(.print-report-wrapper) {
               display: none !important;
             }
+
             .print-report-wrapper {
               display: block !important;
               width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
 
             .no-print, .print-hidden {
@@ -180,6 +182,7 @@ function PrintReport({
               border-color: black !important;
               box-shadow: none !important;
               text-shadow: none !important;
+              font-family: 'Inter', sans-serif !important;
             }
 
             .max-w-[7.5in] {
@@ -193,38 +196,47 @@ function PrintReport({
               width: 100% !important;
               border-collapse: collapse !important;
               table-layout: fixed !important;
-              margin-bottom: 10px !important;
+              margin-top: 10px !important;
             }
-            td, th {
-              border: 1px solid black !important;
-              padding: 4px 2px !important;
-              font-size: 11px !important;
-              line-height: 1.1 !important;
-            }
+
             th {
-              background: #eeeeee !important;
+              background: #f3f4f6 !important;
+              border: 1px solid black !important;
+              padding: 6px 2px !important;
               font-size: 8px !important;
+              font-weight: 900 !important;
               text-transform: uppercase !important;
               -webkit-print-color-adjust: exact !important;
             }
-            
-            .break-inside-avoid {
-              page-break-inside: avoid !important;
+
+            td {
+              border: 1px solid black !important;
+              padding: 10px 2px !important;
+              font-size: 14px !important;
+              font-weight: 700 !important;
+              text-align: center !important;
+              line-height: 1 !important;
+            }
+
+            h2 { 
+              font-size: 32px !important; 
+              font-weight: 900 !important;
+              margin: 20px 0 10px 0 !important; 
+              text-transform: uppercase !important;
             }
             
-            h2 { font-size: 20px !important; margin-bottom: 5px !important; }
-            h3 { font-size: 11px !important; margin-top: 10px !important; margin-bottom: 2px !important; border-bottom: 1px solid black !important; padding-bottom: 2px !important; }
-            
-            .qty-tag {
+            .footer-text {
               font-size: 7px !important;
-              font-weight: bold !important;
-              display: block !important;
-              opacity: 0.6 !important;
+              opacity: 0.3 !important;
+              font-style: italic !important;
+              display: flex !important;
+              justify-content: space-between !important;
+              width: 100% !important;
             }
           }
         `}
       </style>
-      <div className="print-report-wrapper max-w-[7.5in] mx-auto space-y-4 bg-white min-h-screen print:min-h-0 print:space-y-0">
+      <div className="print-report-wrapper max-w-[7.5in] mx-auto space-y-6 bg-white min-h-screen print:min-h-0 print:space-y-4">
         {/* Header Section - Non-printing controls */}
         <div className="flex justify-between items-center border-b border-gray-100 pb-2 print:hidden no-print">
           <div className="flex items-center gap-3 text-gray-400">
@@ -239,9 +251,9 @@ function PrintReport({
                 e.stopPropagation();
                 window.print();
               }}
-              className="px-6 h-8 bg-black text-white rounded-lg font-black uppercase text-[10px] flex items-center gap-2"
+              className="px-6 h-10 bg-black text-white rounded-lg font-black uppercase text-[12px] flex items-center gap-2 transition-transform hover:scale-105 active:scale-95"
             >
-              <Printer size={14} /> Imprimir
+              <Printer size={16} /> Imprimir
             </button>
             <button
               type="button"
@@ -250,129 +262,63 @@ function PrintReport({
                 e.stopPropagation();
                 onExit();
               }}
-              className="px-4 h-8 border-2 border-black text-black rounded-lg font-black uppercase text-[10px] flex items-center gap-2"
+              className="px-4 h-10 border-2 border-black text-black rounded-lg font-black uppercase text-[12px] flex items-center gap-2 hover:bg-black/5"
             >
-              <X size={14} /> Cerrar
+              <X size={16} /> Cerrar
             </button>
           </div>
         </div>
 
-        <div className="print:mt-0 print:mb-2">
-          <div className="flex items-baseline gap-2 mb-1">
-            <h2 className="text-2xl font-black uppercase tracking-tight">
-              {clientName}
-            </h2>
-          </div>
+        <div className="print:mt-0">
+          <h2 className="text-4xl font-black uppercase tracking-tight">
+            {clientName}
+          </h2>
         </div>
 
-        {/* Grouped Tables */}
+        {/* Unified Table */}
         {grouped.map(([type, typeProjects]) => (
-          <div
-            key={type}
-            className="space-y-1 break-inside-avoid"
-          >
-            <h3 className="hidden print:block font-black uppercase tracking-tight">
-              SISTEMA: {type}
-            </h3>
+          <div key={type} className="space-y-2 break-inside-avoid">
             <div className="overflow-x-auto print:overflow-visible">
-              <table className="w-full border-collapse border border-black text-[10px]">
+              <table className="w-full border-collapse border border-black">
                 <thead>
-                  {type === "GAVETAS" ? (
-                    <tr className="bg-gray-100 text-black font-black uppercase tracking-tighter text-[7px] border-b border-black">
-                      <th className="border border-black px-1 py-1 w-[35px]">#</th>
-                      <th className="border border-black px-1 py-1 w-[90px]">HUECO</th>
-                      <th className="border border-black px-1 py-1" colSpan={2}>MOLDURAS (A/H/S)</th>
-                      <th className="border border-black px-1 py-1" colSpan={2}>FACIAS (A/S)</th>
-                    </tr>
-                  ) : (
-                    <tr className="bg-gray-100 text-black font-black uppercase tracking-tighter text-[7px] border-b border-black">
-                      <th className="border border-black px-1 py-1 w-[25px]">#</th>
-                      <th className="border border-black px-1 py-1 w-[15px]">V</th>
-                      <th className="border border-black px-1 py-1 w-[80px]">HUECO</th>
-                      <th className="border border-black px-1 py-1">JAMBA</th>
-                      <th className="border border-black px-1 py-1">ALF/RUEDA</th>
-                      <th className="border border-black px-1 py-1">LATERAL</th>
-                      <th className="border border-black px-1 py-1">RIELES</th>
-                      <th className="border border-black px-1 py-1">VIDRIO</th>
-                    </tr>
-                  )}
+                  <tr className="bg-gray-100 text-black font-black uppercase tracking-tight text-[8px] border-b border-black">
+                    <th className="w-[30px]">#</th>
+                    <th className="w-[25px]">V</th>
+                    <th className="w-[100px]">HUECO</th>
+                    <th>JAMBA</th>
+                    <th>ALF/RUEDA</th>
+                    <th>LATERAL</th>
+                    <th>RIELES</th>
+                    <th className="w-[120px]">VIDRIO</th>
+                  </tr>
                 </thead>
                 <tbody className="font-sans">
                   {typeProjects.map((p, pIdx) => {
                     const combinedHoja = p.results.hojas;
                     const combinedMarco = p.results.marco;
-                    const combinedVidrio = p.results.vidrios;
-
-                    if (type === "GAVETAS") {
-                      const moldura = combinedMarco.find(m => m.id === "moldura");
-                      const facia = combinedHoja.find(h => h.id === "facia");
-                      
-                      return (
-                        <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
-                          <td className="border border-black px-1 py-1">
-                            <span className="text-[12px] font-black">{pIdx + 1}</span>
-                          </td>
-                          <td className="border border-black px-1 py-1">
-                            <div className="text-[12px] font-black">
-                              {formatDimensionSet(p.width, p.height)}
-                            </div>
-                          </td>
-                          <td className="border border-black px-1 py-1" colSpan={2}>
-                            {moldura && (
-                              <div className="flex flex-col leading-none">
-                                <span className="text-[14px] font-black">
-                                  {formatFraction(moldura.size)}
-                                </span>
-                                <span className="qty-tag">CANT: {p.vias * 2}</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="border border-black px-1 py-1" colSpan={2}>
-                            {facia && (
-                              <div className="flex flex-col leading-none">
-                                <span className="text-[14px] font-black">
-                                  {formatFraction(facia.size)}
-                                </span>
-                                <span className="qty-tag">CANT: {p.vias * 2}</span>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    }
+                    const combinedVidrio = p.results.vidrios || p.results.vidrio;
 
                     return (
-                      <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
-                        <td className="border border-black px-1 py-1">
-                          <span className="text-[12px] font-black">{pIdx + 1}</span>
+                      <tr key={p.id} className="text-center font-bold">
+                        <td>{pIdx + 1}</td>
+                        <td>{p.vias}</td>
+                        <td className="font-black text-[15px]">
+                          {formatDimensionSet(p.width, p.height)}
                         </td>
-                        <td className="border border-black px-1 py-1">
-                          <span className="text-[10px] font-bold">{p.vias}</span>
+                        <td className="font-black text-[15px]">
+                          {getS(combinedHoja, "Jamba")}
                         </td>
-                        <td className="border border-black px-1 py-1">
-                          <div className="text-[12px] font-black leading-none whitespace-nowrap">
-                            {formatDimensionSet(p.width, p.height)}
-                          </div>
+                        <td className="font-black text-[15px]">
+                          {getS(combinedHoja, "Alf / Rueda")}
                         </td>
-                        <td className="border border-black px-1 py-1">
-                          <span className="text-[13px] font-black block">{getS(combinedHoja, "Jamba")}</span>
-                          <span className="qty-tag">x{p.vias * 2}</span>
+                        <td className="font-black text-[15px]">
+                          {getS(combinedMarco, "Lateral")}
                         </td>
-                        <td className="border border-black px-1 py-1">
-                          <span className="text-[13px] font-black block">{getS(combinedHoja, "Alf / Rueda")}</span>
-                          <span className="qty-tag">x{p.vias * 2}</span>
+                        <td className="font-black text-[15px]">
+                          {getS(combinedMarco, "Rieles")}
                         </td>
-                        <td className="border border-black px-1 py-1">
-                          <span className="text-[13px] font-black block">{getS(combinedMarco, "Lateral")}</span>
-                          <span className="qty-tag">x2</span>
-                        </td>
-                        <td className="border border-black px-1 py-1">
-                          <span className="text-[13px] font-black block">{getS(combinedMarco, "Rieles")}</span>
-                          <span className="qty-tag">x2</span>
-                        </td>
-                        <td className="border border-black px-1 py-1">
-                          <span className="text-[13px] font-black block">{getD(combinedVidrio, "Cristal")}</span>
-                          <span className="qty-tag">x{p.vias}</span>
+                        <td className="font-black text-[15px]">
+                          {getD(combinedVidrio || [], "Cristal")}
                         </td>
                       </tr>
                     );
@@ -383,7 +329,7 @@ function PrintReport({
           </div>
         ))}
 
-        <div className="flex justify-between items-center pt-4 italic opacity-10 text-[6px] font-black uppercase tracking-widest leading-none border-t border-black/10 print:hidden">
+        <div className="footer-text flex justify-between items-center pt-8 border-t border-black/10 mt-12 print:mt-12 text-[7px] italic opacity-30 uppercase font-black tracking-widest no-print print:flex">
           <span>EUROPEO REPORT — SYSTEM V1.0</span>
           <span>PRINTED: {new Date().toLocaleDateString()}</span>
         </div>
