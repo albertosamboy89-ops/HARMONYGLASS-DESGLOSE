@@ -135,7 +135,7 @@ function PrintReport({
   );
 
   return (
-    <div className="fixed inset-0 z-[500] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0">
+    <div className="fixed inset-0 z-[500] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0 print:bg-white print:min-h-screen">
       <div className="max-w-5xl mx-auto space-y-4">
         {/* Header Section */}
         <div className="flex justify-between items-center border-b-2 border-black pb-2 print:hidden">
@@ -1349,15 +1349,15 @@ export default function App() {
   }, [projects]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent/30 selection:text-white overflow-x-hidden uppercase-none">
+    <div className="flex flex-col min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent/30 selection:text-white overflow-x-hidden uppercase-none print:bg-white print:text-black">
       {/* Background Ambience */}
-      <div className="fixed inset-0 pointer-events-none opacity-20 print:hidden">
+      <div className="fixed inset-0 pointer-events-none opacity-20 print:hidden !print:opacity-0">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-accent rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-blue-900 rounded-full blur-[100px]" />
       </div>
 
       {/* Futuristic Scanline */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] overflow-hidden print:hidden">
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] overflow-hidden print:hidden !print:opacity-0">
         <div className="w-full h-[2px] bg-white animate-[scan_8s_linear_infinite]" />
       </div>
 
@@ -2186,7 +2186,7 @@ export default function App() {
       )}
 
       {isSinglePrintMode && singlePrintProject && (
-        <div className="fixed inset-0 z-[500] bg-white text-black p-4 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0">
+        <div className="fixed inset-0 z-[500] bg-white text-black p-4 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0 print:bg-white print:min-h-screen">
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex justify-between items-center border-b-4 border-black pb-4 print:hidden">
               <div className="flex items-center gap-3">

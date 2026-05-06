@@ -12,3 +12,12 @@
   --font-sans: "Inter", "Geist", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Space Mono", monospace;
 }
+
+@layer base {
+  @media print {
+    body {
+      background-color: white !important;
+      color: black !important;
+    }
+  }
+}
