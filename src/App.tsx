@@ -135,7 +135,7 @@ function PrintReport({
   );
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0">
+    <div className="fixed inset-0 z-[100] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0 print-container">
       <div className="max-w-5xl mx-auto space-y-4">
         {/* Header Section */}
         <div className="flex justify-between items-center border-b-2 border-black pb-2 print:hidden">
@@ -233,7 +233,7 @@ function PrintReport({
                       
                       return (
                         <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
-                          <td className="border border-black px-0.5 py-0.5 text-black leading-none bg-gray-50/50">
+                          <td className="border border-black px-0.5 py-0.5 text-black leading-none bg-gray-50/50 print:bg-white">
                             <span className="text-[11px] font-black">{pIdx + 1}</span>
                           </td>
                           <td className="border border-black px-1 py-0.5">
@@ -2186,8 +2186,8 @@ export default function App() {
       )}
 
       {isSinglePrintMode && singlePrintProject && (
-        <div className="fixed inset-0 z-[110] bg-white text-black p-4 overflow-y-auto font-sans print:p-0 print:static print:bg-white print:h-auto">
-          <div className="max-w-3xl mx-auto space-y-6">
+        <div className="fixed inset-0 z-[110] bg-white text-black p-4 overflow-y-auto font-sans print:p-0 print:static print:bg-white print:h-auto print-container">
+          <div className="max-w-3xl mx-auto space-y-6 print:space-y-0">
             <div className="flex justify-between items-center border-b-4 border-black pb-4 print:hidden">
               <div className="flex items-center gap-3">
                 <Printer size={24} className="text-black" />
@@ -2211,8 +2211,9 @@ export default function App() {
               </div>
             </div>
 
-            <div className="border-[6px] border-black p-8 space-y-8 bg-white shadow-2xl print:shadow-none print:border-[4px] print:m-0 print:p-4">
-              <div className="flex justify-between items-start gap-8 border-b-2 border-black pb-6">
+            <div className="border-[6px] border-black p-8 space-y-8 bg-white shadow-2xl print:shadow-none print:border-none print:m-0 print:p-0">
+              {/* Header section hidden in print as requested */}
+              <div className="flex justify-between items-start gap-8 border-b-2 border-black pb-6 print:hidden">
                 <div className="space-y-4 flex-1">
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">CLIENTE / PROYECTO</p>
@@ -2237,8 +2238,9 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 py-4">
-                <div className="space-y-2 border-2 border-black p-6 rounded-2xl bg-gray-50 print:bg-white">
+              {/* Dimensions and preview hidden in print */}
+              <div className="grid grid-cols-2 gap-8 py-4 print:hidden">
+                <div className="space-y-2 border-2 border-black p-6 rounded-2xl bg-gray-50 print:bg-white print:p-2 print:border-black/20">
                   <p className="text-[12px] font-black uppercase tracking-[0.4em] text-center text-gray-500">MEDIDAS VANO (W x H)</p>
                   <p className="text-5xl font-black text-center tabular-nums italic">
                     {formatFraction(singlePrintProject.width)} <span className="text-gray-400">x</span> {formatFraction(singlePrintProject.height)}
@@ -2256,11 +2258,14 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="space-y-6 pt-4">
+              {/* Only show the following part in print */}
+              <div className="space-y-6 pt-4 print:pt-0">
                 <div className="flex items-center gap-4">
-                  <div className="h-0.5 bg-black flex-1" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.5em]">PLANILLA DE CORTE</h4>
-                  <div className="h-0.5 bg-black flex-1" />
+                  <div className="h-0.5 bg-black flex-1 print:hidden" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.5em] print:text-lg print:border-b-2 print:border-black print:pb-2 print:w-full print:mb-4">
+                    PLANILLA DE CORTE: {singlePrintProject.name} ({singlePrintProject.type})
+                  </h4>
+                  <div className="h-0.5 bg-black flex-1 print:hidden" />
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">

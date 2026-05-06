@@ -15,14 +15,29 @@
 
 @layer base {
   @media print {
-    body {
+    html, body {
       background: white !important;
       color: black !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      height: auto !important;
     }
-    nav, footer, button:not(.print-visible) {
+    
+    /* Hide everything by default */
+    #root > * {
       display: none !important;
     }
-    .no-print {
+
+    /* Show only the print views */
+    #root > .print-container,
+    .print-ready {
+      display: block !important;
+      background: white !important;
+      position: static !important;
+      width: 100% !important;
+    }
+
+    nav, footer, button, .no-print {
       display: none !important;
     }
   }
