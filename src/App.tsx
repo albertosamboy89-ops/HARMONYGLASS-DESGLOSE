@@ -2186,7 +2186,7 @@ export default function App() {
       )}
 
       {isSinglePrintMode && singlePrintProject && (
-        <div className="fixed inset-0 z-[110] bg-white text-black p-4 overflow-y-auto font-sans print:p-0">
+        <div className="fixed inset-0 z-[110] bg-white text-black p-4 overflow-y-auto font-sans print:p-0 print:static print:bg-white print:h-auto">
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex justify-between items-center border-b-4 border-black pb-4 print:hidden">
               <div className="flex items-center gap-3">
@@ -2211,40 +2211,40 @@ export default function App() {
               </div>
             </div>
 
-            <div className="border-[6px] border-black p-8 space-y-8 bg-white shadow-2xl print:shadow-none print:border-[4px]">
+            <div className="border-[6px] border-black p-8 space-y-8 bg-white shadow-2xl print:shadow-none print:border-[4px] print:m-0 print:p-4">
               <div className="flex justify-between items-start gap-8 border-b-2 border-black pb-6">
                 <div className="space-y-4 flex-1">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">CLIENTE / PROYECTO</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">CLIENTE / PROYECTO</p>
                     <h2 className="text-4xl font-black uppercase italic leading-tight">{singlePrintProject.clientName}</h2>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">ETIQUETA DE VENTANA</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">ETIQUETA DE VENTANA</p>
                     <h3 className="text-2xl font-black uppercase">{singlePrintProject.name}</h3>
                   </div>
                 </div>
                 <div className="text-right space-y-4">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">SISTEMA (PERFIL)</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">SISTEMA (PERFIL)</p>
                     <div className="bg-black text-white px-4 py-2 inline-block rounded-lg">
                       <p className="text-2xl font-black italic">{singlePrintProject.type}</p>
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">FECHA</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">FECHA</p>
                     <p className="text-lg font-black font-mono">{new Date().toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-8 py-4">
-                <div className="space-y-2 border-2 border-black p-6 rounded-2xl bg-gray-50">
+                <div className="space-y-2 border-2 border-black p-6 rounded-2xl bg-gray-50 print:bg-white">
                   <p className="text-[12px] font-black uppercase tracking-[0.4em] text-center text-gray-500">MEDIDAS VANO (W x H)</p>
                   <p className="text-5xl font-black text-center tabular-nums italic">
                     {formatFraction(singlePrintProject.width)} <span className="text-gray-400">x</span> {formatFraction(singlePrintProject.height)}
                   </p>
                 </div>
-                <div className="flex items-center justify-center border-2 border-black rounded-2xl overflow-hidden bg-black/5 p-4">
+                <div className="flex items-center justify-center border-2 border-black rounded-2xl overflow-hidden bg-black/5 p-4 print:bg-white">
                   <div className="scale-[1.8] origin-center opacity-80">
                     <WindowPreview
                       width={singlePrintProject.width}
@@ -2265,13 +2265,13 @@ export default function App() {
 
                 <div className="grid grid-cols-1 gap-6">
                   {[
-                    { label: singlePrintProject.type === "GAVETAS" ? "MOLDURAS" : "MARCO", items: singlePrintProject.results.marco },
-                    { label: singlePrintProject.type === "GAVETAS" ? "FACIAS" : "HOJAS", items: singlePrintProject.results.hojas },
+                    { label: singlePrintProject.type === "GAVETAS" ? "MOLDURAS" : "MARCO (JAMBA/CABEZAL)", items: singlePrintProject.results.marco },
+                    { label: singlePrintProject.type === "GAVETAS" ? "FACIAS" : "HOJAS (LATERAL/ALF.)", items: singlePrintProject.results.hojas },
                     { label: "CRISTAL / VIDRIO", items: singlePrintProject.results.vidrios },
                   ].map((cat) => {
                     if (cat.items.length === 0) return null;
                     return (
-                      <div key={cat.label} className="space-y-2">
+                      <div key={cat.label} className="space-y-2 break-inside-avoid">
                         <div className="bg-black text-white px-3 py-1 inline-block text-[10px] font-black uppercase tracking-widest">
                           {cat.label}
                         </div>
@@ -2400,12 +2400,23 @@ export default function App() {
                       {selectedProject.name}
                     </h2>
                   </div>
-                  <button
-                    onClick={() => setSelectedProject(null)}
-                    className="p-2 sm:p-3 bg-white/5 rounded-xl sm:rounded-2xl text-brand-muted hover:text-white transition-all shrink-0"
-                  >
-                    <Plus size={20} className="rotate-45" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => {
+                            setSinglePrintProject(selectedProject);
+                            setIsSinglePrintMode(true);
+                        }}
+                        className="p-2 sm:p-3 bg-red-600 text-white rounded-xl sm:rounded-2xl hover:bg-red-700 transition-all shrink-0 shadow-lg shadow-red-600/20"
+                    >
+                        <Printer size={20} />
+                    </button>
+                    <button
+                        onClick={() => setSelectedProject(null)}
+                        className="p-2 sm:p-3 bg-white/5 rounded-xl sm:rounded-2xl text-brand-muted hover:text-white transition-all shrink-0"
+                    >
+                        <Plus size={20} className="rotate-45" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-4 sm:gap-6">
