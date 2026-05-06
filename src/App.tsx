@@ -140,7 +140,7 @@ function PrintReport({
         {`
           @page {
             size: letter;
-            margin: 0.5in;
+            margin: 0.25in;
           }
           @media print {
             html, body {
@@ -150,20 +150,29 @@ function PrintReport({
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
-            .no-print {
+            /* Hide all except the print content area */
+            .no-print, header, footer, button, nav, .print-hidden {
               display: none !important;
             }
-            /* Global Print Override for black & white */
+            /* Force absolute black and white */
             * {
               color: black !important;
-              background-color: transparent !important;
+              background: white !important;
+              background-image: none !important;
               border-color: black !important;
               box-shadow: none !important;
               text-shadow: none !important;
-              -webkit-filter: none !important;
-              filter: none !important;
+              -webkit-filter: grayscale(100%) !important;
+              filter: grayscale(100%) !important;
+            }
+            .max-w-[7.5in] {
+              width: 100% !important;
+              max-width: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
             table {
+              width: 100% !important;
               border-collapse: collapse !important;
               page-break-inside: auto;
             }
@@ -171,15 +180,19 @@ function PrintReport({
               page-break-inside: avoid;
               page-break-after: auto;
             }
-            thead {
-              display: table-header-group;
+            td, th {
+              border: 1px solid black !important;
+              padding-top: 2px !important;
+              padding-bottom: 2px !important;
             }
+            .gap-6 { gap: 10px !important; }
+            .space-y-6 { space-y: 10px !important; }
           }
         `}
       </style>
-      <div className="max-w-[7.5in] mx-auto space-y-6 bg-white">
+      <div className="max-w-[7.5in] mx-auto space-y-4 bg-white min-h-screen print:min-h-0 print:space-y-2">
         {/* Header Section - Non-printing controls */}
-        <div className="flex justify-between items-center border-b border-gray-100 pb-2 print:hidden">
+        <div className="flex justify-between items-center border-b border-gray-100 pb-2 print:hidden no-print">
           <div className="flex items-center gap-3 text-gray-400">
             <Printer size={18} />
             <h1 className="text-[10px] font-black uppercase tracking-widest">Planilla Técnica</h1>
@@ -210,12 +223,12 @@ function PrintReport({
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-black/60">
+        <div className="print:mt-0 print:mb-2">
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-black">
               CLIENTE:
             </span>
-            <h2 className="text-3xl font-black uppercase tracking-tighter">
+            <h2 className="text-2xl font-black uppercase tracking-tighter">
               {clientName}
             </h2>
           </div>
@@ -392,7 +405,7 @@ function PrintReport({
           </div>
         ))}
 
-        <div className="flex justify-between items-center pt-8 italic opacity-20 text-[7px] font-black uppercase tracking-widest leading-none border-t border-black/10">
+        <div className="flex justify-between items-center pt-4 italic opacity-10 text-[6px] font-black uppercase tracking-widest leading-none border-t border-black/10 print:hidden">
           <span>EUROPEO REPORT — SYSTEM V1.0</span>
           <span>PRINTED: {new Date().toLocaleDateString()}</span>
         </div>
