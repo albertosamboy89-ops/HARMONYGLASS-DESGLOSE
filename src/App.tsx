@@ -967,6 +967,8 @@ export default function App() {
   );
   const [pendingChangeProfile, setPendingChangeProfile] = useState(false);
   const [isPrintMode, setIsPrintMode] = useState(false);
+  const [isSinglePrintMode, setIsSinglePrintMode] = useState(false);
+  const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
 
   // Load from localStorage
   useEffect(() => {
@@ -2181,6 +2183,131 @@ export default function App() {
           projects={projects.filter((p) => p.clientName === selectedClientName)}
           onExit={() => setIsPrintMode(false)}
         />
+      )}
+
+      {isSinglePrintMode && singlePrintProject && (
+        <div className="fixed inset-0 z-[110] bg-white text-black p-4 overflow-y-auto font-sans print:p-0">
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="flex justify-between items-center border-b-4 border-black pb-4 print:hidden">
+              <div className="flex items-center gap-3">
+                <Printer size={24} className="text-black" />
+                <h1 className="text-xl font-black uppercase italic tracking-tighter">
+                  Ficha Técnica Individual
+                </h1>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => window.print()}
+                  className="px-6 h-12 bg-black text-white rounded-xl font-black uppercase text-xs flex items-center gap-2 shadow-xl hover:bg-gray-900 transition-all"
+                >
+                  <Printer size={16} /> Imprimir Ficha
+                </button>
+                <button
+                  onClick={() => setIsSinglePrintMode(false)}
+                  className="px-6 h-12 bg-gray-100 text-black border border-gray-200 rounded-xl font-black uppercase text-xs flex items-center gap-2"
+                >
+                  <X size={16} /> Cerrar
+                </button>
+              </div>
+            </div>
+
+            <div className="border-[6px] border-black p-8 space-y-8 bg-white shadow-2xl print:shadow-none print:border-[4px]">
+              <div className="flex justify-between items-start gap-8 border-b-2 border-black pb-6">
+                <div className="space-y-4 flex-1">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">CLIENTE / PROYECTO</p>
+                    <h2 className="text-4xl font-black uppercase italic leading-tight">{singlePrintProject.clientName}</h2>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">ETIQUETA DE VENTANA</p>
+                    <h3 className="text-2xl font-black uppercase">{singlePrintProject.name}</h3>
+                  </div>
+                </div>
+                <div className="text-right space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">SISTEMA (PERFIL)</p>
+                    <div className="bg-black text-white px-4 py-2 inline-block rounded-lg">
+                      <p className="text-2xl font-black italic">{singlePrintProject.type}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">FECHA</p>
+                    <p className="text-lg font-black font-mono">{new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 py-4">
+                <div className="space-y-2 border-2 border-black p-6 rounded-2xl bg-gray-50">
+                  <p className="text-[12px] font-black uppercase tracking-[0.4em] text-center text-gray-500">MEDIDAS VANO (W x H)</p>
+                  <p className="text-5xl font-black text-center tabular-nums italic">
+                    {formatFraction(singlePrintProject.width)} <span className="text-gray-400">x</span> {formatFraction(singlePrintProject.height)}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center border-2 border-black rounded-2xl overflow-hidden bg-black/5 p-4">
+                  <div className="scale-[1.8] origin-center opacity-80">
+                    <WindowPreview
+                      width={singlePrintProject.width}
+                      height={singlePrintProject.height}
+                      vias={singlePrintProject.vias}
+                      windowType={singlePrintProject.type}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6 pt-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-0.5 bg-black flex-1" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.5em]">PLANILLA DE CORTE</h4>
+                  <div className="h-0.5 bg-black flex-1" />
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                  {[
+                    { label: singlePrintProject.type === "GAVETAS" ? "MOLDURAS" : "MARCO", items: singlePrintProject.results.marco },
+                    { label: singlePrintProject.type === "GAVETAS" ? "FACIAS" : "HOJAS", items: singlePrintProject.results.hojas },
+                    { label: "CRISTAL / VIDRIO", items: singlePrintProject.results.vidrios },
+                  ].map((cat) => {
+                    if (cat.items.length === 0) return null;
+                    return (
+                      <div key={cat.label} className="space-y-2">
+                        <div className="bg-black text-white px-3 py-1 inline-block text-[10px] font-black uppercase tracking-widest">
+                          {cat.label}
+                        </div>
+                        <table className="w-full border-collapse border-2 border-black text-sm">
+                          <thead>
+                            <tr className="bg-gray-100 text-black font-black uppercase tracking-widest text-[10px]">
+                              <th className="border-2 border-black px-4 py-2 text-left">PIEZA</th>
+                              <th className="border-2 border-black px-4 py-2 w-20 text-center">CANT.</th>
+                              <th className="border-2 border-black px-4 py-2 w-48 text-right">MEDIDA FINAL</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cat.items.map((item) => (
+                              <tr key={item.id} className="font-black">
+                                <td className="border-2 border-black px-4 py-3 uppercase italic">{item.piece}</td>
+                                <td className="border-2 border-black px-4 py-3 text-center text-xl">{item.qty}</td>
+                                <td className="border-2 border-black px-4 py-3 text-right text-2xl font-mono tabular-nums leading-none">
+                                  {item.dimensions || formatFraction(item.size)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-10 flex justify-between items-end italic opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
+                <div>HARMONY GLASS — DIGITAL PRODUCTION CARD</div>
+                <div>AUTORIZADO POR: _______________________</div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Global Bottom Navigation */}
