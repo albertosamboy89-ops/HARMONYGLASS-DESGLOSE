@@ -124,125 +124,26 @@ function PrintReport({
   };
 
   // Group by Window Type (Equipo)
-  const grouped = useMemo(() => {
-    const g = projects.reduce(
-      (acc, p) => {
-        const type = p.type;
-        if (!acc[type]) acc[type] = [];
-        acc[type].push(p);
-        return acc;
-      },
-      {} as Record<string, WindowProject[]>,
-    );
-    // Sort so P65 is first
-    return Object.entries(g).sort(([a], [b]) => {
-      if (a === "P65") return -1;
-      if (b === "P65") return 1;
-      return a.localeCompare(b);
-    });
-  }, [projects]);
+  const grouped = projects.reduce(
+    (acc, p) => {
+      const type = p.type;
+      if (!acc[type]) acc[type] = [];
+      acc[type].push(p);
+      return acc;
+    },
+    {} as Record<string, WindowProject[]>,
+  );
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:static print:bg-white print:p-0 print:overflow-visible">
-      <style>
-        {`
-          @page {
-            size: letter;
-            margin: 0.4in;
-          }
-          @media print {
-            html, body {
-              background: white !important;
-              height: auto !important;
-              overflow: visible !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            
-            /* Ensure the container is visible and not hidden by parent styles */
-            #root, .print-report-wrapper {
-              display: block !important;
-              width: 100% !important;
-              position: static !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              overflow: visible !important;
-            }
-
-            .no-print, .print-hidden, button, nav, header {
-              display: none !important;
-            }
-
-            * {
-              color: black !important;
-              background: white !important;
-              border-color: black !important;
-              box-shadow: none !important;
-              text-shadow: none !important;
-              font-family: 'Inter', sans-serif !important;
-              -webkit-print-color-adjust: exact !important;
-            }
-
-            .max-w-[7.5in] {
-              width: 100% !important;
-              max-width: none !important;
-              margin: 0 !important;
-            }
-
-            table {
-              width: 100% !important;
-              border-collapse: collapse !important;
-              table-layout: fixed !important;
-              margin-top: 20px !important;
-              border: 2px solid black !important;
-            }
-
-            th {
-              background: #f0f0f0 !important;
-              border: 1px solid black !important;
-              padding: 8px 2px !important;
-              font-size: 9px !important;
-              font-weight: 900 !important;
-              text-transform: uppercase !important;
-            }
-
-            td {
-              border: 1px solid black !important;
-              padding: 12px 4px !important;
-              font-size: 16px !important;
-              font-weight: 800 !important;
-              text-align: center !important;
-              line-height: 1 !important;
-            }
-
-            h2 { 
-              font-size: 36px !important; 
-              font-weight: 900 !important;
-              margin: 10px 0 20px 0 !important; 
-              text-transform: uppercase !important;
-              letter-spacing: -0.05em !important;
-            }
-            
-            .footer-text {
-              font-size: 7px !important;
-              opacity: 0.4 !important;
-              margin-top: 40px !important;
-              border-top: 1px solid #ccc !important;
-              padding-top: 10px !important;
-              display: flex !important;
-              justify-content: space-between !important;
-            }
-          }
-        `}
-      </style>
-      <div className="print-report-wrapper max-w-[7.5in] mx-auto space-y-6 bg-white min-h-screen print:min-h-0 print:space-y-4">
-        {/* Header Section - Non-printing controls */}
-        <div className="flex justify-between items-center border-b border-gray-100 pb-2 print:hidden no-print">
-          <div className="flex items-center gap-3 text-gray-400">
+    <div className="fixed inset-0 z-[100] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0">
+      <div className="max-w-5xl mx-auto space-y-4">
+        {/* Header Section */}
+        <div className="flex justify-between items-center border-b-2 border-black pb-2 print:hidden">
+          <div className="flex items-center gap-3">
             <Printer size={18} />
-            <h1 className="text-[10px] font-black uppercase tracking-widest">Planilla Técnica</h1>
+            <h1 className="text-base font-black uppercase tracking-tighter">
+              Planilla Técnica de Corte
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -252,9 +153,9 @@ function PrintReport({
                 e.stopPropagation();
                 window.print();
               }}
-              className="px-6 h-10 bg-black text-white rounded-lg font-black uppercase text-[12px] flex items-center gap-2 transition-transform hover:scale-105 active:scale-95"
+              className="px-6 h-8 bg-red-600 text-white rounded-lg font-black uppercase text-[10px] flex items-center gap-2 shadow-lg hover:bg-red-700 transition-all"
             >
-              <Printer size={16} /> Imprimir
+              <Printer size={14} /> Imprimir Reporte
             </button>
             <button
               type="button"
@@ -263,63 +164,187 @@ function PrintReport({
                 e.stopPropagation();
                 onExit();
               }}
-              className="px-4 h-10 border-2 border-black text-black rounded-lg font-black uppercase text-[12px] flex items-center gap-2 hover:bg-black/5"
+              className="px-4 h-8 bg-black text-white rounded-lg font-black uppercase text-[10px] flex items-center gap-2"
             >
-              <X size={16} /> Cerrar
+              <X size={14} /> Cerrar
             </button>
           </div>
         </div>
 
-        <div className="print:mt-0">
-          <h2 className="text-4xl font-black uppercase tracking-tight">
-            {clientName}
-          </h2>
+        <div className="flex justify-between items-baseline border-b border-gray-100 pb-1">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[7px] font-black uppercase tracking-widest text-gray-400">
+              Cliente:
+            </span>
+            <h2 className="text-lg font-black uppercase tracking-tighter">
+              {clientName}
+            </h2>
+          </div>
         </div>
+        {/* Grouped Tables */}
+        {Object.entries(grouped).map(([type, typeProjects]) => (
+          <div
+            key={type}
+            className="space-y-2 break-inside-avoid shadow-none pt-1"
+          >
+            <div className="border-b border-black pb-0.5">
+              <h3 className="text-[9px] font-black uppercase tracking-widest text-black">
+                SISTEMA: {type}
+              </h3>
+            </div>
 
-        {/* Unified Table */}
-        {grouped.map(([type, typeProjects]) => (
-          <div key={type} className="space-y-2 break-inside-avoid">
             <div className="overflow-x-auto print:overflow-visible">
-              <table className="w-full border-collapse border border-black">
+              <table className="w-full border-collapse border border-black text-[10px]">
                 <thead>
-                  <tr className="bg-gray-100 text-black font-black uppercase tracking-tight text-[9px] border-b border-black">
-                    <th className="w-[30px]">#</th>
-                    <th className="w-[30px]">V</th>
-                    <th className="w-[110px]">HUECO</th>
-                    <th className="w-[90px]">JAMBA</th>
-                    <th className="w-[90px]">ALF/RUEDA</th>
-                    <th className="w-[90px]">LATERAL</th>
-                    <th className="w-[90px]">RIELES</th>
-                    <th>VIDRIO</th>
-                  </tr>
+                  {type === "GAVETAS" ? (
+                    <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
+                      <th className="border border-black px-1 py-1 w-12">#</th>
+                      <th className="border border-black px-1 py-1 w-20">Hueco</th>
+                      <th className="border border-black px-1 py-1" colSpan={2}>MOLDURAS (Ancho / Alto / Salida)</th>
+                      <th className="border border-black px-1 py-1" colSpan={2}>FACIAS (Ancho / Salida)</th>
+                    </tr>
+                  ) : (
+                    <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
+                      <th className="border border-black px-1 py-1 w-12">#</th>
+                      <th className="border border-black px-1 py-1 w-20">
+                        Hueco
+                      </th>
+                      <th className="border border-black px-1 py-1">Jamba</th>
+                      <th className="border border-black px-1 py-1">
+                        Alf / Rueda
+                      </th>
+                      <th className="border border-black px-1 py-1">Lateral</th>
+                      <th className="border border-black px-1 py-1">Rieles</th>
+                      <th className="border border-black px-1 py-1 w-32">
+                        CRISTAL (VIDRIO)
+                      </th>
+                    </tr>
+                  )}
                 </thead>
-                <tbody className="font-sans">
+                <tbody className="font-mono font-bold">
                   {typeProjects.map((p, pIdx) => {
                     const combinedHoja = p.results.hojas;
                     const combinedMarco = p.results.marco;
-                    const combinedVidrio = p.results.vidrios || p.results.vidrio;
+                    const combinedVidrio = p.results.vidrios;
+
+                    if (type === "GAVETAS") {
+                      const moldura = combinedMarco.find(m => m.id === "moldura");
+                      const facia = combinedHoja.find(h => h.id === "facia");
+                      
+                      return (
+                        <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
+                          <td className="border border-black px-0.5 py-0.5 text-black leading-none bg-gray-50/50">
+                            <span className="text-[11px] font-black">{pIdx + 1}</span>
+                          </td>
+                          <td className="border border-black px-1 py-0.5">
+                            <div className="text-[12px] font-black text-black">
+                              {formatDimensionSet(p.width, p.height)}
+                            </div>
+                          </td>
+                          <td className="border border-black px-1 py-1" colSpan={2}>
+                            {moldura && (
+                              <div className="flex flex-col gap-0.5 leading-none">
+                                <span className="text-[14px] font-black text-black">
+                                  {formatFraction(moldura.size)}
+                                </span>
+                                <span className="text-[8px] font-black text-black opacity-60 uppercase tracking-tighter">
+                                  {moldura.formula}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="border border-black px-1 py-1" colSpan={2}>
+                            {facia && (
+                              <div className="flex flex-col gap-0.5 leading-none">
+                                <span className="text-[14px] font-black text-black">
+                                  {formatFraction(facia.size)}
+                                </span>
+                                <span className="text-[8px] font-black text-black opacity-60 uppercase tracking-tighter">
+                                  {facia.formula}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    }
 
                     return (
-                      <tr key={p.id} className="text-center font-bold">
-                        <td>{pIdx + 1}</td>
-                        <td>{p.vias}</td>
-                        <td className="font-black text-[15px]">
-                          {formatDimensionSet(p.width, p.height)}
+                      <tr
+                        key={p.id}
+                        className="text-center border-b border-black break-inside-avoid"
+                      >
+                        <td className="border border-black px-0.5 py-0.5 text-black leading-none uppercase">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="text-[11px] font-black">
+                              {pIdx + 1}
+                            </span>
+                            <span className="text-[7px] font-bold opacity-60 whitespace-nowrap">
+                              {p.vias} Vías
+                            </span>
+                            {p.name && (
+                              <span className="text-[5px] font-black opacity-60 tracking-widest truncate w-10">
+                                {p.name}
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td className="font-black text-[15px]">
-                          {getS(combinedHoja, "Jamba")}
+                        <td className="border border-black px-1 py-0.5">
+                          <div className="flex items-center justify-center min-w-[75px] leading-tight text-[12px] font-black text-black">
+                            {formatDimensionSet(p.width, p.height)}
+                          </div>
                         </td>
-                        <td className="font-black text-[15px]">
-                          {getS(combinedHoja, "Alf / Rueda")}
+
+                        <td className="border border-black px-0.5 py-0.5">
+                          <div className="flex items-center justify-center gap-1 leading-none">
+                            <span className="text-[12px] font-black text-black">
+                              {getS(combinedHoja, "Jamba")}
+                            </span>
+                            <span className="text-[9px] font-bold text-black opacity-40">
+                              x{p.vias * 2}
+                            </span>
+                          </div>
                         </td>
-                        <td className="font-black text-[15px]">
-                          {getS(combinedMarco, "Lateral")}
+                        <td className="border border-black px-0.5 py-0.5">
+                          <div className="flex items-center justify-center gap-1 leading-none">
+                            <span className="text-[12px] font-black text-black">
+                              {getS(combinedHoja, "Alf / Rueda")}
+                            </span>
+                            <span className="text-[9px] font-bold text-black opacity-40">
+                              x{p.vias * 2}
+                            </span>
+                          </div>
                         </td>
-                        <td className="font-black text-[15px]">
-                          {getS(combinedMarco, "Rieles")}
+                        <td className="border border-black px-0.5 py-0.5">
+                          <div className="flex items-center justify-center gap-1 leading-none">
+                            <span className="text-[12px] font-black text-black">
+                              {getS(combinedMarco, "Lateral")}
+                            </span>
+                            <span className="text-[9px] font-bold text-black opacity-40">
+                              x2
+                            </span>
+                          </div>
                         </td>
-                        <td className="font-black text-[15px]">
-                          {getD(combinedVidrio || [], "Cristal")}
+                        <td className="border border-black px-0.5 py-0.5">
+                          <div className="flex items-center justify-center gap-1 leading-none">
+                            <span className="text-[12px] font-black text-black">
+                              {getS(combinedMarco, "Rieles")}
+                            </span>
+                            <span className="text-[9px] font-bold text-black opacity-40">
+                              x2
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="border border-black px-1 py-0.5 font-black text-black">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="text-[13px] tracking-tight tabular-nums leading-none">
+                              {getD(combinedVidrio, "Cristal")}
+                            </span>
+                            <span className="text-[9px] font-bold text-black opacity-40">
+                              x{p.vias}
+                            </span>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -330,9 +355,9 @@ function PrintReport({
           </div>
         ))}
 
-        <div className="footer-text flex justify-between items-center pt-8 border-t border-black/10 mt-12 print:mt-12 text-[7px] italic opacity-30 uppercase font-black tracking-widest no-print print:flex">
-          <span>EUROPEO REPORT — SYSTEM V1.0</span>
-          <span>PRINTED: {new Date().toLocaleDateString()}</span>
+        <div className="flex justify-between items-center pt-2 italic opacity-20 text-[7px] font-black uppercase tracking-widest leading-none">
+          <span>EUROPEO TECHNICAL SHEET — 8.5 x 11</span>
+          <span>{new Date().toLocaleDateString()}</span>
         </div>
       </div>
     </div>
