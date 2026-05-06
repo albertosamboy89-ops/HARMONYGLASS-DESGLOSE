@@ -136,7 +136,33 @@ function PrintReport({
 
   return (
     <div className="fixed inset-0 z-[100] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0">
-      <div className="max-w-5xl mx-auto space-y-4">
+      <style>
+        {`
+          @page {
+            size: letter;
+            margin: 0.5in;
+          }
+          @media print {
+            body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+              background: white !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+            /* Force black and white */
+            * {
+              color: black !important;
+              background-color: transparent !important;
+              border-color: black !important;
+              box-shadow: none !important;
+              text-shadow: none !important;
+            }
+          }
+        `}
+      </style>
+      <div className="max-w-[7.5in] mx-auto space-y-4">
         {/* Header Section */}
         <div className="flex justify-between items-center border-b-2 border-black pb-2 print:hidden">
           <div className="flex items-center gap-3">
