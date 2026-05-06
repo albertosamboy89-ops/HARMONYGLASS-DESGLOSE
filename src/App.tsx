@@ -135,7 +135,7 @@ function PrintReport({
   );
 
   return (
-    <div className="fixed inset-0 z-[500] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0">
+    <div className="fixed inset-0 z-[500] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print-only">
       <div className="max-w-5xl mx-auto space-y-4">
         {/* Header Section */}
         <div className="flex justify-between items-center border-b-2 border-black pb-2 print:hidden">
@@ -2186,7 +2186,7 @@ export default function App() {
       )}
 
       {isSinglePrintMode && singlePrintProject && (
-        <div className="fixed inset-0 z-[500] bg-white text-black p-4 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0">
+        <div className="fixed inset-0 z-[500] bg-white text-black p-4 overflow-y-auto font-sans print-only">
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex justify-between items-center border-b-4 border-black pb-4 print:hidden">
               <div className="flex items-center gap-3">
