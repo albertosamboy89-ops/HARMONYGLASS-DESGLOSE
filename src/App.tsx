@@ -135,7 +135,7 @@ function PrintReport({
   );
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0">
+    <div className="fixed inset-0 z-[500] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0">
       <div className="max-w-5xl mx-auto space-y-4">
         {/* Header Section */}
         <div className="flex justify-between items-center border-b-2 border-black pb-2 print:hidden">
@@ -1351,18 +1351,18 @@ export default function App() {
   return (
     <div className="flex flex-col min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent/30 selection:text-white overflow-x-hidden uppercase-none">
       {/* Background Ambience */}
-      <div className="fixed inset-0 pointer-events-none opacity-20">
+      <div className="fixed inset-0 pointer-events-none opacity-20 print:hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-accent rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-blue-900 rounded-full blur-[100px]" />
       </div>
 
       {/* Futuristic Scanline */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] overflow-hidden print:hidden">
         <div className="w-full h-[2px] bg-white animate-[scan_8s_linear_infinite]" />
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-brand-bg/80 border-b border-brand-border p-4 lg:px-10 flex justify-between items-center shrink-0">
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-brand-bg/80 border-b border-brand-border p-4 lg:px-10 flex justify-between items-center shrink-0 print:hidden">
         <div className="flex items-center gap-4">
           <motion.div
             onClick={() => setActiveView("dashboard")}
@@ -1398,7 +1398,7 @@ export default function App() {
         </button>
       </header>
 
-      <main className="relative flex-1 z-10">
+      <main className="relative flex-1 z-10 print:hidden">
         <div className="max-w-3xl mx-auto px-4 py-8 md:py-12 space-y-10 sm:space-y-16">
           {activeView === "new-order" ? (
             <motion.div
@@ -2186,7 +2186,7 @@ export default function App() {
       )}
 
       {isSinglePrintMode && singlePrintProject && (
-        <div className="fixed inset-0 z-[110] bg-white text-black p-4 overflow-y-auto font-sans print:p-0">
+        <div className="fixed inset-0 z-[500] bg-white text-black p-4 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0">
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex justify-between items-center border-b-4 border-black pb-4 print:hidden">
               <div className="flex items-center gap-3">
@@ -2311,7 +2311,7 @@ export default function App() {
       )}
 
       {/* Global Bottom Navigation */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] w-[92%] max-w-lg flex items-center gap-1 p-1 bg-brand-sidebar/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] w-[92%] max-w-lg flex items-center gap-1 p-1 bg-brand-sidebar/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)] print:hidden">
         <button
           onClick={() => {
             setActiveView("dashboard");
@@ -2364,7 +2364,7 @@ export default function App() {
         </button>
       </nav>
 
-      <footer className="py-20 px-4 bg-brand-bg text-center relative z-20">
+      <footer className="py-20 px-4 bg-brand-bg text-center relative z-20 print:hidden">
         <p className="text-[9px] text-brand-muted uppercase tracking-[0.8em] font-black opacity-30">
           HARMONY GLASS • PRODUCTION OS • 2.6.0
         </p>
@@ -2373,7 +2373,7 @@ export default function App() {
       {/* Project Detail Portal (Modal) */}
       <AnimatePresence>
         {selectedProject && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6">
+          <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-6 print:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2514,7 +2514,7 @@ export default function App() {
       {/* Security Check Portal (Modal) */}
       <AnimatePresence>
         {isAuthModalOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 print:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
