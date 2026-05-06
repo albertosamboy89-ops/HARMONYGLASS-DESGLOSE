@@ -247,12 +247,9 @@ function PrintReport({
           </div>
         </div>
 
-        <div className="print:mt-0 print:mb-0">
-          <div className="flex items-baseline gap-2 mb-0.5">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-black/60">
-              CLIENTE:
-            </span>
-            <h2 className="text-xl font-black uppercase tracking-tighter">
+        <div className="print:mt-0 print:mb-2">
+          <div className="flex items-baseline gap-2 mb-1">
+            <h2 className="text-2xl font-black uppercase tracking-tight">
               {clientName}
             </h2>
           </div>
@@ -262,14 +259,8 @@ function PrintReport({
         {grouped.map(([type, typeProjects]) => (
           <div
             key={type}
-            className="space-y-1 break-inside-avoid pt-2"
+            className="space-y-1 break-inside-avoid"
           >
-            <div className="border-b border-black pb-0.5 mb-2">
-              <h3 className="text-[11px] font-black uppercase tracking-tight text-black">
-                SISTEMA: {type}
-              </h3>
-            </div>
-
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full border-collapse border border-black text-[9px]">
                 <thead>
@@ -282,8 +273,9 @@ function PrintReport({
                     </tr>
                   ) : (
                     <tr className="bg-gray-100 text-black font-black uppercase tracking-tighter text-[7px] border-b border-black">
-                      <th className="border border-black px-1 py-1 w-[35px]">#</th>
-                      <th className="border border-black px-1 py-1 w-[90px]">HUECO</th>
+                      <th className="border border-black px-1 py-1 w-[30px]">#</th>
+                      <th className="border border-black px-1 py-1 w-[15px]">V</th>
+                      <th className="border border-black px-1 py-1 w-[85px]">HUECO</th>
                       <th className="border border-black px-1 py-1">JAMBA</th>
                       <th className="border border-black px-1 py-1">ALF/RUEDA</th>
                       <th className="border border-black px-1 py-1">LATERAL</th>
@@ -343,13 +335,13 @@ function PrintReport({
                     return (
                       <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
                         <td className="border border-black px-1 py-0.5">
-                          <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-black">{pIdx + 1}</span>
-                            <span className="text-[5px] font-bold opacity-60">{p.vias}V</span>
-                          </div>
+                          <span className="text-[10px] font-black">{pIdx + 1}</span>
                         </td>
                         <td className="border border-black px-1 py-0.5">
-                          <div className="text-[11px] font-black leading-none">
+                          <span className="text-[8px] font-bold">{p.vias}</span>
+                        </td>
+                        <td className="border border-black px-1 py-0.5">
+                          <div className="text-[11px] font-black leading-none whitespace-nowrap">
                             {formatDimensionSet(p.width, p.height)}
                           </div>
                         </td>
