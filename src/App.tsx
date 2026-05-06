@@ -150,43 +150,60 @@ function PrintReport({
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
-            /* Hide all except the print content area */
-            .no-print, header, footer, button, nav, .print-hidden {
+            /* Hide all UI elements and extra sections */
+            .no-print, 
+            header, 
+            footer, 
+            button, 
+            nav, 
+            .print-hidden,
+            [role="banner"],
+            [role="navigation"] {
               display: none !important;
             }
-            /* Force absolute black and white */
+            
+            /* Remove any generic layout padding/margins from parent containers */
+            body > div {
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+
+            /* Absolute Black & White */
             * {
               color: black !important;
               background: white !important;
-              background-image: none !important;
               border-color: black !important;
               box-shadow: none !important;
               text-shadow: none !important;
               -webkit-filter: grayscale(100%) !important;
               filter: grayscale(100%) !important;
             }
+
+            /* Force the content to start at the top and occupy full width */
             .max-w-[7.5in] {
               width: 100% !important;
               max-width: none !important;
               margin: 0 !important;
               padding: 0 !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
             }
+
+            /* Table styling for clarity */
             table {
               width: 100% !important;
               border-collapse: collapse !important;
-              page-break-inside: auto;
-            }
-            tr {
-              page-break-inside: avoid;
-              page-break-after: auto;
             }
             td, th {
               border: 1px solid black !important;
-              padding-top: 2px !important;
-              padding-bottom: 2px !important;
+              padding: 4px !important;
             }
-            .gap-6 { gap: 10px !important; }
-            .space-y-6 { space-y: 10px !important; }
+            
+            /* Avoid breaking tables across pages if possible */
+            .break-inside-avoid {
+              page-break-inside: avoid !important;
+            }
           }
         `}
       </style>
