@@ -143,12 +143,12 @@ function PrintReport({
   }, [projects]);
 
   return (
-    <div className={`fixed inset-0 z-[100] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:relative print:inset-0 print:p-0 print:m-0 print:bg-white`}>
+    <div className="fixed inset-0 z-[100] bg-white text-black p-2 sm:p-4 overflow-y-auto font-sans print:static print:bg-white print:p-0 print:overflow-visible">
       <style>
         {`
           @page {
             size: letter;
-            margin: 0.25in;
+            margin: 0.4in;
           }
           @media print {
             html, body {
@@ -161,21 +161,20 @@ function PrintReport({
               print-color-adjust: exact !important;
             }
             
-            #root > *:not(.print-report-wrapper) {
-              display: none !important;
-            }
-
-            .print-report-wrapper {
+            /* Ensure the container is visible and not hidden by parent styles */
+            #root, .print-report-wrapper {
               display: block !important;
               width: 100% !important;
+              position: static !important;
               margin: 0 !important;
               padding: 0 !important;
+              overflow: visible !important;
             }
 
-            .no-print, .print-hidden {
+            .no-print, .print-hidden, button, nav, header {
               display: none !important;
             }
-            
+
             * {
               color: black !important;
               background: white !important;
@@ -183,55 +182,57 @@ function PrintReport({
               box-shadow: none !important;
               text-shadow: none !important;
               font-family: 'Inter', sans-serif !important;
+              -webkit-print-color-adjust: exact !important;
             }
 
             .max-w-[7.5in] {
               width: 100% !important;
               max-width: none !important;
               margin: 0 !important;
-              padding: 0 !important;
             }
 
             table {
               width: 100% !important;
               border-collapse: collapse !important;
               table-layout: fixed !important;
-              margin-top: 10px !important;
+              margin-top: 20px !important;
+              border: 2px solid black !important;
             }
 
             th {
-              background: #f3f4f6 !important;
+              background: #f0f0f0 !important;
               border: 1px solid black !important;
-              padding: 6px 2px !important;
-              font-size: 8px !important;
+              padding: 8px 2px !important;
+              font-size: 9px !important;
               font-weight: 900 !important;
               text-transform: uppercase !important;
-              -webkit-print-color-adjust: exact !important;
             }
 
             td {
               border: 1px solid black !important;
-              padding: 10px 2px !important;
-              font-size: 14px !important;
-              font-weight: 700 !important;
+              padding: 12px 4px !important;
+              font-size: 16px !important;
+              font-weight: 800 !important;
               text-align: center !important;
               line-height: 1 !important;
             }
 
             h2 { 
-              font-size: 32px !important; 
+              font-size: 36px !important; 
               font-weight: 900 !important;
-              margin: 20px 0 10px 0 !important; 
+              margin: 10px 0 20px 0 !important; 
               text-transform: uppercase !important;
+              letter-spacing: -0.05em !important;
             }
             
             .footer-text {
               font-size: 7px !important;
-              opacity: 0.3 !important;
-              font-style: italic !important;
+              opacity: 0.4 !important;
+              margin-top: 40px !important;
+              border-top: 1px solid #ccc !important;
+              padding-top: 10px !important;
               display: flex !important;
               justify-content: space-between !important;
-              width: 100% !important;
             }
           }
         `}
@@ -281,15 +282,15 @@ function PrintReport({
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full border-collapse border border-black">
                 <thead>
-                  <tr className="bg-gray-100 text-black font-black uppercase tracking-tight text-[8px] border-b border-black">
+                  <tr className="bg-gray-100 text-black font-black uppercase tracking-tight text-[9px] border-b border-black">
                     <th className="w-[30px]">#</th>
-                    <th className="w-[25px]">V</th>
-                    <th className="w-[100px]">HUECO</th>
-                    <th>JAMBA</th>
-                    <th>ALF/RUEDA</th>
-                    <th>LATERAL</th>
-                    <th>RIELES</th>
-                    <th className="w-[120px]">VIDRIO</th>
+                    <th className="w-[30px]">V</th>
+                    <th className="w-[110px]">HUECO</th>
+                    <th className="w-[90px]">JAMBA</th>
+                    <th className="w-[90px]">ALF/RUEDA</th>
+                    <th className="w-[90px]">LATERAL</th>
+                    <th className="w-[90px]">RIELES</th>
+                    <th>VIDRIO</th>
                   </tr>
                 </thead>
                 <tbody className="font-sans">
