@@ -2425,7 +2425,7 @@ export default function App() {
                 <span className="text-blue-500">GLASS</span>
             </h2>
             <p className="text-[9px] text-brand-muted uppercase tracking-[0.4em] font-black opacity-30 mt-2">
-                PREMIUM INDUSTRIAL SOFTWARE • 2.7.0
+                2.7.0
             </p>
         </div>
       </footer>
