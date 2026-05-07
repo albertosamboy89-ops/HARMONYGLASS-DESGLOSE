@@ -25,6 +25,9 @@ import {
   Save,
   Printer,
   X,
+  Download,
+  Upload,
+  Share2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -1052,6 +1055,72 @@ export default function App() {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
   }, [orderWindows]);
 
+  const exportData = () => {
+    const data = {
+      projects,
+      clientPricing,
+      exportDate: new Date().toISOString(),
+      version: "2.7.0"
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `harmony-glass-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (json.projects && Array.isArray(json.projects)) {
+          setProjects(json.projects);
+          if (json.clientPricing) setClientPricing(json.clientPricing);
+          setActiveView("dashboard");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+          throw new Error("Formato inválido");
+        }
+      } catch (err) {
+        console.error("Error al importar", err);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleShareEmail = () => {
+    const data = {
+        projects,
+        clientPricing,
+        exportDate: new Date().toISOString(),
+    };
+    const jsonStr = JSON.stringify(data);
+    const subject = encodeURIComponent("Respaldo de Datos - Harmony Glass");
+    const body = encodeURIComponent(
+        "Hola, adjunto los datos de Harmony Glass.\n\n" +
+        "Para restaurarlos:\n" +
+        "1. Descarga el archivo que generará el sistema.\n" +
+        "2. Abre la aplicación en el otro equipo.\n" +
+        "3. Pulsa el icono de 'Subir' (Flecha arriba) y selecciona el archivo.\n\n" +
+        "--- DATOS DE RESPALDO ---\n" +
+        "Fecha: " + new Date().toLocaleString()
+    );
+    
+    // Trigger download first so the user has the file to attach
+    exportData();
+    
+    // Open email client
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
   const results = useMemo(() => {
     const totalWidth = widthWhole * 16 + widthFrac;
     const totalHeight = heightWhole * 16 + heightFrac;
@@ -1431,12 +1500,48 @@ export default function App() {
           </motion.div>
         </div>
 
-        <button
-          onClick={handleReset}
-          className="p-3 bg-white/5 rounded-xl text-brand-muted hover:text-white transition-all ml-auto"
-        >
-          <RotateCcw size={18} />
-        </button>
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="hidden sm:flex items-center gap-2 mr-2">
+            <button
+               onClick={exportData}
+               title="Exportar Datos (Descargar)"
+               className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center gap-2"
+            >
+              <Download size={18} />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Exportar</span>
+            </button>
+            
+            <label className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 hover:bg-blue-500/20 transition-all flex items-center gap-2 cursor-pointer">
+              <Upload size={18} />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Importar</span>
+              <input type="file" accept=".json" onChange={importData} className="hidden" />
+            </label>
+
+            <button
+               onClick={handleShareEmail}
+               title="Compartir por Correo"
+               className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 hover:bg-amber-500/20 transition-all"
+            >
+              <Share2 size={18} />
+            </button>
+          </div>
+
+          {/* Mobile compact icons */}
+          <div className="sm:hidden flex items-center gap-1 mr-2">
+             <button onClick={exportData} className="p-2 text-emerald-400"><Download size={18}/></button>
+             <label className="p-2 text-blue-400 cursor-pointer">
+                <Upload size={18}/>
+                <input type="file" accept=".json" onChange={importData} className="hidden" />
+             </label>
+          </div>
+
+          <button
+            onClick={handleReset}
+            className="p-3 bg-white/5 rounded-xl text-brand-muted hover:text-white transition-all"
+          >
+            <RotateCcw size={18} />
+          </button>
+        </div>
       </header>
 
       <main className="relative flex-1 z-10 print:hidden">
