@@ -246,8 +246,8 @@ function PrintReport({
                     <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
                       <th className="border border-black px-1 py-1 w-12">#</th>
                       <th className="border border-black px-1 py-1 w-20">Hueco</th>
-                      <th className="border border-black px-1 py-1" colSpan={2}>MOLDURAS (Ancho / Alto / Salida)</th>
-                      <th className="border border-black px-1 py-1" colSpan={2}>FACIAS (Ancho / Salida)</th>
+                      <th className="border border-black px-1 py-1" colSpan={2}>MOLDURAS</th>
+                      <th className="border border-black px-1 py-1" colSpan={2}>FACIAS</th>
                     </tr>
                   ) : (
                     <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
@@ -293,9 +293,6 @@ function PrintReport({
                                 <span className="text-[14px] font-black text-black">
                                   {formatFraction(moldura.size)}
                                 </span>
-                                <span className="text-[8px] font-black text-black opacity-60 uppercase tracking-tighter">
-                                  {moldura.formula}
-                                </span>
                               </div>
                             )}
                           </td>
@@ -304,9 +301,6 @@ function PrintReport({
                               <div className="flex flex-col gap-0.5 leading-none">
                                 <span className="text-[14px] font-black text-black">
                                   {formatFraction(facia.size)}
-                                </span>
-                                <span className="text-[8px] font-black text-black opacity-60 uppercase tracking-tighter">
-                                  {facia.formula}
                                 </span>
                               </div>
                             )}
@@ -770,13 +764,6 @@ function ResultsBreakdown({
                           Piezas
                         </p>
                       </div>
-                      {item.formula && (
-                        <p
-                          className={`text-[8px] font-black uppercase tracking-wider leading-none mt-1 ${isDone ? "text-red-400/50" : "text-brand-accent"} truncate`}
-                        >
-                          {item.formula}
-                        </p>
-                      )}
                     </div>
                   </div>
                   <p
@@ -1066,12 +1053,12 @@ export default function App() {
 
     // User requested P92 specific discounts
     if (windowType === "P92") {
-      leafVertDeduction = 48; // Jamba 3"
-      leafOverlap = 10; // Cabezal 5/8" (Results in (W-1.25)/2 for 2 vias)
-      frameHorizDeduction = 26; // Riel 1 5/8"
-      frameVertDeduction = 2; // Lateral 1/8"
-      glassWidthFrameDeduction = 112; // Vidrio Ancho 7" (Results in Cabezal - 2 7/8")
-      glassHeightFrameDeduction = 96; // Vidrio Alto 6" (Results in Jamba - 3")
+      leafVertDeduction = 40; // Jamba 2.5"
+      leafOverlap = 24; // Cabezal 1.5"
+      frameHorizDeduction = 28; // Riel 1.75"
+      frameVertDeduction = 2; // Lateral 0.125"
+      glassWidthFrameDeduction = 52; // Vidrio Ancho 3.25"
+      glassHeightFrameDeduction = 64; // Vidrio Alto 4.0"
     }
 
     // Adjustments based on Vias
@@ -1128,8 +1115,6 @@ export default function App() {
     // Height target for 23.63: 18.63 (298/16). 378 - 80 = 298.
     const glassHeight = totalHeight - glassHeightFrameDeduction;
 
-    const isP92 = windowType === "P92";
-
     return {
       inputs: { w: totalWidth, h: totalHeight, type: windowType, vias },
       marco: [
@@ -1142,7 +1127,7 @@ export default function App() {
         },
         {
           id: "riel_up_down",
-          piece: isP92 ? "Riel" : "Rieles (Arr/Aba)",
+          piece: "Rieles (Arr/Aba)",
           qty: 2,
           size: sillSize,
           formula: `Ancho - ${formatFraction(frameHorizDeduction)}`,
@@ -1151,17 +1136,17 @@ export default function App() {
       hojas: [
         {
           id: "vert",
-          piece: isP92 ? "Jamba" : "Jamba / Llavín",
+          piece: "Jamba / Llavín",
           qty: vias * 2,
           size: leafVerticalSize,
           formula: `Alto - ${formatFraction(leafVertDeduction)}`,
         },
         {
           id: "alf_rueda",
-          piece: isP92 ? "Cabezal" : "Alf / Rueda",
+          piece: "Alf / Rueda",
           qty: vias * 2,
           size: leafHorizontalSize,
-          formula: isP92 ? `(Ancho - 1 1/4) / ${vias}` : `Ancho/vias - ${formatFraction(leafOverlap)}`,
+          formula: `Ancho/vias - ${formatFraction(leafOverlap)}`,
         },
       ],
       vidrios: [
@@ -1171,9 +1156,7 @@ export default function App() {
           qty: vias,
           size: glassWidth,
           dimensions: formatDimensionSet(glassWidth, glassHeight),
-          formula: isP92 
-            ? `Ancho: Cabezal - 2 7/8 | Alto: Jamba - 3`
-            : `(Ancho - ${formatFraction(glassWidthFrameDeduction)}) / ${vias} | Alto - ${formatFraction(glassHeightFrameDeduction)}`,
+          formula: `(Ancho - ${formatFraction(glassWidthFrameDeduction)}) / ${vias} | Alto - ${formatFraction(glassHeightFrameDeduction)}`,
         },
       ],
     };
