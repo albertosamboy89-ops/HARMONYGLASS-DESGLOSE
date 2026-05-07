@@ -1338,21 +1338,6 @@ export default function App() {
     }
   };
 
-  const handleReset = () => {
-    setWidthWhole(60);
-    setWidthFrac(0);
-    setHeightWhole(48);
-    setHeightFrac(0);
-    setVias(2);
-    setShowResults(false);
-    setWindowTag("Ventana 01");
-    setClientName("");
-    setDeliveryDate("");
-    setOrderWindows([]);
-    setOrderStep(1);
-    setActiveView("dashboard");
-  };
-
   const startNewOrder = () => {
     setClientName("");
     setDeliveryDate("");
@@ -1535,12 +1520,6 @@ export default function App() {
              </label>
           </div>
 
-          <button
-            onClick={handleReset}
-            className="p-3 bg-white/5 rounded-xl text-brand-muted hover:text-white transition-all"
-          >
-            <RotateCcw size={18} />
-          </button>
         </div>
       </header>
 
