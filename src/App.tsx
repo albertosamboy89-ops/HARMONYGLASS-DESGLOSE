@@ -99,9 +99,6 @@ const BrandingText = () => (
       <span className="text-red-600 drop-shadow-[0_2px_0_rgba(0,0,0,1)]">HARMONY</span>
       <span className="text-blue-400 ml-1.5 drop-shadow-[0_2px_4px_rgba(30,58,138,0.4)]">GLASS</span>
     </h1>
-    <p className="text-[9px] text-brand-muted font-black tracking-[0.4em] mt-1 uppercase opacity-60">
-      Production OS • Industrial Excellence
-    </p>
   </div>
 );
 
