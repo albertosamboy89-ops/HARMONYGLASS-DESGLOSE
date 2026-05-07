@@ -1518,6 +1518,7 @@ export default function App() {
                 <Upload size={18}/>
                 <input type="file" accept=".json" onChange={importData} className="hidden" />
              </label>
+             <button onClick={handleShareEmail} className="p-2 text-amber-400"><Share2 size={18}/></button>
           </div>
 
         </div>
