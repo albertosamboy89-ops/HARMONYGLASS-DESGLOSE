@@ -25,29 +25,10 @@ import {
   Save,
   Printer,
   X,
+  Download,
+  RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  auth, 
-  db, 
-  loginWithGoogle, 
-  logout, 
-  handleFirestoreError, 
-  OperationType 
-} from "./lib/firebase";
-import { 
-  onAuthStateChanged, 
-  User as FirebaseUser 
-} from "firebase/auth";
-import { 
-  collection, 
-  onSnapshot, 
-  setDoc, 
-  doc, 
-  deleteDoc, 
-  query, 
-  writeBatch 
-} from "firebase/firestore";
 
 // --- Types ---
 
@@ -1016,10 +997,6 @@ export default function App() {
   const [activeView, setActiveView] = useState<
     "dashboard" | "history" | "new-order"
   >("dashboard");
-
-  // Firebase Auth State
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [orderStep, setOrderStep] = useState<1 | 2 | 3>(1);
   const [orderWindows, setOrderWindows] = useState<WindowProject[]>([]);
 
@@ -1035,91 +1012,91 @@ export default function App() {
   const [isSinglePrintMode, setIsSinglePrintMode] = useState(false);
   const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
   const [clientPricing, setClientPricing] = useState<Record<string, number>>({});
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Firebase Auth & Sync
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-
-    setIsSyncing(true);
-    
-    // Subscribe to projects
-    const projectsRef = collection(db, "users", user.uid, "projects");
-    const unsubProjects = onSnapshot(projectsRef, (snapshot) => {
-      const remoteProjects = snapshot.docs.map(doc => doc.data() as WindowProject);
-      
-      // Merge with local only if local has something and remote is empty (initial migration)
-      setProjects(prev => {
-        if (remoteProjects.length > 0) return remoteProjects;
-        return prev;
-      });
+  // Server Sync Logic
+  const syncWithServer = async (dataToSave?: { projects: WindowProject[], pricing: any }) => {
+    try {
+      setIsSyncing(true);
+      if (dataToSave) {
+        await fetch("/api/data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(dataToSave),
+        });
+      } else {
+        const res = await fetch("/api/data");
+        const data = await res.json();
+        if (data.projects) setProjects(data.projects);
+        if (data.pricing) setClientPricing(data.pricing);
+      }
+    } catch (error) {
+      console.error("Sync failed", error);
+    } finally {
       setIsSyncing(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/projects`);
-    });
+    }
+  };
 
-    // Subscribe to pricing
-    const pricingRef = collection(db, "users", user.uid, "pricing");
-    const unsubPricing = onSnapshot(pricingRef, (snapshot) => {
-      const remotePricing: Record<string, number> = {};
-      snapshot.docs.forEach(doc => {
-        remotePricing[doc.id] = (doc.data() as any).price;
-      });
-      if (Object.keys(remotePricing).length > 0) {
-        setClientPricing(remotePricing);
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/pricing`);
-    });
-
-    return () => {
-      unsubProjects();
-      unsubPricing();
+  const exportData = () => {
+    const data = {
+      projects,
+      pricing: clientPricing,
+      version: "1.0",
+      timestamp: Date.now()
     };
-  }, [user]);
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `respaldo-v-cut-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
-  // Load from localStorage (Initial local boot)
+  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (data.projects && Array.isArray(data.projects)) {
+          if (window.confirm("¿Deseas importar este respaldo? Esto reemplazará tus datos actuales.")) {
+            setProjects(data.projects);
+            if (data.pricing) setClientPricing(data.pricing);
+            alert("¡Datos importados con éxito!");
+          }
+        }
+      } catch (err) {
+        alert("Error al leer el archivo de respaldo.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Load and Sync
   useEffect(() => {
-    const saved = localStorage.getItem("v-cut-projects");
-    if (saved) {
-      try {
-        setProjects(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load projects", e);
-      }
-    }
-    const savedPricing = localStorage.getItem("v-cut-pricing");
-    if (savedPricing) {
-      try {
-        setClientPricing(JSON.parse(savedPricing));
-      } catch (e) {
-        console.error("Failed to load pricing", e);
-      }
-    }
-    const savedOrder = localStorage.getItem("v-cut-temp-order");
-    if (savedOrder) {
-      try {
-        setOrderWindows(JSON.parse(savedOrder));
-      } catch (e) {
-        console.error("Failed to load buffer", e);
-      }
-    }
+    syncWithServer(); // Initial load from cloud
+    
+    // Poll for changes every 20 seconds for multi-device visibility
+    const interval = setInterval(() => {
+      syncWithServer();
+    }, 20000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  // Save to localStorage
+  // Auto-save to cloud on changes
   useEffect(() => {
-    localStorage.setItem("v-cut-projects", JSON.stringify(projects));
-  }, [projects]);
-
-  useEffect(() => {
-    localStorage.setItem("v-cut-pricing", JSON.stringify(clientPricing));
-  }, [clientPricing]);
+    if (projects.length > 0 || Object.keys(clientPricing).length > 0) {
+      const timer = setTimeout(() => {
+        syncWithServer({ projects, pricing: clientPricing });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [projects, clientPricing]);
 
   useEffect(() => {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
@@ -1263,39 +1240,25 @@ export default function App() {
 
   /* addToQueue was redundant, replaced by addToBatch flow */
 
-  const toggleProjectStatus = async (id: string) => {
-    const project = projects.find(p => p.id === id);
-    if (!project) return;
-    const newStatus = project.status === "pending" ? "completed" : "pending";
-
+  const toggleProjectStatus = (id: string) => {
     setProjects((prev) =>
       prev.map((p) =>
         p.id === id
-          ? { ...p, status: newStatus }
+          ? { ...p, status: p.status === "pending" ? "completed" : "pending" }
           : p,
       ),
     );
-
-    if (user) {
-      try {
-        await setDoc(doc(db, "users", user.uid, "projects", id), { status: newStatus }, { merge: true });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/projects/${id}`);
-      }
-    }
   };
 
-  const toggleCutStatus = async (projectId: string, cutId: string) => {
-    const project = projects.find((p) => p.id === projectId);
-    if (!project) return;
-    const alreadyDone = project.completedCuts.includes(cutId);
-    const newCompleted = alreadyDone
-      ? project.completedCuts.filter((id) => id !== cutId)
-      : [...project.completedCuts, cutId];
-
+  const toggleCutStatus = (projectId: string, cutId: string) => {
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id !== projectId) return p;
+        const alreadyDone = p.completedCuts.includes(cutId);
+        const newCompleted = alreadyDone
+          ? p.completedCuts.filter((id) => id !== cutId)
+          : [...p.completedCuts, cutId];
+
         const updated = { ...p, completedCuts: newCompleted };
         if (selectedProject?.id === projectId) {
           setSelectedProject(updated);
@@ -1303,14 +1266,6 @@ export default function App() {
         return updated;
       }),
     );
-
-    if (user) {
-      try {
-        await setDoc(doc(db, "users", user.uid, "projects", projectId), { completedCuts: newCompleted }, { merge: true });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/projects/${projectId}`);
-      }
-    }
   };
 
   const deleteProject = (id: string) => {
@@ -1337,43 +1292,19 @@ export default function App() {
     setPassInput("");
   };
 
-  const confirmDeletion = async () => {
+  const confirmDeletion = () => {
     if (passInput === "1989") {
       if (pendingDeleteId) {
         setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
         if (selectedProject?.id === pendingDeleteId) {
           setSelectedProject(null);
         }
-        if (user) {
-          try {
-            await deleteDoc(doc(db, "users", user.uid, "projects", pendingDeleteId));
-          } catch (error) {
-            handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/projects/${pendingDeleteId}`);
-          }
-        }
       } else if (pendingDeleteClient) {
-        const clientToDelete = pendingDeleteClient;
-        const affectedIds = projects
-          .filter((p) => p.clientName === clientToDelete)
-          .map((p) => p.id);
-
         setProjects((prev) =>
-          prev.filter((p) => p.clientName !== clientToDelete),
+          prev.filter((p) => p.clientName !== pendingDeleteClient),
         );
-        if (selectedClientName === clientToDelete) {
+        if (selectedClientName === pendingDeleteClient) {
           setSelectedClientName(null);
-        }
-
-        if (user) {
-          try {
-            const batch = writeBatch(db);
-            affectedIds.forEach((id) => {
-              batch.delete(doc(db, "users", user.uid, "projects", id));
-            });
-            await batch.commit();
-          } catch (error) {
-            handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/projects/BATCH`);
-          }
         }
       } else if (pendingChangeProfile) {
         setOrderStep(2);
@@ -1412,36 +1343,11 @@ export default function App() {
     setWindowTag("Ventana 01");
   };
 
-  const saveBatchOrder = async () => {
+  const saveBatchOrder = () => {
     if (orderWindows.length === 0) return;
-    
-    // Batch commit to Firestore if user is authenticated
-    if (user) {
-      try {
-        const batch = writeBatch(db);
-        orderWindows.forEach((p) => {
-          batch.set(doc(db, "users", user.uid, "projects", p.id), p);
-        });
-        await batch.commit();
-      } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/projects/BATCH`);
-      }
-    }
-
     setProjects((prev) => [...prev, ...orderWindows]);
     setActiveView("dashboard");
     setOrderWindows([]);
-  };
-
-  const updatePricing = async (cName: string, price: number) => {
-    setClientPricing((prev) => ({ ...prev, [cName]: price }));
-    if (user) {
-      try {
-        await setDoc(doc(db, "users", user.uid, "pricing", cName), { price });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/pricing/${cName}`);
-      }
-    }
   };
 
   const addToBatch = () => {
@@ -1575,40 +1481,23 @@ export default function App() {
           </motion.div>
         </div>
 
-        <div className="flex items-center gap-3 ml-auto">
-          {user ? (
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex flex-col items-end leading-none">
-                <span className="text-[9px] font-black text-white italic truncate max-w-[120px]">
-                  {user.displayName || user.email}
-                </span>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <div className={`w-1 h-1 rounded-full ${isSyncing ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
-                  <span className="text-[7px] font-black text-brand-muted uppercase tracking-widest">
-                    {isSyncing ? "Sincronizando" : "Sincronizado"}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={logout}
-                className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-brand-muted hover:text-white hover:bg-white/10 transition-all shadow-lg"
-              >
-                <div className="relative">
-                  <User size={18} />
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-brand-bg" />
-                </div>
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={loginWithGoogle}
-              className="flex items-center gap-2 px-4 h-10 bg-brand-accent/10 border border-brand-accent/30 rounded-xl text-[10px] font-black text-brand-accent uppercase tracking-widest hover:bg-brand-accent/20 transition-all shadow-lg shadow-brand-accent/5"
-            >
-              <RotateCcw size={14} className="animate-spin-slow" /> Conectar Nube
-            </button>
-          )}
+        <div className="flex items-center gap-2 ml-auto mr-2">
+          {/* Cloud Sync Status/Button */}
+          <button
+            onClick={() => syncWithServer()}
+            disabled={isSyncing}
+            className={`p-3 rounded-xl transition-all flex items-center gap-2 group ${
+              isSyncing ? "bg-brand-accent/20 text-brand-accent" : "bg-white/5 text-brand-muted hover:text-white"
+            }`}
+            title="Sincronizar con la nube"
+          >
+            <RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} />
+            <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest">
+              {isSyncing ? "Sincronizando..." : "Sincronizado"}
+            </span>
+          </button>
 
-          <div className="h-8 w-px bg-white/5 mx-1" />
+          <div className="w-px h-6 bg-white/10 mx-1" />
           
           <button
             onClick={handleReset}
@@ -2065,7 +1954,7 @@ export default function App() {
                                         <input 
                                             type="number"
                                             value={clientPricing[clientName] || ""}
-                                            onChange={(e) => updatePricing(clientName, parseFloat(e.target.value))}
+                                            onChange={(e) => setClientPricing(prev => ({ ...prev, [clientName]: parseFloat(e.target.value) }))}
                                             placeholder="0.00"
                                             className="w-full bg-transparent text-white font-mono font-black text-lg focus:outline-none placeholder:text-white/10"
                                         />
