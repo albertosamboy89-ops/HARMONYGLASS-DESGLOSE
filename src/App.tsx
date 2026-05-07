@@ -717,6 +717,7 @@ function ResultsBreakdown({
       ].map((cat) => {
         if (!cat) return null;
         if (windowType === "GAVETAS" && cat.title === "M. Cristal") return null;
+        if (windowType === "P40" && cat.title === "M. Hojas") return null;
 
         return (
           <div
@@ -909,37 +910,54 @@ function WindowPreview({
 
       {isSkewed ? (
         <div style={{ width: w, height: h }} className="relative">
-          <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+          <svg
+            viewBox="0 0 100 100"
+            className="w-full h-full drop-shadow-[0_0_20px_rgba(59,130,246,0.4)]"
+            style={{ overflow: 'visible' }}
+          >
             <defs>
               <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="rgba(59,130,246,0.15)" />
-                <stop offset="50%" stopColor="rgba(255,255,255,0.08)" />
-                <stop offset="100%" stopColor="rgba(59,130,246,0.2)" />
+                <stop offset="0%" stopColor="rgba(59,130,246,0.2)" />
+                <stop offset="50%" stopColor="rgba(255,255,255,0.1)" />
+                <stop offset="100%" stopColor="rgba(59,130,246,0.25)" />
               </linearGradient>
             </defs>
-            {/* Main Skewed Frame */}
+            
+            {/* Main Outer Frame (El Perfil Cuadrado) */}
             <polygon
               points={points}
-              className="fill-[url(#glassGrad)] stroke-brand-accent stroke-[5]"
+              className="fill-brand-sidebar stroke-brand-accent stroke-[6]"
               strokeLinejoin="round"
             />
-            {/* Inner frame detail for realistic look */}
+            
+            {/* Glass Silhouette (Inside the frame) */}
             <polygon
               points={points}
-              className="fill-none stroke-white/20 stroke-[1]"
+              className="fill-[url(#glassGrad)] stroke-white/20 stroke-[1]"
               strokeLinejoin="round"
-              transform="scale(0.98)"
-              style={{ transformOrigin: 'center' }}
+              transform="scale(0.90)"
+              style={{ transformOrigin: '50px 50px' }}
             />
-            {/* Reflection lines */}
+
+            {/* Glass Inner Shine/Edge */}
+            <polygon
+              points={points}
+              className="fill-none stroke-white/5 stroke-[0.5]"
+              strokeLinejoin="round"
+              transform="scale(0.88)"
+              style={{ transformOrigin: '50px 50px' }}
+            />
+
+            {/* Reflection lines on glass */}
             <line
-              x1={x0 + 15}
-              y1={y0 + 15}
-              x2={x1 - 30}
-              y2={y1 + 50}
-              stroke="rgba(255,255,255,0.15)"
+              x1={x0 + 20}
+              y1={y0 + 20}
+              x2={x1 - 40}
+              y2={y1 + 45}
+              stroke="rgba(255,255,255,0.2)"
               strokeWidth="1.5"
-              strokeDasharray="4 2"
+              strokeDasharray="5 3"
+              transform="scale(0.9) translate(5, 5)"
             />
           </svg>
         </div>
@@ -1322,27 +1340,30 @@ export default function App() {
 
     if (windowType === "P40") {
       // Paño Fijo - Perfil Cuadrado
-      const frameHoriz = totalWidth;
-      const frameVert = totalHeight;
-      const glassWidth = totalWidth - 40; // Deduction of 2.5" (40/16)
-      const glassHeight = totalHeight - 40;
+      // User requested: 14.87 -> 13.95 profile and 12 glass
+      // 14.87 - 13.95 = 0.92" (approx 15/16")
+      // 14.87 - 12 = 2.87" (approx 2 7/8")
+      const frameHoriz = totalWidth - 15;
+      const frameVert = totalHeight - 15;
+      const glassWidth = totalWidth - 46; // 46/16 = 2.875"
+      const glassHeight = totalHeight - 46;
 
       return {
         inputs: { w: totalWidth, h: totalHeight, type: windowType, vias: 1 },
         marco: [
           {
             id: "fixed_frame_hor",
-            piece: "Perfil Cuadrado (Horiz)",
+            piece: "Ancho Marco (Cuadrado)",
             qty: 2,
             size: frameHoriz,
-            formula: `Medida Total`,
+            formula: `Medida - 15/16"`,
           },
           {
             id: "fixed_frame_ver",
-            piece: "Perfil Cuadrado (Vert)",
+            piece: "Alto Marco (Cuadrado)",
             qty: 2,
             size: frameVert,
-            formula: `Medida Total`,
+            formula: `Medida - 15/16"`,
           },
         ],
         hojas: [], // Fixed pane doesn't have leaves
@@ -1353,7 +1374,7 @@ export default function App() {
             qty: 1,
             size: glassWidth,
             dimensions: formatDimensionSet(glassWidth, glassHeight),
-            formula: `Ancho - 2.5" / Alto - 2.5"`,
+            formula: `Ancho - 2 7/8" / Alto - 2 7/8"`,
           },
         ],
       };
