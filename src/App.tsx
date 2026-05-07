@@ -1053,12 +1053,12 @@ export default function App() {
 
     // User requested P92 specific discounts
     if (windowType === "P92") {
-      leafVertDeduction = 40; // Jamba 2.5"
-      leafOverlap = 24; // Cabezal 1.5"
-      frameHorizDeduction = 28; // Riel 1.75"
-      frameVertDeduction = 2; // Lateral 0.125"
-      glassWidthFrameDeduction = 52; // Vidrio Ancho 3.25"
-      glassHeightFrameDeduction = 64; // Vidrio Alto 4.0"
+      leafVertDeduction = 48; // Jamba 3.0"
+      leafOverlap = 10; // Alféizar deduction per panel (1.25" total / 2)
+      frameHorizDeduction = 26; // Riel 1.625" (User request 1.63")
+      frameVertDeduction = 2; // Lateral 0.125" (User request 0.13")
+      glassWidthFrameDeduction = 46; // Vidrio Ancho 2.875" (User request 2.87")
+      glassHeightFrameDeduction = 48; // Vidrio Alto 3.0"
     }
 
     // Adjustments based on Vias
