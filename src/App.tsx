@@ -1339,13 +1339,10 @@ export default function App() {
     }
 
     if (windowType === "P40") {
-      // Paño Fijo - Perfil Cuadrado
-      // User requested: 14.87 -> 13.95 profile and 12 glass
-      // 14.87 - 13.95 = 0.92" (approx 15/16")
-      // 14.87 - 12 = 2.87" (approx 2 7/8")
-      const frameHoriz = totalWidth - 15;
-      const frameVert = totalHeight - 15;
-      const glassWidth = totalWidth - 46; // 46/16 = 2.875"
+      // Paño Fijo - Perfil Cuadrado (Deductions based on user request)
+      const frameHoriz = totalWidth; 
+      const frameVert = totalHeight;
+      const glassWidth = totalWidth - 46; // -2.87" (46/16") from hole
       const glassHeight = totalHeight - 46;
 
       return {
@@ -1356,14 +1353,14 @@ export default function App() {
             piece: "Ancho Marco (Cuadrado)",
             qty: 2,
             size: frameHoriz,
-            formula: `Medida - 15/16"`,
+            formula: `Medida Total`,
           },
           {
             id: "fixed_frame_ver",
             piece: "Alto Marco (Cuadrado)",
             qty: 2,
             size: frameVert,
-            formula: `Medida - 15/16"`,
+            formula: `Medida Total`,
           },
         ],
         hojas: [], // Fixed pane doesn't have leaves
@@ -1374,7 +1371,7 @@ export default function App() {
             qty: 1,
             size: glassWidth,
             dimensions: formatDimensionSet(glassWidth, glassHeight),
-            formula: `Ancho - 2 7/8" / Alto - 2 7/8"`,
+            formula: `Hueco - 2.87"`,
           },
         ],
       };
