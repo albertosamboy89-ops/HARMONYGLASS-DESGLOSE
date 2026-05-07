@@ -2233,17 +2233,27 @@ export default function App() {
                                   </div>
 
                                   {group.phone && (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-accent/5 rounded-full border border-brand-accent/10 text-brand-accent/80">
-                                      <Phone size={12} />
-                                      <span>{group.phone}</span>
-                                    </div>
+                                    <a
+                                      href={`https://wa.me/${group.phone.replace(/\D/g, "")}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex items-center gap-2 px-4 py-2 bg-brand-accent/10 rounded-xl border border-brand-accent/20 text-brand-accent hover:bg-brand-accent/20 transition-all cursor-pointer shadow-sm"
+                                    >
+                                      <Phone size={14} />
+                                      <span className="font-bold text-[10px]">{group.phone}</span>
+                                    </a>
                                   )}
 
                                   {group.location && (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/5 rounded-full border border-emerald-500/10 text-emerald-500/80">
-                                      <MapPin size={12} />
-                                      <span>{group.location}</span>
-                                    </div>
+                                    <a
+                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(group.location)}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-sm"
+                                    >
+                                      <MapPin size={14} />
+                                      <span className="font-bold text-[10px]">{group.location}</span>
+                                    </a>
                                   )}
 
                                   {group.exitDate && (
