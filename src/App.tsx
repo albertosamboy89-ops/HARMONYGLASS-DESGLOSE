@@ -1096,28 +1096,51 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const handleShareEmail = () => {
+  const handleShareEmail = async () => {
     const data = {
         projects,
         clientPricing,
         exportDate: new Date().toISOString(),
     };
-    const jsonStr = JSON.stringify(data);
+    const fileName = `harmony-glass-data-${new Date().toISOString().split('T')[0]}.json`;
+    const jsonStr = JSON.stringify(data, null, 2);
+    
+    // Attempt to use native Web Share API (supports real file attachments)
+    if (navigator.share && navigator.canShare) {
+      const file = new File([jsonStr], fileName, { type: 'application/json' });
+      const shareData = {
+        files: [file],
+        title: 'Respaldo Harmony Glass',
+        text: 'Datos de pedidos para transferir a otro equipo.'
+      };
+
+      if (navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch (err) {
+          if ((err as Error).name !== 'AbortError') {
+            console.error("Error sharing:", err);
+          } else {
+            return; // User cancelled
+          }
+        }
+      }
+    }
+
+    // Fallback for browsers that don't support file sharing
     const subject = encodeURIComponent("Respaldo de Datos - Harmony Glass");
     const body = encodeURIComponent(
         "Hola, adjunto los datos de Harmony Glass.\n\n" +
         "Para restaurarlos:\n" +
-        "1. Descarga el archivo que generará el sistema.\n" +
+        "1. ADJUNTA MANUALMENTE el archivo que se acaba de descargar (" + fileName + ") a este correo.\n" +
         "2. Abre la aplicación en el otro equipo.\n" +
         "3. Pulsa el icono de 'Subir' (Flecha arriba) y selecciona el archivo.\n\n" +
         "--- DATOS DE RESPALDO ---\n" +
         "Fecha: " + new Date().toLocaleString()
     );
     
-    // Trigger download first so the user has the file to attach
     exportData();
-    
-    // Open email client
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
