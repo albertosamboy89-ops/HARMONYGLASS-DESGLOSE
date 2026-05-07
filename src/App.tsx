@@ -1009,6 +1009,7 @@ export default function App() {
   const [isPrintMode, setIsPrintMode] = useState(false);
   const [isSinglePrintMode, setIsSinglePrintMode] = useState(false);
   const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
+  const [clientPricing, setClientPricing] = useState<Record<string, number>>({});
 
   // Load from localStorage
   useEffect(() => {
@@ -1018,6 +1019,14 @@ export default function App() {
         setProjects(JSON.parse(saved));
       } catch (e) {
         console.error("Failed to load projects", e);
+      }
+    }
+    const savedPricing = localStorage.getItem("v-cut-pricing");
+    if (savedPricing) {
+      try {
+        setClientPricing(JSON.parse(savedPricing));
+      } catch (e) {
+        console.error("Failed to load pricing", e);
       }
     }
     const savedOrder = localStorage.getItem("v-cut-temp-order");
@@ -1034,6 +1043,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("v-cut-projects", JSON.stringify(projects));
   }, [projects]);
+
+  useEffect(() => {
+    localStorage.setItem("v-cut-pricing", JSON.stringify(clientPricing));
+  }, [clientPricing]);
 
   useEffect(() => {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
@@ -2055,6 +2068,44 @@ export default function App() {
                               </div>
                             </div>
 
+                            {/* SqFt Calculator - Standalone Box */}
+                            <div className="inline-flex flex-col sm:flex-row bg-brand-bg/50 border border-white/5 rounded-2xl p-4 gap-6 shadow-xl backdrop-blur-sm">
+                              <div className="flex flex-col">
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-brand-muted opacity-60 mb-1">Total Pie²</span>
+                                <span className="text-xl font-mono font-black text-white">
+                                  {group.pending.concat(group.completed).reduce((acc, p) => {
+                                    const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
+                                    return acc + (areaSqFt < 13 ? 14 : areaSqFt);
+                                  }, 0).toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="hidden sm:block h-8 w-px bg-white/10" />
+                              <div className="flex flex-col">
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-brand-muted opacity-60 mb-1">Precio / Pie²</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black text-brand-accent">$</span>
+                                  <input 
+                                    type="number"
+                                    value={clientPricing[group.name] || ""}
+                                    onChange={(e) => setClientPricing(prev => ({ ...prev, [group.name]: parseFloat(e.target.value) }))}
+                                    placeholder="0.00"
+                                    className="w-20 bg-transparent border-b border-brand-accent/30 text-white font-mono font-black text-lg focus:outline-none focus:border-brand-accent transition-all placeholder:text-white/10"
+                                  />
+                                </div>
+                              </div>
+                              <div className="hidden sm:block h-8 w-px bg-white/20" />
+                              <div className="flex flex-col">
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Efectivo Total</span>
+                                <span className="text-xl font-mono font-black text-emerald-400">
+                                  ${(group.pending.concat(group.completed).reduce((acc, p) => {
+                                    const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
+                                    return acc + (areaSqFt < 13 ? 14 : areaSqFt);
+                                  }, 0) * (clientPricing[group.name] || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
                             {/* Client Projects Grid */}
                             <div className="space-y-12">
                               {/* Pending Windows */}
@@ -2189,7 +2240,6 @@ export default function App() {
                                 </div>
                               )}
                             </div>
-                          </div>
                         </motion.div>
                       ))}
 
