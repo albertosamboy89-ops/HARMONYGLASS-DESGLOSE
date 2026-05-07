@@ -1853,13 +1853,61 @@ export default function App() {
                         ))}
                       </div>
                       
-                      <div className="pt-4 px-4 pb-12">
+                      <div className="pt-4 px-4 pb-12 space-y-6">
                         <button
                           onClick={saveBatchOrder}
                           className="w-full py-6 bg-emerald-500 rounded-3xl text-white font-black uppercase tracking-[0.2em] shadow-2xl flex items-center justify-center gap-3 hover:bg-emerald-600 transition-all scale-100 active:scale-[0.98]"
                         >
                           <Save size={20} /> Guardar y Confirmar Pedido Completo
                         </button>
+
+                        {/* SQFT Calculator in Active Console */}
+                        <div className="bg-brand-sidebar border border-brand-border/50 rounded-2xl p-6 space-y-4 shadow-xl backdrop-blur-sm">
+                            <div className="flex justify-between items-center border-b border-white/5 pb-3 mb-2">
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-muted opacity-50">Calculadora de Pie Cuadrado</h4>
+                                <div className="px-2 py-1 bg-brand-accent/20 rounded text-[8px] font-black text-brand-accent uppercase">Verificación</div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-1">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-brand-muted opacity-40">Total Pie²</span>
+                                    <div className="text-2xl font-mono font-black text-white italic">
+                                        {orderWindows.reduce((acc, p) => {
+                                            const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
+                                            return acc + (areaSqFt < 13 ? 14 : areaSqFt);
+                                        }, 0).toFixed(2)}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-brand-muted opacity-40">Precio / Pie²</span>
+                                    <div className="flex items-center gap-1.5 border-b border-brand-accent/30 pb-0.5">
+                                        <span className="text-xs font-black text-brand-accent">$</span>
+                                        <input 
+                                            type="number"
+                                            value={clientPricing[clientName] || ""}
+                                            onChange={(e) => setClientPricing(prev => ({ ...prev, [clientName]: parseFloat(e.target.value) }))}
+                                            placeholder="0.00"
+                                            className="w-full bg-transparent text-white font-mono font-black text-lg focus:outline-none placeholder:text-white/10"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 mt-2 border-t border-brand-accent/10">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">Total en Efectivo</span>
+                                        <span className="text-[7px] text-brand-muted italic opacity-40 lowercase">*Mínimo 14 pies p/ ventana {"<"} 13</span>
+                                    </div>
+                                    <div className="text-3xl font-mono font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.3)]">
+                                        ${(orderWindows.reduce((acc, p) => {
+                                            const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
+                                            return acc + (areaSqFt < 13 ? 14 : areaSqFt);
+                                        }, 0) * (clientPricing[clientName] || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2068,43 +2116,7 @@ export default function App() {
                               </div>
                             </div>
 
-                            {/* SqFt Calculator - Standalone Box */}
-                            <div className="inline-flex flex-col sm:flex-row bg-brand-bg/50 border border-white/5 rounded-2xl p-4 gap-6 shadow-xl backdrop-blur-sm">
-                              <div className="flex flex-col">
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-brand-muted opacity-60 mb-1">Total Pie²</span>
-                                <span className="text-xl font-mono font-black text-white">
-                                  {group.pending.concat(group.completed).reduce((acc, p) => {
-                                    const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
-                                    return acc + (areaSqFt < 13 ? 14 : areaSqFt);
-                                  }, 0).toFixed(2)}
-                                </span>
-                              </div>
-                              <div className="hidden sm:block h-8 w-px bg-white/10" />
-                              <div className="flex flex-col">
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-brand-muted opacity-60 mb-1">Precio / Pie²</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-black text-brand-accent">$</span>
-                                  <input 
-                                    type="number"
-                                    value={clientPricing[group.name] || ""}
-                                    onChange={(e) => setClientPricing(prev => ({ ...prev, [group.name]: parseFloat(e.target.value) }))}
-                                    placeholder="0.00"
-                                    className="w-20 bg-transparent border-b border-brand-accent/30 text-white font-mono font-black text-lg focus:outline-none focus:border-brand-accent transition-all placeholder:text-white/10"
-                                  />
-                                </div>
-                              </div>
-                              <div className="hidden sm:block h-8 w-px bg-white/20" />
-                              <div className="flex flex-col">
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Efectivo Total</span>
-                                <span className="text-xl font-mono font-black text-emerald-400">
-                                  ${(group.pending.concat(group.completed).reduce((acc, p) => {
-                                    const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
-                                    return acc + (areaSqFt < 13 ? 14 : areaSqFt);
-                                  }, 0) * (clientPricing[group.name] || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                              </div>
                             </div>
-                          </div>
 
                             {/* Client Projects Grid */}
                             <div className="space-y-12">
