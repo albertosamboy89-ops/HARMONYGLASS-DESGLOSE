@@ -51,8 +51,12 @@ interface WindowProject {
   clientPhone?: string;
   clientLocation?: string;
   type: "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS";
-  width: number; // sixteenths
-  height: number; // sixteenths
+  width: number; // sixteenths (average or base)
+  height: number; // sixteenths (average or base)
+  widthTop?: number;
+  widthBottom?: number;
+  heightLeft?: number;
+  heightRight?: number;
   vias: 2 | 3 | 4;
   results: {
     marco: CutDetail[];
@@ -792,17 +796,42 @@ function ResultsBreakdown({
 function WindowPreview({
   width,
   height,
+  widthTop,
+  widthBottom,
+  heightLeft,
+  heightRight,
   vias = 2,
   large = false,
   windowType = "P65",
 }: {
   width: number;
   height: number;
+  widthTop?: number;
+  widthBottom?: number;
+  heightLeft?: number;
+  heightRight?: number;
   vias?: number;
   large?: boolean;
   windowType?: string;
 }) {
-  const ratio = width / height;
+  // For P40 skew visualization
+  const isSkewed =
+    windowType === "P40" &&
+    (widthTop !== undefined ||
+      widthBottom !== undefined ||
+      heightLeft !== undefined ||
+      heightRight !== undefined);
+
+  const wTop = widthTop || width;
+  const wBottom = widthBottom || width;
+  const hLeft = heightLeft || height;
+  const hRight = heightRight || height;
+
+  // Use averages for aspect ratio
+  const displayWidth = isSkewed ? (wTop + wBottom) / 2 : width;
+  const displayHeight = isSkewed ? (hLeft + hRight) / 2 : height;
+
+  const ratio = displayWidth / displayHeight;
   const maxWidth = large ? 200 : 140;
   const maxHeight = large ? 120 : 110;
 
@@ -814,9 +843,33 @@ function WindowPreview({
     w = maxHeight * ratio;
   }
 
+  // Calculate polygon points for SVG (0-100 scale)
+  const maxW = isSkewed ? Math.max(wTop, wBottom) : width;
+  const maxH = isSkewed ? Math.max(hLeft, hRight) : height;
+
+  const x0 = isSkewed ? ((maxW - wTop) / 2 / maxW) * 100 : 0;
+  const x1 = isSkewed ? 100 - x0 : 100;
+  const x2 = isSkewed ? 100 - ((maxW - wBottom) / 2 / maxW) * 100 : 100;
+  const x3 = isSkewed ? ((maxW - wBottom) / 2 / maxW) * 100 : 0;
+
+  const y0 = isSkewed ? ((maxH - hLeft) / 2 / maxH) * 100 : 0;
+  const y1 = isSkewed ? ((maxH - hRight) / 2 / maxH) * 100 : 0;
+  const y2 = 100 - y1;
+  const y3 = 100 - y0;
+
+  const points = `${x0},${y0} ${x1},${y1} ${x2},${y2} ${x3},${y3}`;
+
+  const formatValue = (sixteenths: number) => {
+    const whole = Math.floor(sixteenths / 16);
+    const frac = sixteenths % 16;
+    return `${whole}${frac > 0 ? ` ${frac}/16` : ""} "`;
+  };
+
   return (
     <div
-      className={`flex items-center justify-center bg-black/40 rounded-[2rem] border border-white/5 relative overflow-hidden group shadow-2xl ${large ? "h-48 w-full p-6" : "h-32 w-full p-4"}`}
+      className={`flex items-center justify-center bg-black/40 rounded-[2rem] border border-white/5 relative overflow-hidden group shadow-2xl ${
+        large ? "h-72 w-full p-16" : "h-52 w-full p-12"
+      }`}
     >
       {/* Background Decorative Grid */}
       <div
@@ -828,88 +881,123 @@ function WindowPreview({
         }}
       />
 
-      <div
-        className="border-[3px] border-brand-accent/50 rounded-md relative flex bg-brand-accent/5 overflow-hidden shadow-2xl transition-all duration-700 hover:scale-[1.02]"
-        style={{ width: w, height: h }}
-      >
-        {/* Outer Frame Bevel */}
-        <div className="absolute inset-0 border border-white/5 pointer-events-none z-20" />
-
-        {windowType === "GAVETAS" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-2 bg-brand-accent/20">
-            <div className="w-full h-1/3 border-b border-brand-accent/50 flex items-center justify-center">
-              <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
-            </div>
-            <div className="w-full h-1/3 border-b border-brand-accent/50 flex items-center justify-center">
-              <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
-            </div>
-            <div className="w-full h-1/3 flex items-center justify-center">
-              <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
-            </div>
+      {/* Measurement Labels for P40 Decuadre - Corner Positioned */}
+      {isSkewed && (
+        <div className="absolute inset-0 pointer-events-none font-mono text-[10px] font-black uppercase tracking-tighter">
+          {/* Top Left: Alto Izq */}
+          <div className="absolute top-4 left-6 text-emerald-500 flex flex-col items-start">
+            <span className="text-[6px] opacity-60">Alto Izq</span>
+            {formatValue(hLeft)}
           </div>
-        ) : (
-          Array.from({ length: vias }).map((_, i) => {
-            const widthPct = 100 / vias;
-            const overlapWidth = widthPct * 1.12;
-            const isSelected = i % 2 !== 0;
+          {/* Top Right: Ancho Sup */}
+          <div className="absolute top-4 right-6 text-brand-accent flex flex-col items-end">
+            <span className="text-[6px] opacity-60">Ancho Sup</span>
+            {formatValue(wTop)}
+          </div>
+          {/* Bottom Left: Ancho Inf */}
+          <div className="absolute bottom-4 left-6 text-brand-accent flex flex-col items-start">
+            <span className="text-[6px] opacity-60">Ancho Inf</span>
+            {formatValue(wBottom)}
+          </div>
+          {/* Bottom Right: Alto Der */}
+          <div className="absolute bottom-4 right-6 text-emerald-500 flex flex-col items-end">
+            <span className="text-[6px] opacity-60">Alto Der</span>
+            {formatValue(hRight)}
+          </div>
+        </div>
+      )}
 
-            return (
-              <div
-                key={i}
-                className={`absolute top-0.5 bottom-0.5 border-2 transition-all duration-700 flex items-center justify-center ${
-                  isSelected
-                    ? "z-10 bg-brand-accent/30 border-brand-accent shadow-[0_0_25px_rgba(59,130,246,0.5)]"
-                    : "z-0 bg-brand-accent/10 border-brand-accent/40"
-                }`}
-                style={{
-                  width: `${overlapWidth}%`,
-                  left: `${(100 / vias) * i - (i > 0 ? 3 : 0)}%`,
-                  borderRadius: "1px",
-                }}
-              >
-                {/* Glass Reflection Effect */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/20 opacity-40" />
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-white/30" />
+      {isSkewed ? (
+        <div style={{ width: w, height: h }} className="relative">
+          <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+            <defs>
+              <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="rgba(59,130,246,0.15)" />
+                <stop offset="50%" stopColor="rgba(255,255,255,0.08)" />
+                <stop offset="100%" stopColor="rgba(59,130,246,0.2)" />
+              </linearGradient>
+            </defs>
+            {/* Main Skewed Frame */}
+            <polygon
+              points={points}
+              className="fill-[url(#glassGrad)] stroke-brand-accent stroke-[5]"
+              strokeLinejoin="round"
+            />
+            {/* Inner frame detail for realistic look */}
+            <polygon
+              points={points}
+              className="fill-none stroke-white/20 stroke-[1]"
+              strokeLinejoin="round"
+              transform="scale(0.98)"
+              style={{ transformOrigin: 'center' }}
+            />
+            {/* Reflection lines */}
+            <line
+              x1={x0 + 15}
+              y1={y0 + 15}
+              x2={x1 - 30}
+              y2={y1 + 50}
+              stroke="rgba(255,255,255,0.15)"
+              strokeWidth="1.5"
+              strokeDasharray="4 2"
+            />
+          </svg>
+        </div>
+      ) : (
+        <div
+          className="border-[3px] border-brand-accent/50 rounded-md relative flex bg-brand-accent/5 overflow-hidden shadow-2xl transition-all duration-700 hover:scale-[1.02]"
+          style={{ width: w, height: h }}
+        >
+          {/* Outer Frame Bevel */}
+          <div className="absolute inset-0 border border-white/5 pointer-events-none z-20" />
 
-                {/* Professional Handle simulation */}
-                <div
-                  className={`w-[2.5px] h-1/4 rounded-full ${isSelected ? "bg-white shadow-[0_0_5px_white]" : "bg-brand-accent/30"} absolute ${i === 0 ? "right-1" : "left-1"}`}
-                />
+          {windowType === "GAVETAS" ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-2 bg-brand-accent/20">
+              <div className="w-full h-1/3 border-b border-brand-accent/50 flex items-center justify-center">
+                <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
               </div>
-            );
-          })
-        )}
+              <div className="w-full h-1/3 border-b border-brand-accent/50 flex items-center justify-center">
+                <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
+              </div>
+              <div className="w-full h-1/3 flex items-center justify-center">
+                <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
+              </div>
+            </div>
+          ) : windowType === "P40" ? (
+            <div className="absolute inset-1 border-[4px] border-brand-accent/60 bg-brand-accent/5 overflow-hidden">
+              {/* Glass Reflection Effect */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/20 opacity-40" />
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-white/30" />
+            </div>
+          ) : (
+            Array.from({ length: vias }).map((_, i) => {
+              const widthPct = 100 / vias;
+              const overlapWidth = widthPct * 1.12;
+              const isSelected = i % 2 !== 0;
 
-        {!large && (
-          <>
-            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
-              {formatFraction(width)}
-            </div>
-            <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
-              {formatFraction(height)}
-            </div>
-          </>
-        )}
-      </div>
-
-      {large && (
-        <>
-          <div className="absolute top-4 left-6 right-6 flex justify-between items-start pointer-events-none">
-            <div className="space-y-0.5">
-              <p className="text-[6px] font-black text-brand-muted uppercase tracking-[0.4em]">
-                Configuración
-              </p>
-              <h4 className="text-[10px] font-black text-white italic tracking-tighter uppercase">
-                {vias} Hojas / {windowType}
-              </h4>
-            </div>
-          </div>
-          <div className="absolute bottom-4 left-6 right-6 flex justify-center pointer-events-none">
-            <p className="text-[10px] font-mono font-bold text-brand-accent italic tabular-nums bg-brand-bg/80 px-3 py-1 rounded-full border border-brand-accent/30 shadow-lg">
-              {formatFraction(width)} X {formatFraction(height)}
-            </p>
-          </div>
-        </>
+              return (
+                <div
+                  key={i}
+                  className={`absolute top-0.5 bottom-0.5 border-2 transition-all duration-700 flex items-center justify-center ${
+                    isSelected
+                      ? "bg-brand-accent/20 border-brand-accent/50 z-10"
+                      : "bg-brand-accent/10 border-brand-accent/30 z-0"
+                  }`}
+                  style={{
+                    width: `${overlapWidth}%`,
+                    left: `${i * (100 / vias)}%`,
+                    transform: isSelected ? "scale(1.02)" : "scale(1)",
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 opacity-30" />
+                  <div className="absolute top-1/2 -translate-y-1/2 left-2 flex flex-col gap-1">
+                    <div className="w-1.5 h-6 bg-brand-accent/30 rounded-full" />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       )}
     </div>
   );
@@ -985,6 +1073,16 @@ export default function App() {
   const [widthFrac, setWidthFrac] = useState<number>(0);
   const [heightWhole, setHeightWhole] = useState<number>(48);
   const [heightFrac, setHeightFrac] = useState<number>(0);
+
+  // P40 Skew measurements
+  const [widthTopWhole, setWidthTopWhole] = useState<number>(60);
+  const [widthTopFrac, setWidthTopFrac] = useState<number>(0);
+  const [widthBottomWhole, setWidthBottomWhole] = useState<number>(60);
+  const [widthBottomFrac, setWidthBottomFrac] = useState<number>(0);
+  const [heightLeftWhole, setHeightLeftWhole] = useState<number>(48);
+  const [heightLeftFrac, setHeightLeftFrac] = useState<number>(0);
+  const [heightRightWhole, setHeightRightWhole] = useState<number>(48);
+  const [heightRightFrac, setHeightRightFrac] = useState<number>(0);
   const [vias, setVias] = useState<2 | 3 | 4>(2);
   const [windowType, setWindowType] = useState<
     "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS"
@@ -1151,8 +1249,20 @@ export default function App() {
   };
 
   const results = useMemo(() => {
-    const totalWidth = widthWhole * 16 + widthFrac;
-    const totalHeight = heightWhole * 16 + heightFrac;
+    let totalWidth = widthWhole * 16 + widthFrac;
+    let totalHeight = heightWhole * 16 + heightFrac;
+
+    // For P40 skew, we use the minimum measures to ensure it fits the hole,
+    // although we visualize the actual skew.
+    const wTop = widthTopWhole * 16 + widthTopFrac;
+    const wBottom = widthBottomWhole * 16 + widthBottomFrac;
+    const hLeft = heightLeftWhole * 16 + heightLeftFrac;
+    const hRight = heightRightWhole * 16 + heightRightFrac;
+
+    if (windowType === "P40") {
+      totalWidth = Math.min(wTop, wBottom);
+      totalHeight = Math.min(hLeft, hRight);
+    }
 
     // Specific European Workshop Deductions (Sixteenths)
     let leafVertDeduction = 34; // Jamba 2.125"
@@ -1207,6 +1317,45 @@ export default function App() {
           },
         ],
         vidrios: [],
+      };
+    }
+
+    if (windowType === "P40") {
+      // Paño Fijo - Perfil Cuadrado
+      const frameHoriz = totalWidth;
+      const frameVert = totalHeight;
+      const glassWidth = totalWidth - 40; // Deduction of 2.5" (40/16)
+      const glassHeight = totalHeight - 40;
+
+      return {
+        inputs: { w: totalWidth, h: totalHeight, type: windowType, vias: 1 },
+        marco: [
+          {
+            id: "fixed_frame_hor",
+            piece: "Perfil Cuadrado (Horiz)",
+            qty: 2,
+            size: frameHoriz,
+            formula: `Medida Total`,
+          },
+          {
+            id: "fixed_frame_ver",
+            piece: "Perfil Cuadrado (Vert)",
+            qty: 2,
+            size: frameVert,
+            formula: `Medida Total`,
+          },
+        ],
+        hojas: [], // Fixed pane doesn't have leaves
+        vidrios: [
+          {
+            id: "fixed_glass",
+            piece: "Cristal Fijo",
+            qty: 1,
+            size: glassWidth,
+            dimensions: formatDimensionSet(glassWidth, glassHeight),
+            formula: `Ancho - 2.5" / Alto - 2.5"`,
+          },
+        ],
       };
     }
 
@@ -1367,15 +1516,34 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    const prefix = windowType === "P40" ? "Paño Fijo" : "Ventana";
+    const nextNum = orderWindows.length + 1;
+    setWindowTag(`${prefix} ${nextNum.toString().padStart(2, "0")}`);
+  }, [windowType, orderWindows.length]);
+
   const startNewOrder = () => {
     setClientName("");
     setClientPhone("");
     setClientLocation("");
     setDeliveryDate("");
+    setWidthWhole(60);
+    setWidthFrac(0);
+    setHeightWhole(48);
+    setHeightFrac(0);
+    setWidthTopWhole(60);
+    setWidthTopFrac(0);
+    setWidthBottomWhole(60);
+    setWidthBottomFrac(0);
+    setHeightLeftWhole(48);
+    setHeightLeftFrac(0);
+    setHeightRightWhole(48);
+    setHeightRightFrac(0);
     setOrderWindows([]);
     setOrderStep(1);
     setActiveView("new-order");
     setWindowTag("Ventana 01");
+    setShowResults(false);
   };
 
   const saveBatchOrder = () => {
@@ -1386,26 +1554,37 @@ export default function App() {
   };
 
   const addToBatch = () => {
+    const isP40 = windowType === "P40";
+    const prefix = isP40 ? "Paño Fijo" : "Ventana";
     const nextNum = orderWindows.length + 2;
-    const nextTag = `Ventana ${nextNum.toString().padStart(2, "0")}`;
+    const nextTag = `${prefix} ${nextNum.toString().padStart(2, "0")}`;
+
+    const wTop = widthTopWhole * 16 + widthTopFrac;
+    const wBottom = widthBottomWhole * 16 + widthBottomFrac;
+    const hLeft = heightLeftWhole * 16 + heightLeftFrac;
+    const hRight = heightRightWhole * 16 + heightRightFrac;
 
     const newWindow: WindowProject = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).substring(2, 9),
       name:
         windowTag ||
-        `Ventana ${(orderWindows.length + 1).toString().padStart(2, "0")}`,
+        `${isP40 ? "Paño Fijo" : "Ventana"} ${(orderWindows.length + 1).toString().padStart(2, "0")}`,
       clientName: clientName || "Cliente Genérico",
       clientPhone: clientPhone,
       clientLocation: clientLocation,
       type: windowType,
-      width: widthWhole * 16 + widthFrac,
-      height: heightWhole * 16 + heightFrac,
+      width: windowType === "P40" ? Math.min(wTop, wBottom) : widthWhole * 16 + widthFrac,
+      height: windowType === "P40" ? Math.min(hLeft, hRight) : heightWhole * 16 + heightFrac,
+      widthTop: windowType === "P40" ? wTop : undefined,
+      widthBottom: windowType === "P40" ? wBottom : undefined,
+      heightLeft: windowType === "P40" ? hLeft : undefined,
+      heightRight: windowType === "P40" ? hRight : undefined,
       vias,
       results,
       completedCuts: [],
       status: "pending",
       createdAt: Date.now(),
-      deliveryDate: deliveryDate,
+      deliveryDate: deliveryDate || undefined,
     };
     setOrderWindows((prev) => [...prev, newWindow]);
     setShowResults(false);
@@ -1846,8 +2025,12 @@ export default function App() {
                   <section className="bg-brand-sidebar border border-brand-border p-5 sm:p-2 rounded-[2rem] sm:rounded-[3rem] shadow-2xl space-y-6 sm:space-y-8 overflow-hidden">
                     <div className="p-1">
                       <WindowPreview
-                        width={widthWhole * 16 + widthFrac}
-                        height={heightWhole * 16 + heightFrac}
+                        width={windowType === "P40" ? ((widthTopWhole * 16 + widthTopFrac) + (widthBottomWhole * 16 + widthBottomFrac)) / 2 : widthWhole * 16 + widthFrac}
+                        height={windowType === "P40" ? ((heightLeftWhole * 16 + heightLeftFrac) + (heightRightWhole * 16 + heightRightFrac)) / 2 : heightWhole * 16 + heightFrac}
+                        widthTop={windowType === "P40" ? widthTopWhole * 16 + widthTopFrac : undefined}
+                        widthBottom={windowType === "P40" ? widthBottomWhole * 16 + widthBottomFrac : undefined}
+                        heightLeft={windowType === "P40" ? heightLeftWhole * 16 + heightLeftFrac : undefined}
+                        heightRight={windowType === "P40" ? heightRightWhole * 16 + heightRightFrac : undefined}
                         vias={vias}
                         large={true}
                         windowType={windowType}
@@ -1881,57 +2064,98 @@ export default function App() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <DimensionInput
-                            label="Ancho"
-                            whole={widthWhole}
-                            fraction={widthFrac}
-                            onWholeChange={setWidthWhole}
-                            onFractionChange={setWidthFrac}
-                          />
-                          <DimensionInput
-                            label="Alto"
-                            whole={heightWhole}
-                            fraction={heightFrac}
-                            onWholeChange={setHeightWhole}
-                            onFractionChange={setHeightFrac}
-                          />
+                          {windowType === "P40" ? (
+                            <>
+                              <div className="space-y-6">
+                                <DimensionInput
+                                  label="Ancho Sup."
+                                  whole={widthTopWhole}
+                                  fraction={widthTopFrac}
+                                  onWholeChange={setWidthTopWhole}
+                                  onFractionChange={setWidthTopFrac}
+                                />
+                                <DimensionInput
+                                  label="Ancho Inf."
+                                  whole={widthBottomWhole}
+                                  fraction={widthBottomFrac}
+                                  onWholeChange={setWidthBottomWhole}
+                                  onFractionChange={setWidthBottomFrac}
+                                />
+                              </div>
+                              <div className="space-y-6">
+                                <DimensionInput
+                                  label="Alto Izq."
+                                  whole={heightLeftWhole}
+                                  fraction={heightLeftFrac}
+                                  onWholeChange={setHeightLeftWhole}
+                                  onFractionChange={setHeightLeftFrac}
+                                />
+                                <DimensionInput
+                                  label="Alto Der."
+                                  whole={heightRightWhole}
+                                  fraction={heightRightFrac}
+                                  onWholeChange={setHeightRightWhole}
+                                  onFractionChange={setHeightRightFrac}
+                                />
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <DimensionInput
+                                label="Ancho"
+                                whole={widthWhole}
+                                fraction={widthFrac}
+                                onWholeChange={setWidthWhole}
+                                onFractionChange={setWidthFrac}
+                              />
+                              <DimensionInput
+                                label="Alto"
+                                whole={heightWhole}
+                                fraction={heightFrac}
+                                onWholeChange={setHeightWhole}
+                                onFractionChange={setHeightFrac}
+                              />
+                            </>
+                          )}
                         </div>
 
-                        <div className="space-y-4">
-                          <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
-                            {windowType === "GAVETAS" ? "Cantidad de Gavetas" : "Configuración de Hojas (Vías)"}
-                          </label>
-                          <div className="grid grid-cols-3 gap-3">
-                            {[2, 3, 4].map((v) => (
-                              <button
-                                key={v}
-                                onClick={() => setVias(v as 2 | 3 | 4)}
-                                className={`group relative h-32 rounded-2xl border-2 transition-all flex flex-col items-center justify-between p-3 ${vias === v ? "bg-brand-accent/10 border-brand-accent shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "bg-brand-bg border-brand-border text-brand-muted hover:border-brand-accent/50"}`}
-                              >
-                                <div className="w-full pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
-                                  <WindowPreview
-                                    width={
-                                      v === 2 ? 60 * 16 : v === 3 ? 90 * 16 : 120 * 16
-                                    }
-                                    height={60 * 16}
-                                    vias={v}
-                                    windowType={windowType}
-                                  />
-                                </div>
-                                <span
-                                  className={`text-[9px] font-black uppercase tracking-widest transition-colors ${vias === v ? "text-brand-accent" : "text-brand-muted group-hover:text-white"}`}
+                        {windowType !== "P40" && (
+                          <div className="space-y-4">
+                            <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
+                              {windowType === "GAVETAS" ? "Cantidad de Gavetas" : "Configuración de Hojas (Vías)"}
+                            </label>
+                            <div className="grid grid-cols-3 gap-3">
+                              {[2, 3, 4].map((v) => (
+                                <button
+                                  key={v}
+                                  onClick={() => setVias(v as 2 | 3 | 4)}
+                                  className={`group relative h-32 rounded-2xl border-2 transition-all flex flex-col items-center justify-between p-3 ${vias === v ? "bg-brand-accent/10 border-brand-accent shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "bg-brand-bg border-brand-border text-brand-muted hover:border-brand-accent/50"}`}
                                 >
-                                  {v} {windowType === "GAVETAS" ? "Gavetas" : "Hojas"}
-                                </span>
-                                {vias === v && (
-                                  <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-accent text-white flex items-center justify-center shadow-md">
-                                    <Check size={8} strokeWidth={4} />
+                                  <div className="w-full pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
+                                    <WindowPreview
+                                      width={
+                                        v === 2 ? 60 * 16 : v === 3 ? 90 * 16 : 120 * 16
+                                      }
+                                      height={60 * 16}
+                                      vias={v}
+                                      windowType={windowType}
+                                    />
                                   </div>
-                                )}
-                              </button>
-                            ))}
+                                  <span
+                                    className={`text-[9px] font-black uppercase tracking-widest transition-colors ${vias === v ? "text-brand-accent" : "text-brand-muted group-hover:text-white"}`}
+                                  >
+                                    {v} {windowType === "GAVETAS" ? "Gavetas" : "Hojas"}
+                                  </span>
+                                  {vias === v && (
+                                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-accent text-white flex items-center justify-center shadow-md">
+                                      <Check size={8} strokeWidth={4} />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         <button
                           onClick={handleCalculate}
