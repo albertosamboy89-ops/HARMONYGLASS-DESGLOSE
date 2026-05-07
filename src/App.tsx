@@ -27,6 +27,27 @@ import {
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { 
+  auth, 
+  db, 
+  loginWithGoogle, 
+  logout, 
+  handleFirestoreError, 
+  OperationType 
+} from "./lib/firebase";
+import { 
+  onAuthStateChanged, 
+  User as FirebaseUser 
+} from "firebase/auth";
+import { 
+  collection, 
+  onSnapshot, 
+  setDoc, 
+  doc, 
+  deleteDoc, 
+  query, 
+  writeBatch 
+} from "firebase/firestore";
 
 // --- Types ---
 
@@ -995,6 +1016,10 @@ export default function App() {
   const [activeView, setActiveView] = useState<
     "dashboard" | "history" | "new-order"
   >("dashboard");
+
+  // Firebase Auth State
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [orderStep, setOrderStep] = useState<1 | 2 | 3>(1);
   const [orderWindows, setOrderWindows] = useState<WindowProject[]>([]);
 
@@ -1011,7 +1036,55 @@ export default function App() {
   const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
   const [clientPricing, setClientPricing] = useState<Record<string, number>>({});
 
-  // Load from localStorage
+  // Firebase Auth & Sync
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    setIsSyncing(true);
+    
+    // Subscribe to projects
+    const projectsRef = collection(db, "users", user.uid, "projects");
+    const unsubProjects = onSnapshot(projectsRef, (snapshot) => {
+      const remoteProjects = snapshot.docs.map(doc => doc.data() as WindowProject);
+      
+      // Merge with local only if local has something and remote is empty (initial migration)
+      setProjects(prev => {
+        if (remoteProjects.length > 0) return remoteProjects;
+        return prev;
+      });
+      setIsSyncing(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/projects`);
+    });
+
+    // Subscribe to pricing
+    const pricingRef = collection(db, "users", user.uid, "pricing");
+    const unsubPricing = onSnapshot(pricingRef, (snapshot) => {
+      const remotePricing: Record<string, number> = {};
+      snapshot.docs.forEach(doc => {
+        remotePricing[doc.id] = (doc.data() as any).price;
+      });
+      if (Object.keys(remotePricing).length > 0) {
+        setClientPricing(remotePricing);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/pricing`);
+    });
+
+    return () => {
+      unsubProjects();
+      unsubPricing();
+    };
+  }, [user]);
+
+  // Load from localStorage (Initial local boot)
   useEffect(() => {
     const saved = localStorage.getItem("v-cut-projects");
     if (saved) {
@@ -1190,25 +1263,39 @@ export default function App() {
 
   /* addToQueue was redundant, replaced by addToBatch flow */
 
-  const toggleProjectStatus = (id: string) => {
+  const toggleProjectStatus = async (id: string) => {
+    const project = projects.find(p => p.id === id);
+    if (!project) return;
+    const newStatus = project.status === "pending" ? "completed" : "pending";
+
     setProjects((prev) =>
       prev.map((p) =>
         p.id === id
-          ? { ...p, status: p.status === "pending" ? "completed" : "pending" }
+          ? { ...p, status: newStatus }
           : p,
       ),
     );
+
+    if (user) {
+      try {
+        await setDoc(doc(db, "users", user.uid, "projects", id), { status: newStatus }, { merge: true });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/projects/${id}`);
+      }
+    }
   };
 
-  const toggleCutStatus = (projectId: string, cutId: string) => {
+  const toggleCutStatus = async (projectId: string, cutId: string) => {
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return;
+    const alreadyDone = project.completedCuts.includes(cutId);
+    const newCompleted = alreadyDone
+      ? project.completedCuts.filter((id) => id !== cutId)
+      : [...project.completedCuts, cutId];
+
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id !== projectId) return p;
-        const alreadyDone = p.completedCuts.includes(cutId);
-        const newCompleted = alreadyDone
-          ? p.completedCuts.filter((id) => id !== cutId)
-          : [...p.completedCuts, cutId];
-
         const updated = { ...p, completedCuts: newCompleted };
         if (selectedProject?.id === projectId) {
           setSelectedProject(updated);
@@ -1216,6 +1303,14 @@ export default function App() {
         return updated;
       }),
     );
+
+    if (user) {
+      try {
+        await setDoc(doc(db, "users", user.uid, "projects", projectId), { completedCuts: newCompleted }, { merge: true });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/projects/${projectId}`);
+      }
+    }
   };
 
   const deleteProject = (id: string) => {
@@ -1242,19 +1337,43 @@ export default function App() {
     setPassInput("");
   };
 
-  const confirmDeletion = () => {
+  const confirmDeletion = async () => {
     if (passInput === "1989") {
       if (pendingDeleteId) {
         setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
         if (selectedProject?.id === pendingDeleteId) {
           setSelectedProject(null);
         }
+        if (user) {
+          try {
+            await deleteDoc(doc(db, "users", user.uid, "projects", pendingDeleteId));
+          } catch (error) {
+            handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/projects/${pendingDeleteId}`);
+          }
+        }
       } else if (pendingDeleteClient) {
+        const clientToDelete = pendingDeleteClient;
+        const affectedIds = projects
+          .filter((p) => p.clientName === clientToDelete)
+          .map((p) => p.id);
+
         setProjects((prev) =>
-          prev.filter((p) => p.clientName !== pendingDeleteClient),
+          prev.filter((p) => p.clientName !== clientToDelete),
         );
-        if (selectedClientName === pendingDeleteClient) {
+        if (selectedClientName === clientToDelete) {
           setSelectedClientName(null);
+        }
+
+        if (user) {
+          try {
+            const batch = writeBatch(db);
+            affectedIds.forEach((id) => {
+              batch.delete(doc(db, "users", user.uid, "projects", id));
+            });
+            await batch.commit();
+          } catch (error) {
+            handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/projects/BATCH`);
+          }
         }
       } else if (pendingChangeProfile) {
         setOrderStep(2);
@@ -1293,11 +1412,36 @@ export default function App() {
     setWindowTag("Ventana 01");
   };
 
-  const saveBatchOrder = () => {
+  const saveBatchOrder = async () => {
     if (orderWindows.length === 0) return;
+    
+    // Batch commit to Firestore if user is authenticated
+    if (user) {
+      try {
+        const batch = writeBatch(db);
+        orderWindows.forEach((p) => {
+          batch.set(doc(db, "users", user.uid, "projects", p.id), p);
+        });
+        await batch.commit();
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/projects/BATCH`);
+      }
+    }
+
     setProjects((prev) => [...prev, ...orderWindows]);
     setActiveView("dashboard");
     setOrderWindows([]);
+  };
+
+  const updatePricing = async (cName: string, price: number) => {
+    setClientPricing((prev) => ({ ...prev, [cName]: price }));
+    if (user) {
+      try {
+        await setDoc(doc(db, "users", user.uid, "pricing", cName), { price });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/pricing/${cName}`);
+      }
+    }
   };
 
   const addToBatch = () => {
@@ -1431,12 +1575,48 @@ export default function App() {
           </motion.div>
         </div>
 
-        <button
-          onClick={handleReset}
-          className="p-3 bg-white/5 rounded-xl text-brand-muted hover:text-white transition-all ml-auto"
-        >
-          <RotateCcw size={18} />
-        </button>
+        <div className="flex items-center gap-3 ml-auto">
+          {user ? (
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex flex-col items-end leading-none">
+                <span className="text-[9px] font-black text-white italic truncate max-w-[120px]">
+                  {user.displayName || user.email}
+                </span>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <div className={`w-1 h-1 rounded-full ${isSyncing ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
+                  <span className="text-[7px] font-black text-brand-muted uppercase tracking-widest">
+                    {isSyncing ? "Sincronizando" : "Sincronizado"}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-brand-muted hover:text-white hover:bg-white/10 transition-all shadow-lg"
+              >
+                <div className="relative">
+                  <User size={18} />
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-brand-bg" />
+                </div>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={loginWithGoogle}
+              className="flex items-center gap-2 px-4 h-10 bg-brand-accent/10 border border-brand-accent/30 rounded-xl text-[10px] font-black text-brand-accent uppercase tracking-widest hover:bg-brand-accent/20 transition-all shadow-lg shadow-brand-accent/5"
+            >
+              <RotateCcw size={14} className="animate-spin-slow" /> Conectar Nube
+            </button>
+          )}
+
+          <div className="h-8 w-px bg-white/5 mx-1" />
+          
+          <button
+            onClick={handleReset}
+            className="p-3 bg-white/5 rounded-xl text-brand-muted hover:text-white transition-all"
+          >
+            <RotateCcw size={18} />
+          </button>
+        </div>
       </header>
 
       <main className="relative flex-1 z-10 print:hidden">
@@ -1885,7 +2065,7 @@ export default function App() {
                                         <input 
                                             type="number"
                                             value={clientPricing[clientName] || ""}
-                                            onChange={(e) => setClientPricing(prev => ({ ...prev, [clientName]: parseFloat(e.target.value) }))}
+                                            onChange={(e) => updatePricing(clientName, parseFloat(e.target.value))}
                                             placeholder="0.00"
                                             className="w-full bg-transparent text-white font-mono font-black text-lg focus:outline-none placeholder:text-white/10"
                                         />
