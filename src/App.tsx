@@ -1013,6 +1013,8 @@ export default function App() {
   const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
   const [clientPricing, setClientPricing] = useState<Record<string, number>>({});
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
   // Server Sync Logic
   const syncWithServer = async (dataToSave?: { projects: WindowProject[], pricing: any }) => {
@@ -1024,11 +1026,15 @@ export default function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(dataToSave),
         });
+        setLastSync(new Date());
       } else {
         const res = await fetch("/api/data");
         const data = await res.json();
+        // Only update if we have data and we haven't modified local state significantly
+        // This is a simple merge/overwrite strategy
         if (data.projects) setProjects(data.projects);
         if (data.pricing) setClientPricing(data.pricing);
+        setLastSync(new Date());
       }
     } catch (error) {
       console.error("Sync failed", error);
@@ -1078,25 +1084,29 @@ export default function App() {
 
   // Load and Sync
   useEffect(() => {
-    syncWithServer(); // Initial load from cloud
+    const init = async () => {
+      await syncWithServer();
+      setIsLoaded(true);
+    };
+    init();
     
-    // Poll for changes every 20 seconds for multi-device visibility
+    // Poll for changes every 30 seconds for multi-device visibility
     const interval = setInterval(() => {
       syncWithServer();
-    }, 20000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
 
   // Auto-save to cloud on changes
   useEffect(() => {
-    if (projects.length > 0 || Object.keys(clientPricing).length > 0) {
+    if (isLoaded) {
       const timer = setTimeout(() => {
         syncWithServer({ projects, pricing: clientPricing });
-      }, 1000);
+      }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [projects, clientPricing]);
+  }, [projects, clientPricing, isLoaded]);
 
   useEffect(() => {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
@@ -1483,19 +1493,26 @@ export default function App() {
 
         <div className="flex items-center gap-2 ml-auto mr-2">
           {/* Cloud Sync Status/Button */}
-          <button
-            onClick={() => syncWithServer()}
-            disabled={isSyncing}
-            className={`p-3 rounded-xl transition-all flex items-center gap-2 group ${
-              isSyncing ? "bg-brand-accent/20 text-brand-accent" : "bg-white/5 text-brand-muted hover:text-white"
-            }`}
-            title="Sincronizar con la nube"
-          >
-            <RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} />
-            <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest">
-              {isSyncing ? "Sincronizando..." : "Sincronizado"}
-            </span>
-          </button>
+          <div className="flex flex-col items-end">
+            <button
+              onClick={() => syncWithServer()}
+              disabled={isSyncing}
+              className={`p-3 rounded-xl transition-all flex items-center gap-2 group ${
+                isSyncing ? "bg-brand-accent/20 text-brand-accent" : "bg-white/5 text-brand-muted hover:text-white"
+              }`}
+              title="Sincronizar con la nube"
+            >
+              <RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} />
+              <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest">
+                {isSyncing ? "Sincronizando..." : "Nube"}
+              </span>
+            </button>
+            {lastSync && (
+              <span className="text-[7px] text-brand-muted opacity-30 uppercase tracking-tighter mt-1">
+                Sinc: {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </div>
 
           <div className="w-px h-6 bg-white/10 mx-1" />
           
