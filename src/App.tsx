@@ -242,7 +242,7 @@ function PrintReport({
           >
             <div className="border-b border-black pb-0.5">
               <h3 className="text-[9px] font-black uppercase tracking-widest text-black">
-                SISTEMA: {type}
+                SISTEMA: {formatType(type)}
               </h3>
             </div>
 
@@ -900,7 +900,7 @@ function WindowPreview({
                 Configuración
               </p>
               <h4 className="text-[10px] font-black text-white italic tracking-tighter uppercase">
-                {vias} Hojas / {windowType}
+                {vias} Hojas / {formatType(windowType)}
               </h4>
             </div>
           </div>
@@ -1060,6 +1060,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
   }, [orderWindows]);
+
+  const formatType = (type: string) => {
+    if (type === "P40") return "Paño P40";
+    if (type === "VENTILADA") return "Proyectadas";
+    return type;
+  };
 
   const exportData = () => {
     const data = {
@@ -1741,8 +1747,8 @@ export default function App() {
                       [
                         { id: "P65", desc: "Series 65 Premium" },
                         { id: "P92", desc: "Industrial Heavy" },
-                        { id: "P40", desc: "Residencial Slim" },
-                        { id: "VENTILADA", desc: "Flujo de Aire" },
+                        { id: "P40", desc: "(fijo)", title: "Paño P40" },
+                        { id: "VENTILADA", desc: "Flujo de Aire", title: "Proyectadas" },
                         { id: "GAVETAS", desc: "Sistema de Gavetas" },
                       ] as const
                     ).map((type) => (
@@ -1760,7 +1766,7 @@ export default function App() {
                           <h3
                             className={`text-xl font-black italic mb-1 ${windowType === type.id ? "text-brand-accent" : "text-white"}`}
                           >
-                            {type.id}
+                            {("title" in type ? type.title : type.id) as string}
                           </h3>
                           <p
                             className={`text-[9px] font-bold uppercase tracking-widest ${windowType === type.id ? "text-brand-accent/80" : "text-brand-muted group-hover:text-white/60"}`}
@@ -1825,7 +1831,7 @@ export default function App() {
                           </div>
                           <div className="overflow-hidden">
                             <h4 className="text-sm font-black text-white uppercase italic truncate">
-                              {windowType}
+                              {formatType(windowType)}
                             </h4>
                             <p className="text-[8px] text-brand-muted uppercase font-mono tracking-widest opacity-60">
                               Perfil Seleccionado
@@ -1864,7 +1870,7 @@ export default function App() {
                         </div>
                         <div className="px-3 py-1.5 bg-brand-accent/10 border border-brand-accent/20 rounded-lg">
                           <p className="text-[8px] font-black text-brand-accent uppercase tracking-widest">
-                            {windowType} EUROPEO
+                            {formatType(windowType)} EUROPEO
                           </p>
                         </div>
                       </header>
@@ -1986,7 +1992,7 @@ export default function App() {
                               </div>
                               <div>
                                 <p className="text-sm font-black text-white uppercase italic">
-                                  {p.name} ({p.vias} Vías - {p.type})
+                                  {p.name} ({p.vias} Vías - {formatType(p.type)})
                                 </p>
                                 <p className="text-[10px] font-mono text-brand-muted">
                                   {formatFraction(p.width)} x{" "}
@@ -2346,7 +2352,7 @@ export default function App() {
                                                   >
                                                     {project.name} (
                                                     {project.vias} Vías -{" "}
-                                                    {project.type})
+                                                    {formatType(project.type)})
                                                   </h4>
                                                   <Info
                                                     size={14}
@@ -2503,7 +2509,7 @@ export default function App() {
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">SISTEMA (PERFIL)</p>
                     <div className="bg-black text-white px-4 py-2 inline-block rounded-lg">
-                      <p className="text-2xl font-black italic">{singlePrintProject.type}</p>
+                      <p className="text-2xl font-black italic">{formatType(singlePrintProject.type)}</p>
                     </div>
                   </div>
                   <div className="space-y-1">
