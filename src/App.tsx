@@ -97,7 +97,7 @@ const BrandingText = () => (
   <div className="flex flex-col">
     <h1 className="text-xl sm:text-2xl font-black tracking-tighter m-0 leading-none uppercase italic">
       <span className="text-red-600 drop-shadow-[0_2px_0_rgba(0,0,0,1)]">HARMONY</span>
-      <span className="text-white ml-1.5 drop-shadow-[0_2px_4px_rgba(30,58,138,0.5)]">GLASS</span>
+      <span className="text-blue-400 ml-1.5 drop-shadow-[0_2px_4px_rgba(30,58,138,0.4)]">GLASS</span>
     </h1>
     <p className="text-[9px] text-brand-muted font-black tracking-[0.4em] mt-1 uppercase opacity-60">
       Production OS • Industrial Excellence
@@ -189,7 +189,7 @@ function PrintReport({
             <BrandLogo className="w-10 h-10" />
             <div className="flex flex-col">
               <h1 className="text-xl font-black uppercase tracking-tighter leading-none">
-                <span className="text-red-600">HARMONY</span> GLASS
+                <span className="text-red-600">HARMONY</span> <span className="text-blue-700">GLASS</span>
               </h1>
               <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Planilla Técnica de Corte</p>
             </div>
@@ -407,7 +407,11 @@ function PrintReport({
         <div className="flex justify-between items-center pt-4 border-t border-black/5 transition-opacity hover:opacity-100 opacity-30 italic text-[7px] font-black uppercase tracking-widest leading-none">
           <div className="flex items-center gap-2">
             <BrandLogo className="w-5 h-5 filter grayscale" />
-            <span>HARMONY GLASS INDUSTRIAL PRODUCTION — SHEET ENHANCED</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-red-700">HARMONY</span> 
+              <span className="text-blue-700 underline decoration-red-700/20 underline-offset-2">GLASS</span> 
+              <span className="opacity-50">INDUSTRIAL PRODUCTION — SHEET ENHANCED</span>
+            </div>
           </div>
           <span>{new Date().toLocaleDateString()}</span>
         </div>
@@ -2236,7 +2240,7 @@ export default function App() {
                 <BrandLogo className="w-12 h-12" />
                 <div className="flex flex-col">
                   <h1 className="text-2xl font-black uppercase italic tracking-tighter leading-none">
-                    <span className="text-red-600">HARMONY</span> GLASS
+                    <span className="text-red-600">HARMONY</span> <span className="text-blue-700">GLASS</span>
                   </h1>
                   <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Ficha Técnica Individual</p>
                 </div>
@@ -2352,7 +2356,7 @@ export default function App() {
                   <BrandLogo className="w-8 h-8 filter grayscale" />
                   <div className="flex items-center gap-2">
                     <span className="text-red-700">HARMONY</span> 
-                    <span className="text-blue-900 border-l-2 border-black pl-2">GLASS PRODUCTION DIGITAL</span>
+                    <span className="text-blue-700 border-l-2 border-black pl-2">GLASS PRODUCTION DIGITAL</span>
                   </div>
                 </div>
                 <div>AUTORIZADO POR: _______________________</div>
@@ -2417,10 +2421,16 @@ export default function App() {
       </nav>
 
       <footer className="py-24 px-4 bg-brand-bg text-center relative z-20 print:hidden items-center flex flex-col justify-center space-y-6">
-        <BrandLogo className="w-16 h-16 opacity-20 filter grayscale brightness-200" />
-        <p className="text-[10px] text-brand-muted uppercase tracking-[0.8em] font-black opacity-40">
-          HARMONY GLASS • PREMIUM INDUSTRIAL SOFTWARE • 2.7.0
-        </p>
+        <BrandLogo className="w-16 h-16 opacity-30 grayscale brightness-150" />
+        <div className="flex flex-col items-center">
+            <h2 className="text-sm font-black tracking-[0.5em] uppercase italic flex items-center gap-2">
+                <span className="text-red-600">HARMONY</span>
+                <span className="text-blue-500">GLASS</span>
+            </h2>
+            <p className="text-[9px] text-brand-muted uppercase tracking-[0.4em] font-black opacity-30 mt-2">
+                PREMIUM INDUSTRIAL SOFTWARE • 2.7.0
+            </p>
+        </div>
       </footer>
 
       {/* Project Detail Portal (Modal) */}
