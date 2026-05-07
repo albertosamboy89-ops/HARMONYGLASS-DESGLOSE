@@ -51,13 +51,13 @@ interface WindowProject {
   clientPhone?: string;
   clientLocation?: string;
   type: "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS";
-  width: number; // sixteenths (average or base)
-  height: number; // sixteenths (average or base)
-  widthTop?: number;
-  widthBottom?: number;
-  heightLeft?: number;
-  heightRight?: number;
+  width: number; // sixteenths
+  height: number; // sixteenths
   vias: 2 | 3 | 4;
+  wTop?: number;
+  wBottom?: number;
+  hLeft?: number;
+  hRight?: number;
   results: {
     marco: CutDetail[];
     hojas: CutDetail[];
@@ -283,6 +283,41 @@ function PrintReport({
                     const combinedHoja = p.results.hojas;
                     const combinedMarco = p.results.marco;
                     const combinedVidrio = p.results.vidrios;
+
+                    if (type === "P40") {
+                      return (
+                        <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
+                          <td className="border border-black px-0.5 py-0.5 text-black leading-none bg-gray-50/50">
+                            <span className="text-[11px] font-black">{pIdx + 1}</span>
+                          </td>
+                          <td className="border border-black px-1 py-0.5">
+                            <div className="text-[9px] font-black text-black">
+                              W1: {formatFraction(p.wTop || 0)}<br/>
+                              W2: {formatFraction(p.wBottom || 0)}<br/>
+                              H1: {formatFraction(p.hLeft || 0)}<br/>
+                              H2: {formatFraction(p.hRight || 0)}
+                            </div>
+                          </td>
+                          <td className="border border-black px-1 py-1" colSpan={2}>
+                             <div className="flex flex-col gap-0.5 leading-none">
+                                <span className="text-[8px] opacity-50 uppercase">Marco W:</span>
+                                <span className="text-[11px] font-black">{formatFraction(p.wTop || 0)} / {formatFraction(p.wBottom || 0)}</span>
+                             </div>
+                          </td>
+                          <td className="border border-black px-1 py-1" colSpan={2}>
+                             <div className="flex flex-col gap-0.5 leading-none">
+                                <span className="text-[8px] opacity-50 uppercase">Marco H:</span>
+                                <span className="text-[11px] font-black">{formatFraction(p.hLeft || 0)} / {formatFraction(p.hRight || 0)}</span>
+                             </div>
+                          </td>
+                          <td className="border border-black px-1 py-1">
+                             <div className="flex flex-col gap-0.5 leading-none">
+                                <span className="text-[12px] font-black">{getD(combinedVidrio, "Cristal")}</span>
+                             </div>
+                          </td>
+                        </tr>
+                      );
+                    }
 
                     if (type === "GAVETAS") {
                       const moldura = combinedMarco.find(m => m.id === "moldura");
@@ -717,7 +752,6 @@ function ResultsBreakdown({
       ].map((cat) => {
         if (!cat) return null;
         if (windowType === "GAVETAS" && cat.title === "M. Cristal") return null;
-        if (windowType === "P40" && cat.title === "M. Hojas") return null;
 
         return (
           <div
@@ -797,80 +831,67 @@ function ResultsBreakdown({
 function WindowPreview({
   width,
   height,
-  widthTop,
-  widthBottom,
-  heightLeft,
-  heightRight,
   vias = 2,
   large = false,
   windowType = "P65",
+  wTop,
+  wBottom,
+  hLeft,
+  hRight,
 }: {
   width: number;
   height: number;
-  widthTop?: number;
-  widthBottom?: number;
-  heightLeft?: number;
-  heightRight?: number;
   vias?: number;
   large?: boolean;
   windowType?: string;
+  wTop?: number;
+  wBottom?: number;
+  hLeft?: number;
+  hRight?: number;
 }) {
-  // For P40 skew visualization
-  const isSkewed =
-    windowType === "P40" &&
-    (widthTop !== undefined ||
-      widthBottom !== undefined ||
-      heightLeft !== undefined ||
-      heightRight !== undefined);
+  const baseW = wTop !== undefined && wBottom !== undefined ? Math.max(wTop, wBottom) : width;
+  const baseH = hLeft !== undefined && hRight !== undefined ? Math.max(hLeft, hRight) : height;
 
-  const wTop = widthTop || width;
-  const wBottom = widthBottom || width;
-  const hLeft = heightLeft || height;
-  const hRight = heightRight || height;
-
-  // Use averages for aspect ratio
-  const displayWidth = isSkewed ? (wTop + wBottom) / 2 : width;
-  const displayHeight = isSkewed ? (hLeft + hRight) / 2 : height;
-
-  const ratio = displayWidth / displayHeight;
+  const ratio = baseW / baseH;
   const maxWidth = large ? 200 : 140;
   const maxHeight = large ? 120 : 110;
 
-  let w = maxWidth;
-  let h = maxWidth / ratio;
+  let scaledW = maxWidth;
+  let scaledH = maxWidth / ratio;
 
-  if (h > maxHeight) {
-    h = maxHeight;
-    w = maxHeight * ratio;
+  if (scaledH > maxHeight) {
+    scaledH = maxHeight;
+    scaledW = maxHeight * ratio;
   }
 
-  // Calculate polygon points for SVG (0-100 scale)
-  const maxW = isSkewed ? Math.max(wTop, wBottom) : width;
-  const maxH = isSkewed ? Math.max(hLeft, hRight) : height;
+  // Calculate polygon points for P40 "descuadre"
+  // We'll normalize the 4 measurements relative to the max width/height
+  const getP40Points = () => {
+    if (windowType !== "P40" || wTop === undefined) return null;
+    
+    const wt = (wTop / baseW) * scaledW;
+    const wb = (wBottom / baseW) * scaledW;
+    const hl = (hLeft / baseH) * scaledH;
+    const hr = (hRight / baseH) * scaledH;
 
-  const x0 = isSkewed ? ((maxW - wTop) / 2 / maxW) * 100 : 0;
-  const x1 = isSkewed ? 100 - x0 : 100;
-  const x2 = isSkewed ? 100 - ((maxW - wBottom) / 2 / maxW) * 100 : 100;
-  const x3 = isSkewed ? ((maxW - wBottom) / 2 / maxW) * 100 : 0;
+    // Center the polygon
+    const offsetX = (scaledW - Math.max(wt, wb)) / 2;
+    const offsetY = (scaledH - Math.max(hl, hr)) / 2;
 
-  const y0 = isSkewed ? ((maxH - hLeft) / 2 / maxH) * 100 : 0;
-  const y1 = isSkewed ? ((maxH - hRight) / 2 / maxH) * 100 : 0;
-  const y2 = 100 - y1;
-  const y3 = 100 - y0;
+    // Points: TL, TR, BR, BL
+    const p1 = { x: (Math.max(wt, wb) - wt) / 2, y: (Math.max(hl, hr) - hl) / 2 };
+    const p2 = { x: p1.x + wt, y: (Math.max(hl, hr) - hr) / 2 };
+    const p3 = { x: (Math.max(wt, wb) + wb) / 2, y: p2.y + hr };
+    const p4 = { x: (Math.max(wt, wb) - wb) / 2, y: p1.y + hl };
 
-  const points = `${x0},${y0} ${x1},${y1} ${x2},${y2} ${x3},${y3}`;
-
-  const formatValue = (sixteenths: number) => {
-    const whole = Math.floor(sixteenths / 16);
-    const frac = sixteenths % 16;
-    return `${whole}${frac > 0 ? ` ${frac}/16` : ""} "`;
+    return `${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y} ${p4.x},${p4.y}`;
   };
+
+  const p40Points = getP40Points();
 
   return (
     <div
-      className={`flex items-center justify-center bg-black/40 rounded-[2rem] border border-white/5 relative overflow-hidden group shadow-2xl ${
-        large ? "h-72 w-full p-16" : "h-52 w-full p-12"
-      }`}
+      className={`flex items-center justify-center bg-black/40 rounded-[2rem] border border-white/5 relative overflow-hidden group shadow-2xl ${large ? "h-48 w-full p-6" : "h-32 w-full p-4"}`}
     >
       {/* Background Decorative Grid */}
       <div
@@ -882,140 +903,128 @@ function WindowPreview({
         }}
       />
 
-      {/* Measurement Labels for P40 Decuadre - Corner Positioned */}
-      {isSkewed && (
-        <div className="absolute inset-0 pointer-events-none font-mono text-[10px] font-black uppercase tracking-tighter">
-          {/* Top Left: Alto Izq */}
-          <div className="absolute top-4 left-6 text-emerald-500 flex flex-col items-start">
-            <span className="text-[6px] opacity-60">Alto Izq</span>
-            {formatValue(hLeft)}
-          </div>
-          {/* Top Right: Ancho Sup */}
-          <div className="absolute top-4 right-6 text-brand-accent flex flex-col items-end">
-            <span className="text-[6px] opacity-60">Ancho Sup</span>
-            {formatValue(wTop)}
-          </div>
-          {/* Bottom Left: Ancho Inf */}
-          <div className="absolute bottom-4 left-6 text-brand-accent flex flex-col items-start">
-            <span className="text-[6px] opacity-60">Ancho Inf</span>
-            {formatValue(wBottom)}
-          </div>
-          {/* Bottom Right: Alto Der */}
-          <div className="absolute bottom-4 right-6 text-emerald-500 flex flex-col items-end">
-            <span className="text-[6px] opacity-60">Alto Der</span>
-            {formatValue(hRight)}
-          </div>
-        </div>
-      )}
+      <div
+        className={`${windowType === "P40" ? "" : "border-[3px] border-brand-accent/50 rounded-md bg-brand-accent/5"} relative flex overflow-hidden shadow-2xl transition-all duration-700 hover:scale-[1.02]`}
+        style={{ width: scaledW, height: scaledH }}
+      >
+        {windowType === "P40" ? (
+          <svg width={scaledW} height={scaledH} viewBox={`0 0 ${scaledW} ${scaledH}`} className="overflow-visible">
+             {/* Frame with thickness (Perfil Cuadrado) */}
+             <polygon 
+                points={p40Points || ""} 
+                fill="none" 
+                stroke="#3b82f6" 
+                strokeWidth="6" 
+                opacity="0.3" 
+             />
+             <polygon 
+                points={p40Points || ""} 
+                fill="#3b82f61a" 
+                stroke="#3b82f6" 
+                strokeWidth="2" 
+             />
+             
+             {/* Glass Inner representation */}
+             {p40Points && (
+                <polygon 
+                  points={p40Points} 
+                  fill="none" 
+                  stroke="white" 
+                  strokeWidth="0.5" 
+                  strokeDasharray="2,2"
+                  opacity="0.5"
+                  transform="scale(0.85)"
+                  style={{ transformOrigin: 'center' }}
+                />
+             )}
 
-      {isSkewed ? (
-        <div style={{ width: w, height: h }} className="relative">
-          <svg
-            viewBox="0 0 100 100"
-            className="w-full h-full drop-shadow-[0_0_20px_rgba(59,130,246,0.4)]"
-            style={{ overflow: 'visible' }}
-          >
-            <defs>
-              <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="rgba(59,130,246,0.2)" />
-                <stop offset="50%" stopColor="rgba(255,255,255,0.1)" />
-                <stop offset="100%" stopColor="rgba(59,130,246,0.25)" />
-              </linearGradient>
-            </defs>
-            
-            {/* Main Outer Frame (El Perfil Cuadrado) */}
-            <polygon
-              points={points}
-              className="fill-brand-sidebar stroke-brand-accent stroke-[6]"
-              strokeLinejoin="round"
-            />
-            
-            {/* Glass Silhouette (Inside the frame) */}
-            <polygon
-              points={points}
-              className="fill-[url(#glassGrad)] stroke-white/20 stroke-[1]"
-              strokeLinejoin="round"
-              transform="scale(0.90)"
-              style={{ transformOrigin: '50px 50px' }}
-            />
-
-            {/* Glass Inner Shine/Edge */}
-            <polygon
-              points={points}
-              className="fill-none stroke-white/5 stroke-[0.5]"
-              strokeLinejoin="round"
-              transform="scale(0.88)"
-              style={{ transformOrigin: '50px 50px' }}
-            />
-
-            {/* Reflection lines on glass */}
-            <line
-              x1={x0 + 20}
-              y1={y0 + 20}
-              x2={x1 - 40}
-              y2={y1 + 45}
-              stroke="rgba(255,255,255,0.2)"
-              strokeWidth="1.5"
-              strokeDasharray="5 3"
-              transform="scale(0.9) translate(5, 5)"
-            />
+             {/* Corner Measurements labels */}
+             {large && wTop !== undefined && (
+               <g className="text-[6px] font-mono font-black italic fill-brand-accent uppercase">
+                  <text x="50%" y="-4" textAnchor="middle">{formatFraction(wTop)}</text>
+                  <text x="50%" y={scaledH + 8} textAnchor="middle">{formatFraction(wBottom || 0)}</text>
+                  <text x="-12" y="50%" textAnchor="middle" transform={`rotate(-90, -12, ${scaledH/2})`}>{formatFraction(hLeft || 0)}</text>
+                  <text x={scaledW + 12} y="50%" textAnchor="middle" transform={`rotate(90, ${scaledW + 12}, ${scaledH/2})`}>{formatFraction(hRight || 0)}</text>
+               </g>
+             )}
           </svg>
-        </div>
-      ) : (
-        <div
-          className="border-[3px] border-brand-accent/50 rounded-md relative flex bg-brand-accent/5 overflow-hidden shadow-2xl transition-all duration-700 hover:scale-[1.02]"
-          style={{ width: w, height: h }}
-        >
-          {/* Outer Frame Bevel */}
-          <div className="absolute inset-0 border border-white/5 pointer-events-none z-20" />
-
-          {windowType === "GAVETAS" ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-2 bg-brand-accent/20">
-              <div className="w-full h-1/3 border-b border-brand-accent/50 flex items-center justify-center">
-                <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
-              </div>
-              <div className="w-full h-1/3 border-b border-brand-accent/50 flex items-center justify-center">
-                <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
-              </div>
-              <div className="w-full h-1/3 flex items-center justify-center">
-                <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
-              </div>
+        ) : windowType === "GAVETAS" ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-2 bg-brand-accent/20">
+            <div className="w-full h-1/3 border-b border-brand-accent/50 flex items-center justify-center">
+              <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
             </div>
-          ) : windowType === "P40" ? (
-            <div className="absolute inset-1 border-[4px] border-brand-accent/60 bg-brand-accent/5 overflow-hidden">
-              {/* Glass Reflection Effect */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/20 opacity-40" />
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-white/30" />
+            <div className="w-full h-1/3 border-b border-brand-accent/50 flex items-center justify-center">
+              <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
             </div>
-          ) : (
-            Array.from({ length: vias }).map((_, i) => {
-              const widthPct = 100 / vias;
-              const overlapWidth = widthPct * 1.12;
-              const isSelected = i % 2 !== 0;
+            <div className="w-full h-1/3 flex items-center justify-center">
+              <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
+            </div>
+          </div>
+        ) : (
+          Array.from({ length: vias }).map((_, i) => {
+            const widthPct = 100 / vias;
+            const overlapWidth = widthPct * 1.12;
+            const isSelected = i % 2 !== 0;
 
-              return (
+            return (
+              <div
+                key={i}
+                className={`absolute top-0.5 bottom-0.5 border-2 transition-all duration-700 flex items-center justify-center ${
+                  isSelected
+                    ? "z-10 bg-brand-accent/30 border-brand-accent shadow-[0_0_25px_rgba(59,130,246,0.5)]"
+                    : "z-0 bg-brand-accent/10 border-brand-accent/40"
+                }`}
+                style={{
+                  width: `${overlapWidth}%`,
+                  left: `${(100 / vias) * i - (i > 0 ? 3 : 0)}%`,
+                  borderRadius: "1px",
+                }}
+              >
+                {/* Glass Reflection Effect */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/20 opacity-40" />
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-white/30" />
+
+                {/* Professional Handle simulation */}
                 <div
-                  key={i}
-                  className={`absolute top-0.5 bottom-0.5 border-2 transition-all duration-700 flex items-center justify-center ${
-                    isSelected
-                      ? "bg-brand-accent/20 border-brand-accent/50 z-10"
-                      : "bg-brand-accent/10 border-brand-accent/30 z-0"
-                  }`}
-                  style={{
-                    width: `${overlapWidth}%`,
-                    left: `${i * (100 / vias)}%`,
-                    transform: isSelected ? "scale(1.02)" : "scale(1)",
-                  }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 opacity-30" />
-                  <div className="absolute top-1/2 -translate-y-1/2 left-2 flex flex-col gap-1">
-                    <div className="w-1.5 h-6 bg-brand-accent/30 rounded-full" />
-                  </div>
-                </div>
-              );
-            })
+                  className={`w-[2.5px] h-1/4 rounded-full ${isSelected ? "bg-white shadow-[0_0_5px_white]" : "bg-brand-accent/30"} absolute ${i === 0 ? "right-1" : "left-1"}`}
+                />
+              </div>
+            );
+          })
+        )}
+
+        {!large && windowType !== "P40" && (
+          <>
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
+              {formatFraction(width)}
+            </div>
+            <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
+              {formatFraction(height)}
+            </div>
+          </>
+        )}
+      </div>
+
+      {large && (
+        <>
+          <div className="absolute top-4 left-6 right-6 flex justify-between items-start pointer-events-none">
+            <div className="space-y-0.5">
+              <p className="text-[6px] font-black text-brand-muted uppercase tracking-[0.4em]">
+                Configuración
+              </p>
+              <h4 className="text-[10px] font-black text-white italic tracking-tighter uppercase">
+                {windowType === "P40" ? "PAÑO FIJO" : `${vias} Hojas`} / {windowType}
+              </h4>
+            </div>
+          </div>
+          {windowType !== "P40" && (
+            <div className="absolute bottom-4 left-6 right-6 flex justify-center pointer-events-none">
+              <p className="text-[10px] font-mono font-bold text-brand-accent italic tabular-nums bg-brand-bg/80 px-3 py-1 rounded-full border border-brand-accent/30 shadow-lg">
+                {formatFraction(width)} X {formatFraction(height)}
+              </p>
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
@@ -1091,16 +1100,14 @@ export default function App() {
   const [widthFrac, setWidthFrac] = useState<number>(0);
   const [heightWhole, setHeightWhole] = useState<number>(48);
   const [heightFrac, setHeightFrac] = useState<number>(0);
-
-  // P40 Skew measurements
-  const [widthTopWhole, setWidthTopWhole] = useState<number>(60);
-  const [widthTopFrac, setWidthTopFrac] = useState<number>(0);
-  const [widthBottomWhole, setWidthBottomWhole] = useState<number>(60);
-  const [widthBottomFrac, setWidthBottomFrac] = useState<number>(0);
-  const [heightLeftWhole, setHeightLeftWhole] = useState<number>(48);
-  const [heightLeftFrac, setHeightLeftFrac] = useState<number>(0);
-  const [heightRightWhole, setHeightRightWhole] = useState<number>(48);
-  const [heightRightFrac, setHeightRightFrac] = useState<number>(0);
+  const [wTopWhole, setWTopWhole] = useState<number>(60);
+  const [wTopFrac, setWTopFrac] = useState<number>(0);
+  const [wBottomWhole, setWBottomWhole] = useState<number>(60);
+  const [wBottomFrac, setWBottomFrac] = useState<number>(0);
+  const [hLeftWhole, setHLeftWhole] = useState<number>(48);
+  const [hLeftFrac, setHLeftFrac] = useState<number>(0);
+  const [hRightWhole, setHRightWhole] = useState<number>(48);
+  const [hRightFrac, setHRightFrac] = useState<number>(0);
   const [vias, setVias] = useState<2 | 3 | 4>(2);
   const [windowType, setWindowType] = useState<
     "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS"
@@ -1267,20 +1274,12 @@ export default function App() {
   };
 
   const results = useMemo(() => {
-    let totalWidth = widthWhole * 16 + widthFrac;
-    let totalHeight = heightWhole * 16 + heightFrac;
-
-    // For P40 skew, we use the minimum measures to ensure it fits the hole,
-    // although we visualize the actual skew.
-    const wTop = widthTopWhole * 16 + widthTopFrac;
-    const wBottom = widthBottomWhole * 16 + widthBottomFrac;
-    const hLeft = heightLeftWhole * 16 + heightLeftFrac;
-    const hRight = heightRightWhole * 16 + heightRightFrac;
-
-    if (windowType === "P40") {
-      totalWidth = Math.min(wTop, wBottom);
-      totalHeight = Math.min(hLeft, hRight);
-    }
+    const totalWidth = widthWhole * 16 + widthFrac;
+    const totalHeight = heightWhole * 16 + heightFrac;
+    const wTop = wTopWhole * 16 + wTopFrac;
+    const wBottom = wBottomWhole * 16 + wBottomFrac;
+    const hLeft = hLeftWhole * 16 + hLeftFrac;
+    const hRight = hRightWhole * 16 + hRightFrac;
 
     // Specific European Workshop Deductions (Sixteenths)
     let leafVertDeduction = 34; // Jamba 2.125"
@@ -1298,6 +1297,39 @@ export default function App() {
       frameVertDeduction = 2; // Lateral 0.125" (User request 0.13")
       glassWidthFrameDeduction = 46; // Vidrio Ancho 2.875" (User request 2.87")
       glassHeightFrameDeduction = 48; // Vidrio Alto 3.0"
+    }
+
+    if (windowType === "P40") {
+      // User request: Frame = Hole (no deduction), Glass deduction = 2.87 (approx 46/16 = 2.875)
+      // For P40 Fixed Panel, we use 100% of measurements for frame and fixed deduction for glass
+      const wt = wTop !== undefined ? wTop : totalWidth;
+      const wb = wBottom !== undefined ? wBottom : totalWidth;
+      const hl = hLeft !== undefined ? hLeft : totalHeight;
+      const hr = hRight !== undefined ? hRight : totalHeight;
+
+      const gWidth = Math.max(wt, wb) - 46; // 2.875 deduction
+      const gHeight = Math.max(hl, hr) - 46; // 2.875 deduction
+
+      return {
+        inputs: { w: totalWidth, h: totalHeight, type: windowType, vias: 1, wTop: wt, wBottom: wb, hLeft: hl, hRight: hr },
+        marco: [
+          { id: "p40-top", piece: "Marco Superior", qty: 1, size: wt, formula: `Igual al Hueco Superior` },
+          { id: "p40-bottom", piece: "Marco Inferior", qty: 1, size: wb, formula: `Igual al Hueco Inferior` },
+          { id: "p40-left", piece: "Marco Izquierdo", qty: 1, size: hl, formula: `Igual al Hueco Izquierdo` },
+          { id: "p40-right", piece: "Marco Derecho", qty: 1, size: hr, formula: `Igual al Hueco Derecho` },
+        ],
+        hojas: [], // Fixed panel doesn't have leaves in this context or they are same as frame
+        vidrios: [
+          {
+            id: "glass",
+            piece: "Cristal P40",
+            qty: 1,
+            size: gWidth,
+            dimensions: formatDimensionSet(gWidth, gHeight),
+            formula: `Max(Anchos) - 2.87" | Max(Altos) - 2.87"`,
+          },
+        ],
+      };
     }
 
     // Adjustments based on Vias
@@ -1335,45 +1367,6 @@ export default function App() {
           },
         ],
         vidrios: [],
-      };
-    }
-
-    if (windowType === "P40") {
-      // Paño Fijo - Perfil Cuadrado (Deductions based on user request)
-      const frameHoriz = totalWidth; 
-      const frameVert = totalHeight;
-      const glassWidth = totalWidth - 46; // -2.87" (46/16") from hole
-      const glassHeight = totalHeight - 46;
-
-      return {
-        inputs: { w: totalWidth, h: totalHeight, type: windowType, vias: 1 },
-        marco: [
-          {
-            id: "fixed_frame_hor",
-            piece: "Ancho Marco (Cuadrado)",
-            qty: 2,
-            size: frameHoriz,
-            formula: `Medida Total`,
-          },
-          {
-            id: "fixed_frame_ver",
-            piece: "Alto Marco (Cuadrado)",
-            qty: 2,
-            size: frameVert,
-            formula: `Medida Total`,
-          },
-        ],
-        hojas: [], // Fixed pane doesn't have leaves
-        vidrios: [
-          {
-            id: "fixed_glass",
-            piece: "Cristal Fijo",
-            qty: 1,
-            size: glassWidth,
-            dimensions: formatDimensionSet(glassWidth, glassHeight),
-            formula: `Hueco - 2.87"`,
-          },
-        ],
       };
     }
 
@@ -1534,34 +1527,15 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    const prefix = windowType === "P40" ? "Paño Fijo" : "Ventana";
-    const nextNum = orderWindows.length + 1;
-    setWindowTag(`${prefix} ${nextNum.toString().padStart(2, "0")}`);
-  }, [windowType, orderWindows.length]);
-
   const startNewOrder = () => {
     setClientName("");
     setClientPhone("");
     setClientLocation("");
     setDeliveryDate("");
-    setWidthWhole(60);
-    setWidthFrac(0);
-    setHeightWhole(48);
-    setHeightFrac(0);
-    setWidthTopWhole(60);
-    setWidthTopFrac(0);
-    setWidthBottomWhole(60);
-    setWidthBottomFrac(0);
-    setHeightLeftWhole(48);
-    setHeightLeftFrac(0);
-    setHeightRightWhole(48);
-    setHeightRightFrac(0);
     setOrderWindows([]);
     setOrderStep(1);
     setActiveView("new-order");
     setWindowTag("Ventana 01");
-    setShowResults(false);
   };
 
   const saveBatchOrder = () => {
@@ -1572,37 +1546,30 @@ export default function App() {
   };
 
   const addToBatch = () => {
-    const isP40 = windowType === "P40";
-    const prefix = isP40 ? "Paño Fijo" : "Ventana";
     const nextNum = orderWindows.length + 2;
-    const nextTag = `${prefix} ${nextNum.toString().padStart(2, "0")}`;
-
-    const wTop = widthTopWhole * 16 + widthTopFrac;
-    const wBottom = widthBottomWhole * 16 + widthBottomFrac;
-    const hLeft = heightLeftWhole * 16 + heightLeftFrac;
-    const hRight = heightRightWhole * 16 + heightRightFrac;
+    const nextTag = `Ventana ${nextNum.toString().padStart(2, "0")}`;
 
     const newWindow: WindowProject = {
-      id: Math.random().toString(36).substring(2, 9),
+      id: Math.random().toString(36).substr(2, 9),
       name:
         windowTag ||
-        `${isP40 ? "Paño Fijo" : "Ventana"} ${(orderWindows.length + 1).toString().padStart(2, "0")}`,
+        `Ventana ${(orderWindows.length + 1).toString().padStart(2, "0")}`,
       clientName: clientName || "Cliente Genérico",
       clientPhone: clientPhone,
       clientLocation: clientLocation,
       type: windowType,
-      width: windowType === "P40" ? Math.min(wTop, wBottom) : widthWhole * 16 + widthFrac,
-      height: windowType === "P40" ? Math.min(hLeft, hRight) : heightWhole * 16 + heightFrac,
-      widthTop: windowType === "P40" ? wTop : undefined,
-      widthBottom: windowType === "P40" ? wBottom : undefined,
-      heightLeft: windowType === "P40" ? hLeft : undefined,
-      heightRight: windowType === "P40" ? hRight : undefined,
+      width: widthWhole * 16 + widthFrac,
+      height: heightWhole * 16 + heightFrac,
+      wTop: wTopWhole * 16 + wTopFrac,
+      wBottom: wBottomWhole * 16 + wBottomFrac,
+      hLeft: hLeftWhole * 16 + hLeftFrac,
+      hRight: hRightWhole * 16 + hRightFrac,
       vias,
       results,
       completedCuts: [],
       status: "pending",
       createdAt: Date.now(),
-      deliveryDate: deliveryDate || undefined,
+      deliveryDate: deliveryDate,
     };
     setOrderWindows((prev) => [...prev, newWindow]);
     setShowResults(false);
@@ -2043,12 +2010,12 @@ export default function App() {
                   <section className="bg-brand-sidebar border border-brand-border p-5 sm:p-2 rounded-[2rem] sm:rounded-[3rem] shadow-2xl space-y-6 sm:space-y-8 overflow-hidden">
                     <div className="p-1">
                       <WindowPreview
-                        width={windowType === "P40" ? ((widthTopWhole * 16 + widthTopFrac) + (widthBottomWhole * 16 + widthBottomFrac)) / 2 : widthWhole * 16 + widthFrac}
-                        height={windowType === "P40" ? ((heightLeftWhole * 16 + heightLeftFrac) + (heightRightWhole * 16 + heightRightFrac)) / 2 : heightWhole * 16 + heightFrac}
-                        widthTop={windowType === "P40" ? widthTopWhole * 16 + widthTopFrac : undefined}
-                        widthBottom={windowType === "P40" ? widthBottomWhole * 16 + widthBottomFrac : undefined}
-                        heightLeft={windowType === "P40" ? heightLeftWhole * 16 + heightLeftFrac : undefined}
-                        heightRight={windowType === "P40" ? heightRightWhole * 16 + heightRightFrac : undefined}
+                        width={widthWhole * 16 + widthFrac}
+                        height={heightWhole * 16 + heightFrac}
+                        wTop={wTopWhole * 16 + wTopFrac}
+                        wBottom={wBottomWhole * 16 + wBottomFrac}
+                        hLeft={hLeftWhole * 16 + hLeftFrac}
+                        hRight={hRightWhole * 16 + hRightFrac}
                         vias={vias}
                         large={true}
                         windowType={windowType}
@@ -2086,34 +2053,34 @@ export default function App() {
                             <>
                               <div className="space-y-6">
                                 <DimensionInput
-                                  label="Ancho Sup."
-                                  whole={widthTopWhole}
-                                  fraction={widthTopFrac}
-                                  onWholeChange={setWidthTopWhole}
-                                  onFractionChange={setWidthTopFrac}
+                                  label="Ancho Arriba (W1)"
+                                  whole={wTopWhole}
+                                  fraction={wTopFrac}
+                                  onWholeChange={setWTopWhole}
+                                  onFractionChange={setWTopFrac}
                                 />
                                 <DimensionInput
-                                  label="Ancho Inf."
-                                  whole={widthBottomWhole}
-                                  fraction={widthBottomFrac}
-                                  onWholeChange={setWidthBottomWhole}
-                                  onFractionChange={setWidthBottomFrac}
+                                  label="Ancho Abajo (W2)"
+                                  whole={wBottomWhole}
+                                  fraction={wBottomFrac}
+                                  onWholeChange={setWBottomWhole}
+                                  onFractionChange={setWBottomFrac}
                                 />
                               </div>
                               <div className="space-y-6">
                                 <DimensionInput
-                                  label="Alto Izq."
-                                  whole={heightLeftWhole}
-                                  fraction={heightLeftFrac}
-                                  onWholeChange={setHeightLeftWhole}
-                                  onFractionChange={setHeightLeftFrac}
+                                  label="Alto Izquierdo (H1)"
+                                  whole={hLeftWhole}
+                                  fraction={hLeftFrac}
+                                  onWholeChange={setHLeftWhole}
+                                  onFractionChange={setHLeftFrac}
                                 />
                                 <DimensionInput
-                                  label="Alto Der."
-                                  whole={heightRightWhole}
-                                  fraction={heightRightFrac}
-                                  onWholeChange={setHeightRightWhole}
-                                  onFractionChange={setHeightRightFrac}
+                                  label="Alto Derecho (H2)"
+                                  whole={hRightWhole}
+                                  fraction={hRightFrac}
+                                  onWholeChange={setHRightWhole}
+                                  onFractionChange={setHRightFrac}
                                 />
                               </div>
                             </>
@@ -2137,43 +2104,43 @@ export default function App() {
                           )}
                         </div>
 
-                        {windowType !== "P40" && (
-                          <div className="space-y-4">
-                            <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
-                              {windowType === "GAVETAS" ? "Cantidad de Gavetas" : "Configuración de Hojas (Vías)"}
-                            </label>
-                            <div className="grid grid-cols-3 gap-3">
-                              {[2, 3, 4].map((v) => (
-                                <button
-                                  key={v}
-                                  onClick={() => setVias(v as 2 | 3 | 4)}
-                                  className={`group relative h-32 rounded-2xl border-2 transition-all flex flex-col items-center justify-between p-3 ${vias === v ? "bg-brand-accent/10 border-brand-accent shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "bg-brand-bg border-brand-border text-brand-muted hover:border-brand-accent/50"}`}
+    {windowType !== "P40" && (
+                        <div className="space-y-4">
+                          <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
+                            {windowType === "GAVETAS" ? "Cantidad de Gavetas" : "Configuración de Hojas (Vías)"}
+                          </label>
+                          <div className="grid grid-cols-3 gap-3">
+                            {[2, 3, 4].map((v) => (
+                              <button
+                                key={v}
+                                onClick={() => setVias(v as 2 | 3 | 4)}
+                                className={`group relative h-32 rounded-2xl border-2 transition-all flex flex-col items-center justify-between p-3 ${vias === v ? "bg-brand-accent/10 border-brand-accent shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "bg-brand-bg border-brand-border text-brand-muted hover:border-brand-accent/50"}`}
+                              >
+                                <div className="w-full pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
+                                  <WindowPreview
+                                    width={
+                                      v === 2 ? 60 * 16 : v === 3 ? 90 * 16 : 120 * 16
+                                    }
+                                    height={60 * 16}
+                                    vias={v}
+                                    windowType={windowType}
+                                  />
+                                </div>
+                                <span
+                                  className={`text-[9px] font-black uppercase tracking-widest transition-colors ${vias === v ? "text-brand-accent" : "text-brand-muted group-hover:text-white"}`}
                                 >
-                                  <div className="w-full pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
-                                    <WindowPreview
-                                      width={
-                                        v === 2 ? 60 * 16 : v === 3 ? 90 * 16 : 120 * 16
-                                      }
-                                      height={60 * 16}
-                                      vias={v}
-                                      windowType={windowType}
-                                    />
+                                  {v} {windowType === "GAVETAS" ? "Gavetas" : "Hojas"}
+                                </span>
+                                {vias === v && (
+                                  <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-accent text-white flex items-center justify-center shadow-md">
+                                    <Check size={8} strokeWidth={4} />
                                   </div>
-                                  <span
-                                    className={`text-[9px] font-black uppercase tracking-widest transition-colors ${vias === v ? "text-brand-accent" : "text-brand-muted group-hover:text-white"}`}
-                                  >
-                                    {v} {windowType === "GAVETAS" ? "Gavetas" : "Hojas"}
-                                  </span>
-                                  {vias === v && (
-                                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-accent text-white flex items-center justify-center shadow-md">
-                                      <Check size={8} strokeWidth={4} />
-                                    </div>
-                                  )}
-                                </button>
-                              ))}
-                            </div>
+                                )}
+                              </button>
+                            ))}
                           </div>
-                        )}
+                        </div>
+    )}
 
                         <button
                           onClick={handleCalculate}
@@ -2223,7 +2190,12 @@ export default function App() {
                                 <WindowPreview
                                   width={p.width}
                                   height={p.height}
+                                  wTop={p.wTop}
+                                  wBottom={p.wBottom}
+                                  hLeft={p.hLeft}
+                                  hRight={p.hRight}
                                   vias={p.vias}
+                                  windowType={p.type}
                                 />
                               </div>
                               <div>
@@ -2622,7 +2594,12 @@ export default function App() {
                                               <WindowPreview
                                                 width={project.width}
                                                 height={project.height}
+                                                wTop={project.wTop}
+                                                wBottom={project.wBottom}
+                                                hLeft={project.hLeft}
+                                                hRight={project.hRight}
                                                 vias={project.vias}
+                                                windowType={project.type}
                                               />
                                             </div>
                                             <div className="mt-2 h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
@@ -2767,6 +2744,10 @@ export default function App() {
                     <WindowPreview
                       width={singlePrintProject.width}
                       height={singlePrintProject.height}
+                      wTop={singlePrintProject.wTop}
+                      wBottom={singlePrintProject.wBottom}
+                      hLeft={singlePrintProject.hLeft}
+                      hRight={singlePrintProject.hRight}
                       vias={singlePrintProject.vias}
                       windowType={singlePrintProject.type}
                     />
@@ -2944,6 +2925,12 @@ export default function App() {
                     <WindowPreview
                       width={selectedProject.width}
                       height={selectedProject.height}
+                      wTop={selectedProject.wTop}
+                      wBottom={selectedProject.wBottom}
+                      hLeft={selectedProject.hLeft}
+                      hRight={selectedProject.hRight}
+                      vias={selectedProject.vias}
+                      windowType={selectedProject.type}
                     />
                   </div>
                   <div className="flex flex-col gap-2 sm:gap-3 overflow-hidden">
