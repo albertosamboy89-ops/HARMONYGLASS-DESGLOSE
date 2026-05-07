@@ -5,7 +5,6 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import {
-  Hammer,
   Info,
   RotateCcw,
   ChevronDown,
@@ -58,6 +57,53 @@ interface WindowProject {
   createdAt: number;
   deliveryDate?: string;
 }
+
+// --- Brand & Logo ---
+
+const BrandLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
+  <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Clean White Background for the icon itself if needed, but here we use transparency */}
+    {/* Tall Modernist Building */}
+    <motion.rect 
+      initial={{ height: 0 }}
+      animate={{ height: 80 }}
+      transition={{ duration: 1, ease: "easeOut" }}
+      x="30" y="10" width="25" height="80" fill="#dc2626" rx="1" 
+    />
+    <path d="M30 25 H55 M30 40 H55 M30 55 H55 M30 70 H55 M38 10 V90 M46 10 V90" stroke="white" strokeWidth="0.5" opacity="0.3" />
+    
+    {/* Skyscraper 2 */}
+    <motion.rect 
+      initial={{ height: 0 }}
+      animate={{ height: 60 }}
+      transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+      x="15" y="30" width="15" height="60" fill="#1e3a8a" rx="1" 
+    />
+    
+    {/* Foreground House icon */}
+    <motion.path 
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5, delay: 0.8 }}
+      d="M50 55 L75 35 L100 55 V85 H50 Z" fill="#1e40af" 
+    />
+    <path d="M50 55 L75 35 L100 55" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+    <rect x="70" y="65" width="10" height="20" fill="white" rx="1" />
+    <circle cx="78" cy="75" r="1.5" fill="#1e40af" />
+  </svg>
+);
+
+const BrandingText = () => (
+  <div className="flex flex-col">
+    <h1 className="text-xl sm:text-2xl font-black tracking-tighter m-0 leading-none uppercase italic">
+      <span className="text-red-600 drop-shadow-[0_2px_0_rgba(0,0,0,1)]">HARMONY</span>
+      <span className="text-white ml-1.5 drop-shadow-[0_2px_4px_rgba(30,58,138,0.5)]">GLASS</span>
+    </h1>
+    <p className="text-[9px] text-brand-muted font-black tracking-[0.4em] mt-1 uppercase opacity-60">
+      Production OS • Industrial Excellence
+    </p>
+  </div>
+);
 
 // --- Utilities ---
 
@@ -139,11 +185,14 @@ function PrintReport({
       <div className="max-w-5xl mx-auto space-y-4">
         {/* Header Section */}
         <div className="flex justify-between items-center border-b-2 border-black pb-2 print:hidden">
-          <div className="flex items-center gap-3">
-            <Printer size={18} />
-            <h1 className="text-base font-black uppercase tracking-tighter">
-              Planilla Técnica de Corte
-            </h1>
+          <div className="flex items-center gap-4">
+            <BrandLogo className="w-10 h-10" />
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black uppercase tracking-tighter leading-none">
+                <span className="text-red-600">HARMONY</span> GLASS
+              </h1>
+              <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Planilla Técnica de Corte</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -355,8 +404,11 @@ function PrintReport({
           </div>
         ))}
 
-        <div className="flex justify-between items-center pt-2 italic opacity-20 text-[7px] font-black uppercase tracking-widest leading-none">
-          <span>EUROPEO TECHNICAL SHEET — 8.5 x 11</span>
+        <div className="flex justify-between items-center pt-4 border-t border-black/5 transition-opacity hover:opacity-100 opacity-30 italic text-[7px] font-black uppercase tracking-widest leading-none">
+          <div className="flex items-center gap-2">
+            <BrandLogo className="w-5 h-5 filter grayscale" />
+            <span>HARMONY GLASS INDUSTRIAL PRODUCTION — SHEET ENHANCED</span>
+          </div>
           <span>{new Date().toLocaleDateString()}</span>
         </div>
       </div>
@@ -1366,28 +1418,16 @@ export default function App() {
         <div className="flex items-center gap-4">
           <motion.div
             onClick={() => setActiveView("dashboard")}
-            animate={{
-              y: [0, -3, 0],
-              rotate: [0, 5, -5, 0],
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            whileHover={{ scale: 1.1, rotate: 15 }}
-            className="p-2.5 bg-gradient-to-br from-brand-accent via-blue-600 to-blue-800 rounded-2xl text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] border border-white/10 cursor-pointer"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.05, rotate: 2 }}
+            className="flex items-center gap-3 cursor-pointer group"
           >
-            <Hammer size={22} strokeWidth={2.5} className="drop-shadow-lg" />
+            <div className="p-1 bg-white/5 rounded-2xl border border-white/10 group-hover:bg-white/10 transition-all shadow-2xl">
+              <BrandLogo className="w-10 h-10 sm:w-12 sm:h-12" />
+            </div>
+            <BrandingText />
           </motion.div>
-          <div className="hidden sm:block">
-            <h1 className="text-lg font-black tracking-tight text-white m-0 leading-none uppercase italic">
-              HARMONY GLASS
-            </h1>
-            <p className="text-[10px] text-brand-muted font-mono tracking-[0.2em] font-medium mt-1 uppercase">
-              Workshop OS
-            </p>
-          </div>
         </div>
 
         <button
@@ -2192,11 +2232,14 @@ export default function App() {
         <div className="fixed inset-0 z-[500] bg-white text-black p-4 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0 print:bg-white print:min-h-screen">
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex justify-between items-center border-b-4 border-black pb-4 print:hidden">
-              <div className="flex items-center gap-3">
-                <Printer size={24} className="text-black" />
-                <h1 className="text-xl font-black uppercase italic tracking-tighter">
-                  Ficha Técnica Individual
-                </h1>
+              <div className="flex items-center gap-4">
+                <BrandLogo className="w-12 h-12" />
+                <div className="flex flex-col">
+                  <h1 className="text-2xl font-black uppercase italic tracking-tighter leading-none">
+                    <span className="text-red-600">HARMONY</span> GLASS
+                  </h1>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Ficha Técnica Individual</p>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -2304,8 +2347,14 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="pt-10 flex justify-between items-end italic opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
-                <div>HARMONY GLASS — DIGITAL PRODUCTION CARD</div>
+              <div className="pt-10 flex justify-between items-end italic opacity-40 text-[10px] font-black uppercase tracking-[0.4em]">
+                <div className="flex items-center gap-3">
+                  <BrandLogo className="w-8 h-8 filter grayscale" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-red-700">HARMONY</span> 
+                    <span className="text-blue-900 border-l-2 border-black pl-2">GLASS PRODUCTION DIGITAL</span>
+                  </div>
+                </div>
                 <div>AUTORIZADO POR: _______________________</div>
               </div>
             </div>
@@ -2367,9 +2416,10 @@ export default function App() {
         </button>
       </nav>
 
-      <footer className="py-20 px-4 bg-brand-bg text-center relative z-20 print:hidden">
-        <p className="text-[9px] text-brand-muted uppercase tracking-[0.8em] font-black opacity-30">
-          HARMONY GLASS • PRODUCTION OS • 2.6.0
+      <footer className="py-24 px-4 bg-brand-bg text-center relative z-20 print:hidden items-center flex flex-col justify-center space-y-6">
+        <BrandLogo className="w-16 h-16 opacity-20 filter grayscale brightness-200" />
+        <p className="text-[10px] text-brand-muted uppercase tracking-[0.8em] font-black opacity-40">
+          HARMONY GLASS • PREMIUM INDUSTRIAL SOFTWARE • 2.7.0
         </p>
       </footer>
 
