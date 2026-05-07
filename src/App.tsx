@@ -19,6 +19,8 @@ import {
   User,
   Calendar,
   CheckCircle2,
+  Phone,
+  MapPin,
   LayoutDashboard,
   ArrowLeft,
   ArrowRight,
@@ -46,6 +48,8 @@ interface WindowProject {
   id: string;
   name: string;
   clientName: string;
+  clientPhone?: string;
+  clientLocation?: string;
   type: "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS";
   width: number; // sixteenths
   height: number; // sixteenths
@@ -974,6 +978,8 @@ function DimensionInput({
 export default function App() {
   const [windowTag, setWindowTag] = useState<string>("Ventana 01");
   const [clientName, setClientName] = useState<string>("");
+  const [clientPhone, setClientPhone] = useState<string>("");
+  const [clientLocation, setClientLocation] = useState<string>("");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
   const [widthWhole, setWidthWhole] = useState<number>(60);
   const [widthFrac, setWidthFrac] = useState<number>(0);
@@ -1363,6 +1369,8 @@ export default function App() {
 
   const startNewOrder = () => {
     setClientName("");
+    setClientPhone("");
+    setClientLocation("");
     setDeliveryDate("");
     setOrderWindows([]);
     setOrderStep(1);
@@ -1387,6 +1395,8 @@ export default function App() {
         windowTag ||
         `Ventana ${(orderWindows.length + 1).toString().padStart(2, "0")}`,
       clientName: clientName || "Cliente Genérico",
+      clientPhone: clientPhone,
+      clientLocation: clientLocation,
       type: windowType,
       width: widthWhole * 16 + widthFrac,
       height: heightWhole * 16 + heightFrac,
@@ -1438,6 +1448,8 @@ export default function App() {
     return Object.entries(groups)
       .map(([name, data]) => {
         const clientProjects = [...data.pending, ...data.completed];
+        const phone = clientProjects[0]?.clientPhone;
+        const location = clientProjects[0]?.clientLocation;
         const entryDate = Math.min(...clientProjects.map((p) => p.createdAt));
         const deliveryDates = clientProjects
           .map((p) => p.deliveryDate)
@@ -1468,6 +1480,8 @@ export default function App() {
           name,
           pending: data.pending.sort((a, b) => a.createdAt - b.createdAt),
           completed: data.completed.sort((a, b) => b.createdAt - a.createdAt),
+          phone,
+          location,
           entryDate,
           exitDate,
           progress,
@@ -1615,6 +1629,32 @@ export default function App() {
                           className="w-full h-12 sm:h-14 bg-brand-bg border border-brand-border px-5 rounded-[1rem] sm:rounded-[1.2rem] text-white font-black text-base sm:text-lg focus:outline-none focus:border-brand-accent transition-all shadow-inner color-scheme-dark"
                         />
                       </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
+                          Teléfono
+                        </label>
+                        <input
+                          type="text"
+                          value={clientPhone}
+                          onChange={(e) => setClientPhone(e.target.value)}
+                          placeholder="Número de contacto"
+                          className="w-full h-12 sm:h-14 bg-brand-bg border border-brand-border px-5 rounded-[1rem] sm:rounded-[1.2rem] text-white font-black text-base sm:text-lg placeholder:text-brand-muted/10 focus:outline-none focus:border-brand-accent transition-all shadow-inner"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
+                          Ubicación
+                        </label>
+                        <input
+                          type="text"
+                          value={clientLocation}
+                          onChange={(e) => setClientLocation(e.target.value)}
+                          placeholder="Dirección o Ciudad"
+                          className="w-full h-12 sm:h-14 bg-brand-bg border border-brand-border px-5 rounded-[1rem] sm:rounded-[1.2rem] text-white font-black text-base sm:text-lg placeholder:text-brand-muted/10 focus:outline-none focus:border-brand-accent transition-all shadow-inner"
+                        />
+                      </div>
                     </div>
 
                     <motion.button
@@ -1646,6 +1686,11 @@ export default function App() {
                               <p className="text-[9px] text-brand-muted uppercase font-mono">
                                 {client.totalWindows} Ventanas
                               </p>
+                              {(client.phone || client.location) && (
+                                <p className="text-[8px] text-brand-accent/50 uppercase mt-1 truncate">
+                                  {client.phone} {client.phone && client.location && "•"} {client.location}
+                                </p>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <button
@@ -1657,6 +1702,8 @@ export default function App() {
                               <button
                                 onClick={() => {
                                   setClientName(client.name);
+                                  setClientPhone(client.phone || "");
+                                  setClientLocation(client.location || "");
                                   setOrderStep(2);
                                 }}
                                 className="px-4 h-10 bg-red-600 rounded-xl text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-red-500 transition-all"
@@ -2184,6 +2231,21 @@ export default function App() {
                                       ).toLocaleDateString()}
                                     </span>
                                   </div>
+
+                                  {group.phone && (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-accent/5 rounded-full border border-brand-accent/10 text-brand-accent/80">
+                                      <Phone size={12} />
+                                      <span>{group.phone}</span>
+                                    </div>
+                                  )}
+
+                                  {group.location && (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/5 rounded-full border border-emerald-500/10 text-emerald-500/80">
+                                      <MapPin size={12} />
+                                      <span>{group.location}</span>
+                                    </div>
+                                  )}
+
                                   {group.exitDate && (
                                     <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-accent/10 rounded-full border border-brand-accent/20 text-brand-accent">
                                       <Clock size={12} />
