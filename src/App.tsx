@@ -1066,12 +1066,12 @@ export default function App() {
 
     // User requested P92 specific discounts
     if (windowType === "P92") {
-      leafVertDeduction = 40; // Jamba 2.5"
-      leafOverlap = 24; // Cabezal 1.5"
-      frameHorizDeduction = 28; // Riel 1.75"
-      frameVertDeduction = 2; // Lateral 0.125"
-      glassWidthFrameDeduction = 52; // Vidrio Ancho 3.25"
-      glassHeightFrameDeduction = 64; // Vidrio Alto 4.0"
+      leafVertDeduction = 48; // Jamba 3"
+      leafOverlap = 10; // Cabezal 5/8" (Results in (W-1.25)/2 for 2 vias)
+      frameHorizDeduction = 26; // Riel 1 5/8"
+      frameVertDeduction = 2; // Lateral 1/8"
+      glassWidthFrameDeduction = 112; // Vidrio Ancho 7" (Results in Cabezal - 2 7/8")
+      glassHeightFrameDeduction = 96; // Vidrio Alto 6" (Results in Jamba - 3")
     }
 
     // Adjustments based on Vias
@@ -1128,6 +1128,8 @@ export default function App() {
     // Height target for 23.63: 18.63 (298/16). 378 - 80 = 298.
     const glassHeight = totalHeight - glassHeightFrameDeduction;
 
+    const isP92 = windowType === "P92";
+
     return {
       inputs: { w: totalWidth, h: totalHeight, type: windowType, vias },
       marco: [
@@ -1140,7 +1142,7 @@ export default function App() {
         },
         {
           id: "riel_up_down",
-          piece: "Rieles (Arr/Aba)",
+          piece: isP92 ? "Riel" : "Rieles (Arr/Aba)",
           qty: 2,
           size: sillSize,
           formula: `Ancho - ${formatFraction(frameHorizDeduction)}`,
@@ -1149,17 +1151,17 @@ export default function App() {
       hojas: [
         {
           id: "vert",
-          piece: "Jamba / Llavín",
+          piece: isP92 ? "Jamba" : "Jamba / Llavín",
           qty: vias * 2,
           size: leafVerticalSize,
           formula: `Alto - ${formatFraction(leafVertDeduction)}`,
         },
         {
           id: "alf_rueda",
-          piece: "Alf / Rueda",
+          piece: isP92 ? "Cabezal" : "Alf / Rueda",
           qty: vias * 2,
           size: leafHorizontalSize,
-          formula: `Ancho/vias - ${formatFraction(leafOverlap)}`,
+          formula: isP92 ? `(Ancho - 1 1/4) / ${vias}` : `Ancho/vias - ${formatFraction(leafOverlap)}`,
         },
       ],
       vidrios: [
@@ -1169,7 +1171,9 @@ export default function App() {
           qty: vias,
           size: glassWidth,
           dimensions: formatDimensionSet(glassWidth, glassHeight),
-          formula: `(Ancho - ${formatFraction(glassWidthFrameDeduction)}) / ${vias} | Alto - ${formatFraction(glassHeightFrameDeduction)}`,
+          formula: isP92 
+            ? `Ancho: Cabezal - 2 7/8 | Alto: Jamba - 3`
+            : `(Ancho - ${formatFraction(glassWidthFrameDeduction)}) / ${vias} | Alto - ${formatFraction(glassHeightFrameDeduction)}`,
         },
       ],
     };
