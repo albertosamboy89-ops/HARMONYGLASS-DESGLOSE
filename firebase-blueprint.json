@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Window Project",
+      "description": "A calculation project for windows/doors",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "clientLocation": { "type": "string" },
+        "type": { "type": "string", "enum": ["P65", "P92", "VENTILADA", "GAVETAS", "PUERTA_COMERCIAL"] },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "vias": { "type": "number" },
+        "results": { "type": "object" },
+        "completedCuts": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "createdAt": { "type": "number" },
+        "deliveryDate": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "name", "clientName", "type", "width", "height", "vias", "createdAt", "userId"]
+    },
+    "Pricing": {
+      "title": "Client Pricing",
+      "description": "Custom pricing data per user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "pricing": { "type": "object" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "pricing", "userId"]
+    }
+  },
+  "firestore": {
+    "users/{userId}/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Calculations saved by the user"
+    },
+    "users/{userId}/pricing/default": {
+      "schema": "Pricing",
+      "description": "Pricing settings for the user"
+    }
+  }
+}

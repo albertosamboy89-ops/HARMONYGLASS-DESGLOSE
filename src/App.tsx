@@ -30,10 +30,66 @@ import {
   Download,
   Upload,
   Share2,
+  LogOut,
+  LogIn,
+  RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { auth, db } from "./firebase";
+import { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut,
+  User as FirebaseUser 
+} from "firebase/auth";
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  query, 
+  where, 
+  orderBy,
+  writeBatch
+} from "firebase/firestore";
 
 // --- Types ---
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+}
 
 interface CutDetail {
   id: string;
@@ -1106,6 +1162,7 @@ function DimensionInput({
 }
 
 export default function App() {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [windowTag, setWindowTag] = useState<string>("VENTANA 01");
   const [clientName, setClientName] = useState<string>("");
   const [clientPhone, setClientPhone] = useState<string>("");
@@ -1158,42 +1215,111 @@ export default function App() {
   const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
   const [clientPricing, setClientPricing] = useState<Record<string, number>>({});
 
-  // Load from localStorage
+  // Auth listener
   useEffect(() => {
-    const saved = localStorage.getItem("v-cut-projects");
-    if (saved) {
-      try {
-        setProjects(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load projects", e);
-      }
-    }
-    const savedPricing = localStorage.getItem("v-cut-pricing");
-    if (savedPricing) {
-      try {
-        setClientPricing(JSON.parse(savedPricing));
-      } catch (e) {
-        console.error("Failed to load pricing", e);
-      }
-    }
-    const savedOrder = localStorage.getItem("v-cut-temp-order");
-    if (savedOrder) {
-      try {
-        setOrderWindows(JSON.parse(savedOrder));
-      } catch (e) {
-        console.error("Failed to load buffer", e);
-      }
-    }
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsubscribe();
   }, []);
 
-  // Save to localStorage
-  useEffect(() => {
-    localStorage.setItem("v-cut-projects", JSON.stringify(projects));
-  }, [projects]);
+  const handleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Login failed", error);
+    }
+  };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setProjects([]);
+      window.location.reload();
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
+
+  // Hybrid storage logic
   useEffect(() => {
-    localStorage.setItem("v-cut-pricing", JSON.stringify(clientPricing));
-  }, [clientPricing]);
+    if (user) {
+      // Sync from Firestore
+      const q = query(
+        collection(db, `users/${user.uid}/projects`), 
+        orderBy("createdAt", "desc")
+      );
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
+        const cloudProjects = snapshot.docs.map(doc => ({ ...doc.data() } as WindowProject));
+        
+        // Automatic migration if cloud is empty and local has data
+        if (cloudProjects.length === 0) {
+          const savedLocal = localStorage.getItem("v-cut-projects");
+          if (savedLocal) {
+            try {
+              const localData: WindowProject[] = JSON.parse(savedLocal);
+              if (localData.length > 0) {
+                const batch = writeBatch(db);
+                localData.forEach(p => {
+                  batch.set(doc(db, `users/${user.uid}/projects`, p.id), { ...p, userId: user.uid });
+                });
+                await batch.commit();
+                localStorage.removeItem("v-cut-projects");
+                return; // Early return as batch commit will trigger a new snapshot
+              }
+            } catch (e) { console.error("Migration failed", e); }
+          }
+        }
+        
+        setProjects(cloudProjects);
+      }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/projects`));
+
+      const pricingRef = doc(db, `users/${user.uid}/pricing/default`);
+      const unsubPricing = onSnapshot(pricingRef, async (snapshot) => {
+        if (snapshot.exists()) {
+          setClientPricing(snapshot.data().pricing || {});
+        } else {
+          // Migrate pricing too
+          const savedPricing = localStorage.getItem("v-cut-pricing");
+          if (savedPricing) {
+            try {
+              const localPricing = JSON.parse(savedPricing);
+              await setDoc(pricingRef, { id: 'default', userId: user.uid, pricing: localPricing });
+              localStorage.removeItem("v-cut-pricing");
+            } catch (e) { console.error(e); }
+          }
+        }
+      });
+
+      return () => {
+        unsubscribe();
+        unsubPricing();
+      };
+    } else {
+      // Load from LocalStorage
+      const saved = localStorage.getItem("v-cut-projects");
+      if (saved) {
+        try { setProjects(JSON.parse(saved)); } catch (e) { console.error(e); }
+      }
+      const savedPricing = localStorage.getItem("v-cut-pricing");
+      if (savedPricing) {
+        try { setClientPricing(JSON.parse(savedPricing)); } catch (e) { console.error(e); }
+      }
+      const savedOrder = localStorage.getItem("v-cut-temp-order");
+      if (savedOrder) {
+        try { setOrderWindows(JSON.parse(savedOrder)); } catch (e) { console.error(e); }
+      }
+    }
+  }, [user]);
+
+  // Save to localStorage (Only if not logged in)
+  useEffect(() => {
+    if (!user) {
+      localStorage.setItem("v-cut-projects", JSON.stringify(projects));
+      localStorage.setItem("v-cut-pricing", JSON.stringify(clientPricing));
+    }
+  }, [projects, clientPricing, user]);
 
   useEffect(() => {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
@@ -1486,32 +1612,51 @@ export default function App() {
 
   /* addToQueue was redundant, replaced by addToBatch flow */
 
-  const toggleProjectStatus = (id: string) => {
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, status: p.status === "pending" ? "completed" : "pending" }
-          : p,
-      ),
-    );
+  const toggleProjectStatus = async (id: string) => {
+    const updatedStatus = projects.find(p => p.id === id)?.status === "pending" ? "completed" : "pending";
+    if (user) {
+      try {
+        await setDoc(doc(db, `users/${user.uid}/projects`, id), { status: updatedStatus }, { merge: true });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}/projects/${id}`);
+      }
+    } else {
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, status: updatedStatus }
+            : p,
+        ),
+      );
+    }
   };
 
-  const toggleCutStatus = (projectId: string, cutId: string) => {
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== projectId) return p;
-        const alreadyDone = p.completedCuts.includes(cutId);
-        const newCompleted = alreadyDone
-          ? p.completedCuts.filter((id) => id !== cutId)
-          : [...p.completedCuts, cutId];
+  const toggleCutStatus = async (projectId: string, cutId: string) => {
+    const p = projects.find(proj => proj.id === projectId);
+    if (!p) return;
+    const alreadyDone = p.completedCuts.includes(cutId);
+    const newCompleted = alreadyDone
+      ? p.completedCuts.filter((id) => id !== cutId)
+      : [...p.completedCuts, cutId];
 
-        const updated = { ...p, completedCuts: newCompleted };
-        if (selectedProject?.id === projectId) {
-          setSelectedProject(updated);
-        }
-        return updated;
-      }),
-    );
+    if (user) {
+      try {
+        await setDoc(doc(db, `users/${user.uid}/projects`, projectId), { completedCuts: newCompleted }, { merge: true });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}/projects/${projectId}`);
+      }
+    } else {
+      setProjects((prev) =>
+        prev.map((pp) => {
+          if (pp.id !== projectId) return pp;
+          const updated = { ...pp, completedCuts: newCompleted };
+          if (selectedProject?.id === projectId) {
+            setSelectedProject(updated);
+          }
+          return updated;
+        }),
+      );
+    }
   };
 
   const deleteProject = (id: string) => {
@@ -1538,17 +1683,37 @@ export default function App() {
     setPassInput("");
   };
 
-  const confirmDeletion = () => {
+  const confirmDeletion = async () => {
     if (passInput === "1989") {
       if (pendingDeleteId) {
-        setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
+        if (user) {
+          try {
+            await deleteDoc(doc(db, `users/${user.uid}/projects`, pendingDeleteId));
+          } catch (err) {
+            handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/projects/${pendingDeleteId}`);
+          }
+        } else {
+          setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
+        }
         if (selectedProject?.id === pendingDeleteId) {
           setSelectedProject(null);
         }
       } else if (pendingDeleteClient) {
-        setProjects((prev) =>
-          prev.filter((p) => p.clientName !== pendingDeleteClient),
-        );
+        if (user) {
+          try {
+            const batch = writeBatch(db);
+            projects.filter(p => p.clientName === pendingDeleteClient).forEach(p => {
+              batch.delete(doc(db, `users/${user.uid}/projects`, p.id));
+            });
+            await batch.commit();
+          } catch (err) {
+            handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/projects`);
+          }
+        } else {
+          setProjects((prev) =>
+            prev.filter((p) => p.clientName !== pendingDeleteClient),
+          );
+        }
         if (selectedClientName === pendingDeleteClient) {
           setSelectedClientName(null);
         }
@@ -1577,9 +1742,22 @@ export default function App() {
     setActiveView("new-order");
   };
 
-  const saveBatchOrder = () => {
+  const saveBatchOrder = async () => {
     if (orderWindows.length === 0) return;
-    setProjects((prev) => [...prev, ...orderWindows]);
+    if (user) {
+      try {
+        const batch = writeBatch(db);
+        orderWindows.forEach(p => {
+          const projectWithUserId = { ...p, userId: user.uid };
+          batch.set(doc(db, `users/${user.uid}/projects`, p.id), projectWithUserId);
+        });
+        await batch.commit();
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/projects`);
+      }
+    } else {
+      setProjects((prev) => [...prev, ...orderWindows]);
+    }
     setActiveView("dashboard");
     setOrderWindows([]);
   };
@@ -1759,16 +1937,48 @@ export default function App() {
             </button>
           </div>
 
+          {/* User Auth */}
+          <div className="flex items-center gap-2 border-l border-brand-border pl-2 sm:pl-4">
+            {user ? (
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="hidden lg:flex flex-col items-end">
+                  <span className="text-[10px] font-black text-white italic truncate max-w-[120px]">
+                    {user.displayName?.split(' ')[0] || user.email?.split('@')[0]}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[8px] font-black text-brand-accent uppercase tracking-widest">
+                      Nube
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  title="Cerrar sesión"
+                  className="p-2 sm:p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
+                >
+                  <LogOut size={18} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleLogin}
+                className="flex items-center gap-2 px-3 sm:px-4 h-10 sm:h-12 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-xl font-black uppercase text-[9px] sm:text-[10px] tracking-widest shadow-lg transition-all"
+              >
+                <LogIn size={16} /> <span className="hidden sm:inline">Acceder</span>
+              </button>
+            )}
+          </div>
+
           {/* Mobile compact icons */}
           <div className="sm:hidden flex items-center gap-1 mr-2">
-             <button onClick={exportData} className="p-2 text-emerald-400"><Download size={18}/></button>
+             <button onClick={exportData} title="Exportar" className="p-2 text-emerald-400"><Download size={18}/></button>
              <label className="p-2 text-blue-400 cursor-pointer">
                 <Upload size={18}/>
                 <input type="file" accept=".json" onChange={importData} className="hidden" />
              </label>
-             <button onClick={handleShareEmail} className="p-2 text-amber-400"><Share2 size={18}/></button>
+             <button onClick={handleShareEmail} title="Compartir" className="p-2 text-amber-400"><Share2 size={18}/></button>
           </div>
-
         </div>
       </header>
 
@@ -2267,7 +2477,18 @@ export default function App() {
                                         <input 
                                             type="number"
                                             value={clientPricing[clientName] || ""}
-                                            onChange={(e) => setClientPricing(prev => ({ ...prev, [clientName]: parseFloat(e.target.value) }))}
+                                          onChange={(e) => {
+                                            const newVal = parseFloat(e.target.value) || 0;
+                                            const newPricing = { ...clientPricing, [clientName]: newVal };
+                                            setClientPricing(newPricing);
+                                            if (user) {
+                                              setDoc(doc(db, `users/${user.uid}/pricing/default`), { 
+                                                id: 'default',
+                                                userId: user.uid,
+                                                pricing: newPricing 
+                                              }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/pricing/default`));
+                                            }
+                                          }}
                                             placeholder="0.00"
                                             className="w-full bg-transparent text-white font-mono font-black text-lg focus:outline-none placeholder:text-white/10"
                                         />

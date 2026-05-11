@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Entity Validations
+    function isValidProject(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 200
+        && data.clientName is string && data.clientName.size() <= 200
+        && data.type in ['P65', 'P92', 'VENTILADA', 'GAVETAS', 'PUERTA_COMERCIAL']
+        && data.width is number && data.width > 0
+        && data.height is number && data.height > 0
+        && data.vias is number && data.vias >= 1 && data.vias <= 4
+        && data.status in ['pending', 'completed']
+        && data.createdAt is number
+        && data.userId == request.auth.uid;
+    }
+
+    function isValidPricing(data) {
+      return data.id is string
+        && data.userId == request.auth.uid
+        && data.pricing is map;
+    }
+
+    // User Data Match
+    match /users/{userId} {
+      match /projects/{projectId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        
+        allow create: if isOwner(userId) 
+          && isValidId(projectId)
+          && isValidProject(incoming())
+          && incoming().id == projectId;
+          
+        allow update: if isOwner(userId)
+          && isValidProject(incoming())
+          && (
+            // Action: Toggle completion or update details
+            incoming().diff(existing()).affectedKeys().hasAny(['status', 'completedCuts', 'name', 'clientName', 'deliveryDate'])
+            && !incoming().diff(existing()).affectedKeys().hasAny(['userId', 'createdAt', 'id'])
+          );
+          
+        allow delete: if isOwner(userId);
+      }
+      
+      match /pricing/{pricingId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) && isValidPricing(incoming());
+      }
+    }
+  }
+}
