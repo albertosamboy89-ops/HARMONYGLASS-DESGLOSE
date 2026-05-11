@@ -252,13 +252,24 @@ function PrintReport({
 
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full border-collapse border border-black text-[10px]">
-                <thead>
-                  {type === "GAVETAS" ? (
+                <thead>                  {type === "GAVETAS" ? (
                     <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
                       <th className="border border-black px-1 py-1 w-12">#</th>
                       <th className="border border-black px-1 py-1 w-20">Hueco</th>
                       <th className="border border-black px-1 py-1" colSpan={2}>MOLDURAS</th>
                       <th className="border border-black px-1 py-1" colSpan={2}>FACIAS</th>
+                    </tr>
+                  ) : type === "PUERTA_COMERCIAL" ? (
+                    <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
+                      <th className="border border-black px-1 py-1 w-12">#</th>
+                      <th className="border border-black px-1 py-1 w-20">HUECO</th>
+                      <th className="border border-black px-1 py-1">DINTEL</th>
+                      <th className="border border-black px-1 py-1">JAMBA</th>
+                      <th className="border border-black px-1 py-1">LATERAL</th>
+                      <th className="border border-black px-1 py-1">CABEZAL</th>
+                      <th className="border border-black px-1 py-1 w-32">
+                        CRISTAL
+                      </th>
                     </tr>
                   ) : (
                     <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
@@ -283,7 +294,7 @@ function PrintReport({
                     const combinedHoja = p.results.hojas;
                     const combinedMarco = p.results.marco;
                     const combinedVidrio = p.results.vidrios;
-
+ 
                     if (type === "GAVETAS") {
                       const moldura = combinedMarco.find(m => m.id === "moldura");
                       const facia = combinedHoja.find(h => h.id === "facia");
@@ -319,6 +330,55 @@ function PrintReport({
                         </tr>
                       );
                     }
+
+                    if (type === "PUERTA_COMERCIAL") {
+                      return (
+                        <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
+                           <td className="border border-black px-0.5 py-0.5 text-black leading-none uppercase">
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-[11px] font-black">{pIdx + 1}</span>
+                              <span className="text-[7px] font-bold opacity-60 whitespace-nowrap">{p.vias === 2 ? "DOBLE" : "SIMPLE"}</span>
+                            </div>
+                          </td>
+                          <td className="border border-black px-1 py-0.5">
+                            <div className="flex items-center justify-center min-w-[75px] leading-tight text-[12px] font-black text-black">
+                              {formatDimensionSet(p.width, p.height)}
+                            </div>
+                          </td>
+                          <td className="border border-black px-0.5 py-0.5">
+                            <div className="flex flex-col leading-none">
+                              <span className="text-[12px] font-black text-black">{getS(combinedMarco, "DINTEL")}</span>
+                              <span className="text-[9px] font-bold text-black opacity-40">x1</span>
+                            </div>
+                          </td>
+                          <td className="border border-black px-0.5 py-0.5">
+                            <div className="flex flex-col leading-none">
+                              <span className="text-[12px] font-black text-black">{getS(combinedMarco, "JAMBA")}</span>
+                              <span className="text-[9px] font-bold text-black opacity-40">x2</span>
+                            </div>
+                          </td>
+                          <td className="border border-black px-0.5 py-0.5">
+                            <div className="flex flex-col leading-none">
+                              <span className="text-[12px] font-black text-black">{getS(combinedHoja, "LATERAL")}</span>
+                              <span className="text-[9px] font-bold text-black opacity-40">x{p.vias * 2}</span>
+                            </div>
+                          </td>
+                          <td className="border border-black px-0.5 py-0.5">
+                            <div className="flex flex-col leading-none">
+                              <span className="text-[12px] font-black text-black">{getS(combinedHoja, "CABEZAL")}</span>
+                              <span className="text-[9px] font-bold text-black opacity-40">x{p.vias * 2}</span>
+                            </div>
+                          </td>
+                          <td className="border border-black px-1 py-0.5 font-black text-black">
+                             <div className="flex items-center justify-center gap-2">
+                              <span className="text-[13px] tracking-tight tabular-nums leading-none">{getD(combinedVidrio, "Cristal")}</span>
+                              <span className="text-[9px] font-bold text-black opacity-40">x{p.vias}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+
 
                     return (
                       <tr
@@ -1256,15 +1316,16 @@ export default function App() {
 
     if (windowType === "PUERTA_COMERCIAL") {
       const dintelSize = totalWidth - 58; // Ancho - 3.625 (3 5/8")
-      const lateralSize = totalHeight - 4; // Alto - 0.25 (1/4")
-      const jambaSize = totalHeight - 46; // Alto - 2.875 (2 7/8")
+      const lateralSize = totalHeight - 4; // Alto - 0.25 (1/4") - Modified per user request
+      const jambaSize = totalHeight - 46; // Alto - 2.875 (2 7/8") - Modified per user request
       
-      // Cabezal formula changes for double door
-      const cabezalDeduction = vias === 2 ? 63 : 128; // 3.9375" (3 15/16") for double, 8" for single
-      const cabezalSize = Math.floor((totalWidth - cabezalDeduction) / vias);
-      const cabezalFormula = vias === 2 ? `(Ancho - 3 15/16") / 2` : `Ancho - 8"`;
+      // Cabezal formula: (Ancho / 2) - 3.9375" for double, Ancho - 8" for single
+      const cabezalSize = vias === 2 
+        ? Math.floor((totalWidth / 2) - 63)
+        : Math.floor(totalWidth - 128);
+      const cabezalFormula = vias === 2 ? `(Ancho / 2) - 3 15/16"` : `Ancho - 8"`;
       
-      // Glass estimation for commercial door
+      // Glass estimation
       const glassWidth = Math.floor((totalWidth - 160) / vias);
       const glassHeight = totalHeight - 110;
 
