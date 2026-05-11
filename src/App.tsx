@@ -336,7 +336,7 @@ function PrintReport({
                         <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
                            <td className="border border-black px-0.5 py-0.5 text-black leading-none uppercase">
                             <div className="flex flex-col items-center gap-0.5">
-                              <span className="text-[11px] font-black">{pIdx + 1}</span>
+                              <span className="text-[11px] font-black">{p.name}</span>
                               <span className="text-[7px] font-bold opacity-60 whitespace-nowrap">{p.vias === 2 ? "DOBLE" : "SIMPLE"}</span>
                             </div>
                           </td>
@@ -1018,7 +1018,7 @@ function WindowPreview({
                 {windowType === "PUERTA_COMERCIAL" ? "Sistema de Acceso" : "Sistema de Cerramiento"}
               </p>
               <h4 className="text-sm font-black text-white italic tracking-tighter uppercase">
-                {windowType === "PUERTA_COMERCIAL" ? "PUERTA COMERCIAL" : `${vias} HOJAS`} / {windowType.replace("_", " ")}
+                {windowType === "PUERTA_COMERCIAL" ? "PUERTA COMERCIAL" : `${vias} HOJAS / ${windowType.replace("_", " ")}`}
               </h4>
            </div>
            
@@ -1106,7 +1106,7 @@ function DimensionInput({
 }
 
 export default function App() {
-  const [windowTag, setWindowTag] = useState<string>("Ventana 01");
+  const [windowTag, setWindowTag] = useState<string>("VENTANA 01");
   const [clientName, setClientName] = useState<string>("");
   const [clientPhone, setClientPhone] = useState<string>("");
   const [clientLocation, setClientLocation] = useState<string>("");
@@ -1570,7 +1570,7 @@ export default function App() {
     setClientPhone("");
     setClientLocation("");
     setDeliveryDate("");
-    const defaultTag = windowType === "PUERTA_COMERCIAL" ? "Puerta 01" : "Ventana 01";
+    const defaultTag = windowType === "PUERTA_COMERCIAL" ? "PUERTA 01" : "VENTANA 01";
     setWindowTag(defaultTag);
     setOrderWindows([]);
     setOrderStep(1);
@@ -1586,7 +1586,7 @@ export default function App() {
 
   const addToBatch = () => {
     const nextNum = orderWindows.length + 2;
-    const prefix = windowType === "PUERTA_COMERCIAL" ? "Puerta" : "Ventana";
+    const prefix = windowType === "PUERTA_COMERCIAL" ? "PUERTA" : "VENTANA";
     const nextTag = `${prefix} ${nextNum.toString().padStart(2, "0")}`;
 
     const newWindow: WindowProject = {
@@ -1965,8 +1965,10 @@ export default function App() {
                           setWindowType(type.id);
                           if (type.id === "PUERTA_COMERCIAL") {
                             setVias(1);
+                            setWindowTag("PUERTA 01");
                           } else {
                             setVias(2);
+                            setWindowTag("VENTANA 01");
                           }
                           setOrderStep(3);
                           setShowResults(true);
@@ -1977,7 +1979,7 @@ export default function App() {
                           <h3
                             className={`text-xl font-black italic mb-1 ${windowType === type.id ? "text-brand-accent" : "text-white"}`}
                           >
-                            {type.id.replace("_", " ")}
+                            {type.id === "PUERTA_COMERCIAL" ? "COMERCIAL" : type.id.replace("_", " ")}
                           </h3>
                           <p
                             className={`text-[9px] font-bold uppercase tracking-widest ${windowType === type.id ? "text-brand-accent/80" : "text-brand-muted group-hover:text-white/60"}`}
@@ -2042,7 +2044,7 @@ export default function App() {
                           </div>
                           <div className="overflow-hidden">
                             <h4 className="text-sm font-black text-white uppercase italic truncate">
-                              {windowType}
+                              {windowType === "PUERTA_COMERCIAL" ? "COMERCIAL" : windowType}
                             </h4>
                             <p className="text-[8px] text-brand-muted uppercase font-mono tracking-widest opacity-60">
                               Perfil Seleccionado
@@ -2085,7 +2087,7 @@ export default function App() {
                         </div>
                         <div className="px-3 py-1.5 bg-brand-accent/10 border border-brand-accent/20 rounded-lg">
                           <p className="text-[8px] font-black text-brand-accent uppercase tracking-widest">
-                            {windowType} EUROPEO
+                            {windowType === "PUERTA_COMERCIAL" ? "COMERCIAL" : windowType} EUROPEO
                           </p>
                         </div>
                       </header>
@@ -2161,7 +2163,7 @@ export default function App() {
                          </div>
                         <button
                           onClick={addToBatch}
-                          className="w-full h-16 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-xs shadow-xl transition-all"
+                          className="w-full h-16 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-xs shadow-xl transition-all mt-8"
                         >
                           <Plus size={20} strokeWidth={3} /> Añadir al Pedido
                         </button>
@@ -2211,7 +2213,7 @@ export default function App() {
                               </div>
                               <div>
                                 <p className="text-sm font-black text-white uppercase italic">
-                                  {p.name} ({p.vias} Vías - {p.type})
+                                  {p.type === "PUERTA_COMERCIAL" ? p.name : `${p.name} (${p.vias} Vías - ${p.type})`}
                                 </p>
                                 <p className="text-[10px] font-mono text-brand-muted">
                                   {formatFraction(p.width)} x{" "}
@@ -2569,9 +2571,7 @@ export default function App() {
                                                   <h4
                                                     className={`text-base font-black uppercase truncate pr-4 ${isFullyCut ? "text-red-400" : "text-white"}`}
                                                   >
-                                                    {project.name} (
-                                                    {project.vias} Vías -{" "}
-                                                    {project.type})
+                                                    {project.type === "PUERTA_COMERCIAL" ? project.name : `${project.name} (${project.vias} Vías - ${project.type})`}
                                                   </h4>
                                                   <Info
                                                     size={14}
