@@ -50,10 +50,10 @@ interface WindowProject {
   clientName: string;
   clientPhone?: string;
   clientLocation?: string;
-  type: "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS";
+  type: "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS" | "PUERTA_COMERCIAL";
   width: number; // sixteenths
   height: number; // sixteenths
-  vias: 2 | 3 | 4;
+  vias: 1 | 2 | 3 | 4;
   wTop?: number;
   wBottom?: number;
   hLeft?: number;
@@ -526,6 +526,7 @@ function ClientDashboard({
         entryDate: number;
         exitDate?: string;
         pendingCuts: number;
+        hasDoor: boolean;
       }
     > = {};
 
@@ -537,8 +538,10 @@ function ClientDashboard({
           entryDate: p.createdAt,
           exitDate: p.deliveryDate,
           pendingCuts: 0,
+          hasDoor: false,
         };
       }
+      if (p.type === "PUERTA_COMERCIAL") groups[p.clientName].hasDoor = true;
       groups[p.clientName].count++;
       if (p.status === "completed") groups[p.clientName].done++;
 
@@ -685,7 +688,7 @@ function ClientDashboard({
                     <p
                       className={`text-[10px] font-black uppercase tracking-widest ${isComplete ? "text-emerald-400" : clientColor.accent}`}
                     >
-                      {data.count} Ventanas
+                      {data.count} {data.count === 1 ? (data.hasDoor ? "Puerta" : "Ventana") : (data.hasDoor ? "Puertas/Ventanas" : "Ventanas")}
                     </p>
                     <p
                       className={`text-xs font-black italic tabular-nums ${isComplete ? "text-emerald-100" : "text-white"}`}
@@ -735,9 +738,25 @@ function ResultsBreakdown({
     });
   };
 
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-      {[
+  const categories = windowType === "PUERTA_COMERCIAL"
+    ? [
+        { 
+          title: "PUERTA", 
+          items: [
+            results.marco.find(i => i.id === "dintel")!,
+            results.hojas.find(i => i.id === "lateral")!,
+            results.marco.find(i => i.id === "jamba")!,
+            results.hojas.find(i => i.id === "cabezal")!,
+          ], 
+          color: "blue" 
+        },
+        { 
+          title: "CRISTAL", 
+          items: results.vidrios, 
+          color: "emerald" 
+        },
+      ]
+    : [
         { 
           title: windowType === "GAVETAS" ? "M. MOLDURAS" : "M. Marco", 
           items: results.marco, 
@@ -749,7 +768,11 @@ function ResultsBreakdown({
           color: "purple" 
         },
         { title: "M. Cristal", items: results.vidrios, color: "emerald" },
-      ].map((cat) => {
+      ];
+
+  return (
+    <div className={`grid grid-cols-1 ${windowType === "PUERTA_COMERCIAL" ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"} gap-2 sm:gap-3`}>
+      {categories.map((cat) => {
         if (!cat) return null;
         if (windowType === "GAVETAS" && cat.title === "M. Cristal") return null;
 
@@ -853,36 +876,43 @@ function WindowPreview({
   const baseH = hLeft !== undefined && hRight !== undefined ? Math.max(hLeft, hRight) : height;
 
   const ratio = baseW / baseH;
-  const maxWidth = large ? 200 : 140;
-  const maxHeight = large ? 120 : 110;
+  
+  // Dynamic max dimensions based on container space
+  const maxWidth = large ? (windowType === "PUERTA_COMERCIAL" ? 220 : 280) : 120;
+  const maxHeight = large ? (windowType === "PUERTA_COMERCIAL" ? 380 : 180) : 100;
 
   let scaledW = maxWidth;
-  let scaledH = maxWidth / ratio;
+  let scaledH = scaledW / ratio;
 
   if (scaledH > maxHeight) {
     scaledH = maxHeight;
-    scaledW = maxHeight * ratio;
+    scaledW = scaledH * ratio;
   }
+
+  // Ensure window doesn't get too small visually, but allow growth
+  scaledW = Math.max(scaledW, 40);
+  scaledH = Math.max(scaledH, 40);
 
   // Calculate polygon points for P40 "descuadre"
   // We'll normalize the 4 measurements relative to the max width/height
   const getP40Points = () => {
     if (windowType !== "P40" || wTop === undefined) return null;
     
+    // Use the scaled dimensions to define the vertices
     const wt = (wTop / baseW) * scaledW;
     const wb = (wBottom / baseW) * scaledW;
     const hl = (hLeft / baseH) * scaledH;
     const hr = (hRight / baseH) * scaledH;
 
-    // Center the polygon
-    const offsetX = (scaledW - Math.max(wt, wb)) / 2;
-    const offsetY = (scaledH - Math.max(hl, hr)) / 2;
-
     // Points: TL, TR, BR, BL
-    const p1 = { x: (Math.max(wt, wb) - wt) / 2, y: (Math.max(hl, hr) - hl) / 2 };
-    const p2 = { x: p1.x + wt, y: (Math.max(hl, hr) - hr) / 2 };
-    const p3 = { x: (Math.max(wt, wb) + wb) / 2, y: p2.y + hr };
-    const p4 = { x: (Math.max(wt, wb) - wb) / 2, y: p1.y + hl };
+    // We adjust starting X/Y to center the shape within the scaled area
+    const diffW = (scaledW - Math.min(wt, wb)) / 2;
+    const diffH = (scaledH - Math.min(hl, hr)) / 2;
+
+    const p1 = { x: (scaledW - wt) / 2, y: (scaledH - hl) / 2 };
+    const p2 = { x: p1.x + wt, y: (scaledH - hr) / 2 };
+    const p3 = { x: (scaledW + wb) / 2, y: p2.y + hr };
+    const p4 = { x: (scaledW - wb) / 2, y: p1.y + hl };
 
     return `${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y} ${p4.x},${p4.y}`;
   };
@@ -891,42 +921,47 @@ function WindowPreview({
 
   return (
     <div
-      className={`flex items-center justify-center bg-black/40 rounded-[2rem] border border-white/5 relative overflow-hidden group shadow-2xl ${large ? "h-48 w-full p-6" : "h-32 w-full p-4"}`}
+      className={`flex items-center justify-center bg-black/30 rounded-[2.5rem] border border-white/5 relative overflow-hidden group shadow-2xl transition-all duration-700 ${large ? (windowType === "PUERTA_COMERCIAL" ? "h-[450px]" : "h-72") + " w-full p-10" : "h-32 w-full p-4"}`}
     >
       {/* Background Decorative Grid */}
       <div
-        className="absolute inset-0 opacity-[0.05] pointer-events-none"
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{
           backgroundImage:
             "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
-          backgroundSize: "15px 15px",
+          backgroundSize: "20px 20px",
         }}
       />
 
-      <div
-        className={`${windowType === "P40" ? "" : "border-[3px] border-brand-accent/50 rounded-md bg-brand-accent/5"} relative flex overflow-hidden shadow-2xl transition-all duration-700 hover:scale-[1.02]`}
-        style={{ width: scaledW, height: scaledH }}
+      <motion.div
+        layout
+        initial={false}
+        animate={{ width: scaledW, height: scaledH }}
+        transition={{ type: "spring", stiffness: 100, damping: 20 }}
+        className={`${windowType === "P40" ? "" : "border-[4px] border-brand-accent/50 rounded-lg bg-brand-accent/5"} relative flex overflow-hidden shadow-2xl transition-[transform,opacity] duration-700 hover:scale-[1.02]`}
       >
         {windowType === "P40" ? (
           <svg width={scaledW} height={scaledH} viewBox={`0 0 ${scaledW} ${scaledH}`} className="overflow-visible">
              {/* Frame with thickness (Perfil Cuadrado) */}
-             <polygon 
+             <motion.polygon 
                 points={p40Points || ""} 
                 fill="none" 
                 stroke="#3b82f6" 
                 strokeWidth="6" 
                 opacity="0.3" 
+                animate={{ points: p40Points || "" }}
              />
-             <polygon 
+             <motion.polygon 
                 points={p40Points || ""} 
                 fill="#3b82f61a" 
                 stroke="#3b82f6" 
                 strokeWidth="2" 
+                animate={{ points: p40Points || "" }}
              />
              
              {/* Glass Inner representation */}
              {p40Points && (
-                <polygon 
+                <motion.polygon 
                   points={p40Points} 
                   fill="none" 
                   stroke="white" 
@@ -935,21 +970,48 @@ function WindowPreview({
                   opacity="0.5"
                   transform="scale(0.85)"
                   style={{ transformOrigin: 'center' }}
+                  animate={{ points: p40Points }}
                 />
              )}
 
              {/* Corner Measurements labels */}
              {large && wTop !== undefined && (
-               <g className="text-[6px] font-mono font-black italic fill-brand-accent uppercase">
-                  <text x="50%" y="-4" textAnchor="middle">{formatFraction(wTop)}</text>
-                  <text x="50%" y={scaledH + 8} textAnchor="middle">{formatFraction(wBottom || 0)}</text>
-                  <text x="-12" y="50%" textAnchor="middle" transform={`rotate(-90, -12, ${scaledH/2})`}>{formatFraction(hLeft || 0)}</text>
-                  <text x={scaledW + 12} y="50%" textAnchor="middle" transform={`rotate(90, ${scaledW + 12}, ${scaledH/2})`}>{formatFraction(hRight || 0)}</text>
+               <g className="text-[7px] font-mono font-black italic fill-brand-accent uppercase">
+                  <text x="50%" y="-8" textAnchor="middle">{formatFraction(wTop)}</text>
+                  <text x="50%" y={scaledH + 12} textAnchor="middle">{formatFraction(wBottom || 0)}</text>
+                  <text x="-16" y="50%" textAnchor="middle" transform={`rotate(-90, -16, ${scaledH/2})`}>{formatFraction(hLeft || 0)}</text>
+                  <text x={scaledW + 16} y="50%" textAnchor="middle" transform={`rotate(90, ${scaledW + 16}, ${scaledH/2})`}>{formatFraction(hRight || 0)}</text>
                </g>
              )}
           </svg>
+        ) : windowType === "PUERTA_COMERCIAL" ? (
+          <div className="absolute inset-x-0 inset-y-0 flex bg-brand-accent/5 transition-all duration-700">
+             <div className="absolute inset-0 border-[8px] border-brand-accent/40 shadow-inner z-10" />
+             <div className="flex-1 border-r-2 border-brand-accent/30 relative overflow-hidden group/door">
+                {/* Door Glass */}
+                <div className="absolute inset-x-4 top-4 bottom-14 bg-gradient-to-tr from-brand-accent/5 to-brand-accent/20 border border-white/10 shadow-inner flex items-center justify-center">
+                   <div className="w-[80%] h-[2px] bg-white/10 rotate-45 transform" />
+                </div>
+                {/* Door Handle */}
+                <div className="absolute right-3 top-[55%] -translate-y-1/2 w-2.5 h-14 bg-brand-accent rounded-sm shadow-xl z-20" />
+                {/* Kick plate */}
+                <div className="absolute bottom-4 left-4 right-4 h-10 bg-brand-accent/30 border-t border-white/10 z-20" />
+             </div>
+             {vias === 2 && (
+               <div className="flex-1 relative overflow-hidden group/door">
+                  {/* Door Glass */}
+                  <div className="absolute inset-x-4 top-4 bottom-14 bg-gradient-to-tr from-brand-accent/5 to-brand-accent/20 border border-white/10 shadow-inner flex items-center justify-center">
+                    <div className="w-[80%] h-[2px] bg-white/10 rotate-45 transform" />
+                  </div>
+                  {/* Door Handle */}
+                  <div className="absolute left-3 top-[55%] -translate-y-1/2 w-2.5 h-14 bg-brand-accent rounded-sm shadow-xl z-20" />
+                  {/* Kick plate */}
+                  <div className="absolute bottom-4 left-4 right-4 h-10 bg-brand-accent/30 border-t border-white/10 z-20" />
+               </div>
+             )}
+          </div>
         ) : windowType === "GAVETAS" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-2 bg-brand-accent/20">
+          <div className="absolute inset-x-0 inset-y-0 flex flex-col items-center justify-center gap-2 p-2 bg-brand-accent/20">
             <div className="w-full h-1/3 border-b border-brand-accent/50 flex items-center justify-center">
               <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
             </div>
@@ -992,38 +1054,36 @@ function WindowPreview({
             );
           })
         )}
-
-        {!large && windowType !== "P40" && (
-          <>
-            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
-              {formatFraction(width)}
-            </div>
-            <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-[9px] font-mono font-black text-brand-accent tracking-tighter whitespace-nowrap bg-brand-bg/80 px-1 rounded">
-              {formatFraction(height)}
-            </div>
-          </>
-        )}
-      </div>
+      </motion.div>
 
       {large && (
-        <>
-          <div className="absolute top-4 left-6 right-6 flex justify-between items-start pointer-events-none">
-            <div className="space-y-0.5">
-              <p className="text-[6px] font-black text-brand-muted uppercase tracking-[0.4em]">
-                Configuración
+        <div className="absolute top-0 bottom-0 left-0 right-0 pointer-events-none">
+           <div className="absolute top-6 left-8">
+              <p className="text-[7px] font-black text-brand-muted uppercase tracking-[0.4em]">
+                {windowType === "PUERTA_COMERCIAL" ? "Sistema de Acceso" : "Sistema de Cerramiento"}
               </p>
-              <h4 className="text-[10px] font-black text-white italic tracking-tighter uppercase">
-                {windowType === "P40" ? "PAÑO FIJO" : `${vias} Hojas`} / {windowType}
+              <h4 className="text-sm font-black text-white italic tracking-tighter uppercase">
+                {windowType === "P40" ? "PAÑO FIJO" : windowType === "PUERTA_COMERCIAL" ? "PUERTA COMERCIAL" : `${vias} HOJAS`} / {windowType.replace("_", " ")}
               </h4>
-            </div>
-          </div>
-          {windowType !== "P40" && (
-            <div className="absolute bottom-4 left-6 right-6 flex justify-center pointer-events-none">
-              <p className="text-[10px] font-mono font-bold text-brand-accent italic tabular-nums bg-brand-bg/80 px-3 py-1 rounded-full border border-brand-accent/30 shadow-lg">
+           </div>
+           
+           <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
+              <p className="text-xs font-mono font-bold text-brand-accent italic tabular-nums bg-brand-bg/90 px-4 py-2 rounded-full border border-brand-accent/30 shadow-2xl">
                 {formatFraction(width)} X {formatFraction(height)}
               </p>
-            </div>
-          )}
+           </div>
+        </div>
+      )}
+
+      {/* Mini indicator labels for non-large preview */}
+      {!large && windowType !== "P40" && (
+        <>
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-mono font-black text-brand-accent bg-brand-bg/60 px-1 rounded">
+            {formatFraction(width)}
+          </div>
+          <div className="absolute left-1 top-1/2 -translate-y-1/2 -rotate-90 text-[7px] font-mono font-black text-brand-accent bg-brand-bg/60 px-1 rounded">
+            {formatFraction(height)}
+          </div>
         </>
       )}
     </div>
@@ -1108,9 +1168,9 @@ export default function App() {
   const [hLeftFrac, setHLeftFrac] = useState<number>(0);
   const [hRightWhole, setHRightWhole] = useState<number>(48);
   const [hRightFrac, setHRightFrac] = useState<number>(0);
-  const [vias, setVias] = useState<2 | 3 | 4>(2);
+  const [vias, setVias] = useState<1 | 2 | 3 | 4>(2);
   const [windowType, setWindowType] = useState<
-    "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS"
+    "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS" | "PUERTA_COMERCIAL"
   >("P65");
   const [showResults, setShowResults] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -1290,7 +1350,7 @@ export default function App() {
     let frameVertDeduction = 2; // Lateral 0.125"
 
     // User requested P92 specific discounts
-    if (windowType === "P92") {
+    if (windowType === "P92" || windowType === "PUERTA_COMERCIAL") {
       leafVertDeduction = 48; // Jamba 3.0"
       leafOverlap = 10; // Alféizar deduction per panel (1.25" total / 2)
       frameHorizDeduction = 26; // Riel 1.625" (User request 1.63")
@@ -1336,6 +1396,63 @@ export default function App() {
     if (vias === 3 && windowType !== "P92") {
       leafOverlap = 4; // Cabezal 0.25"
       frameHorizDeduction = 22; // Riel 1.375"
+    }
+
+    if (windowType === "PUERTA_COMERCIAL") {
+      const dintelSize = totalWidth - 58; // Ancho - 3.625
+      const jambaSize = totalHeight - 46; // Alto - 2.875 (Swapped)
+      const lateralSize = totalHeight - 4; // Alto - 0.25 (Swapped)
+      const cabezalSize = Math.floor((totalWidth - 128) / vias); // (Ancho - 8) / vias
+      
+      // Glass estimation for commercial door (typically fits inside rails)
+      const glassWidth = Math.floor((totalWidth - 160) / vias);
+      const glassHeight = totalHeight - 110;
+
+      return {
+        inputs: { w: totalWidth, h: totalHeight, type: windowType, vias },
+        marco: [
+          {
+            id: "dintel",
+            piece: "DINTEL",
+            qty: 1,
+            size: dintelSize,
+            formula: `Ancho - 3 5/8"`,
+          },
+          {
+            id: "jamba",
+            piece: "JAMBA",
+            qty: 2,
+            size: jambaSize,
+            formula: `Alto - 2 7/8"`,
+          },
+        ],
+        hojas: [
+          {
+            id: "lateral",
+            piece: "LATERAL",
+            qty: vias * 2,
+            size: lateralSize,
+            formula: `Alto - 1/4"`,
+          },
+          {
+            id: "cabezal",
+            piece: "CABEZAL",
+            qty: vias * 2,
+            size: cabezalSize,
+            formula: `(Ancho - 8") / ${vias}`,
+          },
+        ],
+        vidrios: [
+          {
+            id: "glass",
+            piece: `Cristal Puerta`,
+            qty: vias,
+            size: glassWidth,
+            dimensions: formatDimensionSet(glassWidth, glassHeight),
+            formula: `Deducción estándar comercial`,
+          },
+        ],
+      };
     }
 
     if (windowType === "GAVETAS") {
@@ -1532,10 +1649,11 @@ export default function App() {
     setClientPhone("");
     setClientLocation("");
     setDeliveryDate("");
+    const defaultTag = windowType === "PUERTA_COMERCIAL" ? "Puerta 01" : "Ventana 01";
+    setWindowTag(defaultTag);
     setOrderWindows([]);
     setOrderStep(1);
     setActiveView("new-order");
-    setWindowTag("Ventana 01");
   };
 
   const saveBatchOrder = () => {
@@ -1547,13 +1665,14 @@ export default function App() {
 
   const addToBatch = () => {
     const nextNum = orderWindows.length + 2;
-    const nextTag = `Ventana ${nextNum.toString().padStart(2, "0")}`;
+    const prefix = windowType === "PUERTA_COMERCIAL" ? "Puerta" : "Ventana";
+    const nextTag = `${prefix} ${nextNum.toString().padStart(2, "0")}`;
 
     const newWindow: WindowProject = {
       id: Math.random().toString(36).substr(2, 9),
       name:
         windowTag ||
-        `Ventana ${(orderWindows.length + 1).toString().padStart(2, "0")}`,
+        `${prefix} ${(orderWindows.length + 1).toString().padStart(2, "0")}`,
       clientName: clientName || "Cliente Genérico",
       clientPhone: clientPhone,
       clientLocation: clientLocation,
@@ -1597,14 +1716,21 @@ export default function App() {
   const allByClient = useMemo(() => {
     const groups: Record<
       string,
-      { pending: WindowProject[]; completed: WindowProject[]; stats: any }
+      { pending: WindowProject[]; completed: WindowProject[]; stats: any; count: number; done: number; entryDate: number; exitDate: string | null; hasDoor: boolean }
     > = {};
 
     projects.forEach((p) => {
       const client = p.clientName || "SIN NOMBRE";
       if (!groups[client]) {
-        groups[client] = { pending: [], completed: [], stats: {} };
+        groups[client] = { pending: [], completed: [], stats: {}, count: 0, done: 0, entryDate: p.createdAt, exitDate: null, hasDoor: false };
       }
+      if (p.type === "PUERTA_COMERCIAL") groups[client].hasDoor = true;
+      
+      groups[client].count++;
+      
+      const isWindowDone = p.completedCuts.length === (p.results.marco.length + p.results.hojas.length + p.results.vidrios.length);
+      if (isWindowDone) groups[client].done++;
+
       if (p.status === "pending") groups[client].pending.push(p);
       else groups[client].completed.push(p);
     });
@@ -1886,7 +2012,7 @@ export default function App() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <h2 className="text-xl sm:text-2xl font-black text-white italic tracking-tighter uppercase">
-                        Tipo de Ventana
+                        Tipo de fabricacion
                       </h2>
                       <p className="text-[8px] text-brand-muted uppercase tracking-[0.3em] font-medium opacity-60">
                         Seleccione el perfil de fabricación
@@ -1908,6 +2034,7 @@ export default function App() {
                         { id: "P40", desc: "Residencial Slim" },
                         { id: "VENTILADA", desc: "Flujo de Aire" },
                         { id: "GAVETAS", desc: "Sistema de Gavetas" },
+                        { id: "PUERTA_COMERCIAL", desc: "Perfil de Alto Tráfico" },
                       ] as const
                     ).map((type) => (
                       <motion.button
@@ -1916,7 +2043,13 @@ export default function App() {
                         whileTap={{ scale: 0.98 }}
                         onClick={() => {
                           setWindowType(type.id);
+                          if (type.id === "PUERTA_COMERCIAL") {
+                            setVias(1);
+                          } else {
+                            setVias(2);
+                          }
                           setOrderStep(3);
+                          setShowResults(true);
                         }}
                         className={`p-6 rounded-[1.5rem] border-2 text-left transition-all relative overflow-hidden group ${windowType === type.id ? "bg-brand-accent/10 border-brand-accent shadow-[0_0_25px_rgba(59,130,246,0.15)]" : "bg-brand-bg border-brand-border hover:border-brand-accent/40"}`}
                       >
@@ -1924,7 +2057,7 @@ export default function App() {
                           <h3
                             className={`text-xl font-black italic mb-1 ${windowType === type.id ? "text-brand-accent" : "text-white"}`}
                           >
-                            {type.id}
+                            {type.id.replace("_", " ")}
                           </h3>
                           <p
                             className={`text-[9px] font-bold uppercase tracking-widest ${windowType === type.id ? "text-brand-accent/80" : "text-brand-muted group-hover:text-white/60"}`}
@@ -2104,70 +2237,68 @@ export default function App() {
                           )}
                         </div>
 
-    {windowType !== "P40" && (
-                        <div className="space-y-4">
-                          <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
-                            {windowType === "GAVETAS" ? "Cantidad de Gavetas" : "Configuración de Hojas (Vías)"}
-                          </label>
-                          <div className="grid grid-cols-3 gap-3">
-                            {[2, 3, 4].map((v) => (
-                              <button
-                                key={v}
-                                onClick={() => setVias(v as 2 | 3 | 4)}
-                                className={`group relative h-32 rounded-2xl border-2 transition-all flex flex-col items-center justify-between p-3 ${vias === v ? "bg-brand-accent/10 border-brand-accent shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "bg-brand-bg border-brand-border text-brand-muted hover:border-brand-accent/50"}`}
-                              >
-                                <div className="w-full pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
-                                  <WindowPreview
-                                    width={
-                                      v === 2 ? 60 * 16 : v === 3 ? 90 * 16 : 120 * 16
-                                    }
-                                    height={60 * 16}
-                                    vias={v}
-                                    windowType={windowType}
-                                  />
-                                </div>
-                                <span
-                                  className={`text-[9px] font-black uppercase tracking-widest transition-colors ${vias === v ? "text-brand-accent" : "text-brand-muted group-hover:text-white"}`}
-                                >
-                                  {v} {windowType === "GAVETAS" ? "Gavetas" : "Hojas"}
-                                </span>
-                                {vias === v && (
-                                  <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-accent text-white flex items-center justify-center shadow-md">
-                                    <Check size={8} strokeWidth={4} />
-                                  </div>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-    )}
+     {windowType !== "P40" && (
+                         <div className="space-y-4">
+                           <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
+                             {windowType === "GAVETAS" 
+                               ? "Cantidad de Gavetas" 
+                               : windowType === "PUERTA_COMERCIAL" 
+                                 ? "Cantidad de Hojas" 
+                                 : "Configuración de Hojas (Vías)"}
+                           </label>
+                           <div className={`grid ${windowType === "PUERTA_COMERCIAL" ? "grid-cols-2" : "grid-cols-3"} gap-3`}>
+                             {(windowType === "PUERTA_COMERCIAL" ? [1, 2] : [2, 3, 4]).map((v) => (
+                               <button
+                                 key={v}
+                                 onClick={() => setVias(v as any)}
+                                 className={`group relative ${windowType === "PUERTA_COMERCIAL" ? "h-40" : "h-32"} rounded-2xl border-2 transition-all flex flex-col items-center justify-between p-3 ${vias === v ? "bg-brand-accent/10 border-brand-accent shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "bg-brand-bg border-brand-border text-brand-muted hover:border-brand-accent/50"}`}
+                               >
+                                 <div className="w-full pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity flex-1 flex items-center justify-center">
+                                   <WindowPreview
+                                     width={
+                                       v === 1 ? 40 * 16 : v === 2 ? 80 * 16 : v === 3 ? 90 * 16 : 120 * 16
+                                     }
+                                     height={v === 1 || v === 2 && windowType === "PUERTA_COMERCIAL" ? 84 * 16 : 60 * 16}
+                                     vias={v as any}
+                                     windowType={windowType}
+                                   />
+                                 </div>
+                                 <span
+                                   className={`text-[9px] font-black uppercase tracking-widest transition-colors mt-2 ${vias === v ? "text-brand-accent" : "text-brand-muted group-hover:text-white"}`}
+                                 >
+                                   {v} {windowType === "GAVETAS" ? "Gavetas" : v === 1 ? "Hoja" : "Hojas"}
+                                 </span>
+                                 {vias === v && (
+                                   <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-accent text-white flex items-center justify-center shadow-md">
+                                     <Check size={8} strokeWidth={4} />
+                                   </div>
+                                 )}
+                               </button>
+                             ))}
+                           </div>
+                         </div>
+     )}
 
                         <button
-                          onClick={handleCalculate}
-                          className="w-full py-5 bg-white/5 border border-brand-border rounded-2xl text-white font-black uppercase text-xs tracking-[0.3em] hover:bg-brand-accent/10 hover:border-brand-accent transition-all"
+                          onClick={addToBatch}
+                          className="w-full h-16 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-xs shadow-xl transition-all"
                         >
-                          Visualizar Cortes
+                          <Plus size={20} strokeWidth={3} /> Añadir al Pedido
                         </button>
                       </div>
 
-                      {showResults && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="space-y-8 pt-6 border-t border-white/5"
-                        >
-                          <ResultsBreakdown 
-                            results={results} 
-                            windowType={windowType}
-                          />
-                          <button
-                            onClick={addToBatch}
-                            className="w-full py-6 bg-brand-accent rounded-2xl flex items-center justify-center gap-3 text-white font-black uppercase text-xs shadow-xl"
-                          >
-                            <Plus size={20} strokeWidth={3} /> Añadir Ventana
-                          </button>
-                        </motion.div>
-                      )}
+                      <div className="space-y-6 pt-8 border-t border-white/5">
+                        <div className="flex items-center gap-3 px-1">
+                          <ClipboardList className="text-brand-accent" size={20} />
+                          <h3 className="text-lg font-black text-white italic tracking-tighter uppercase">
+                            Cortes Calculados
+                          </h3>
+                        </div>
+                        <ResultsBreakdown 
+                          results={results} 
+                          windowType={windowType}
+                        />
+                      </div>
                     </div>
                   </section>
 
