@@ -50,7 +50,7 @@ interface WindowProject {
   clientName: string;
   clientPhone?: string;
   clientLocation?: string;
-  type: "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS" | "PUERTA_COMERCIAL";
+  type: "P65" | "P92" | "VENTILADA" | "GAVETAS" | "PUERTA_COMERCIAL";
   width: number; // sixteenths
   height: number; // sixteenths
   vias: 1 | 2 | 3 | 4;
@@ -283,41 +283,6 @@ function PrintReport({
                     const combinedHoja = p.results.hojas;
                     const combinedMarco = p.results.marco;
                     const combinedVidrio = p.results.vidrios;
-
-                    if (type === "P40") {
-                      return (
-                        <tr key={p.id} className="text-center border-b border-black break-inside-avoid">
-                          <td className="border border-black px-0.5 py-0.5 text-black leading-none bg-gray-50/50">
-                            <span className="text-[11px] font-black">{pIdx + 1}</span>
-                          </td>
-                          <td className="border border-black px-1 py-0.5">
-                            <div className="text-[9px] font-black text-black">
-                              W1: {formatFraction(p.wTop || 0)}<br/>
-                              W2: {formatFraction(p.wBottom || 0)}<br/>
-                              H1: {formatFraction(p.hLeft || 0)}<br/>
-                              H2: {formatFraction(p.hRight || 0)}
-                            </div>
-                          </td>
-                          <td className="border border-black px-1 py-1" colSpan={2}>
-                             <div className="flex flex-col gap-0.5 leading-none">
-                                <span className="text-[8px] opacity-50 uppercase">Marco W:</span>
-                                <span className="text-[11px] font-black">{formatFraction(p.wTop || 0)} / {formatFraction(p.wBottom || 0)}</span>
-                             </div>
-                          </td>
-                          <td className="border border-black px-1 py-1" colSpan={2}>
-                             <div className="flex flex-col gap-0.5 leading-none">
-                                <span className="text-[8px] opacity-50 uppercase">Marco H:</span>
-                                <span className="text-[11px] font-black">{formatFraction(p.hLeft || 0)} / {formatFraction(p.hRight || 0)}</span>
-                             </div>
-                          </td>
-                          <td className="border border-black px-1 py-1">
-                             <div className="flex flex-col gap-0.5 leading-none">
-                                <span className="text-[12px] font-black">{getD(combinedVidrio, "Cristal")}</span>
-                             </div>
-                          </td>
-                        </tr>
-                      );
-                    }
 
                     if (type === "GAVETAS") {
                       const moldura = combinedMarco.find(m => m.id === "moldura");
@@ -893,32 +858,6 @@ function WindowPreview({
   scaledW = Math.max(scaledW, 40);
   scaledH = Math.max(scaledH, 40);
 
-  // Calculate polygon points for P40 "descuadre"
-  // We'll normalize the 4 measurements relative to the max width/height
-  const getP40Points = () => {
-    if (windowType !== "P40" || wTop === undefined) return null;
-    
-    // Use the scaled dimensions to define the vertices
-    const wt = (wTop / baseW) * scaledW;
-    const wb = (wBottom / baseW) * scaledW;
-    const hl = (hLeft / baseH) * scaledH;
-    const hr = (hRight / baseH) * scaledH;
-
-    // Points: TL, TR, BR, BL
-    // We adjust starting X/Y to center the shape within the scaled area
-    const diffW = (scaledW - Math.min(wt, wb)) / 2;
-    const diffH = (scaledH - Math.min(hl, hr)) / 2;
-
-    const p1 = { x: (scaledW - wt) / 2, y: (scaledH - hl) / 2 };
-    const p2 = { x: p1.x + wt, y: (scaledH - hr) / 2 };
-    const p3 = { x: (scaledW + wb) / 2, y: p2.y + hr };
-    const p4 = { x: (scaledW - wb) / 2, y: p1.y + hl };
-
-    return `${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y} ${p4.x},${p4.y}`;
-  };
-
-  const p40Points = getP40Points();
-
   return (
     <div
       className={`flex items-center justify-center bg-black/30 rounded-[2.5rem] border border-white/5 relative overflow-hidden group shadow-2xl transition-all duration-700 ${large ? (windowType === "PUERTA_COMERCIAL" ? "h-[450px]" : "h-72") + " w-full p-10" : "h-32 w-full p-4"}`}
@@ -938,53 +877,9 @@ function WindowPreview({
         initial={false}
         animate={{ width: scaledW, height: scaledH }}
         transition={{ type: "spring", stiffness: 100, damping: 20 }}
-        className={`${windowType === "P40" ? "" : "border-[4px] border-brand-accent/50 rounded-lg bg-brand-accent/5"} relative flex overflow-hidden shadow-2xl transition-[transform,opacity] duration-700 hover:scale-[1.02]`}
+        className="border-[4px] border-brand-accent/50 rounded-lg bg-brand-accent/5 relative flex overflow-hidden shadow-2xl transition-[transform,opacity] duration-700 hover:scale-[1.02]"
       >
-        {windowType === "P40" ? (
-          <svg width={scaledW} height={scaledH} viewBox={`0 0 ${scaledW} ${scaledH}`} className="overflow-visible">
-             {/* Frame with thickness (Perfil Cuadrado) */}
-             <motion.polygon 
-                points={p40Points || ""} 
-                fill="none" 
-                stroke="#3b82f6" 
-                strokeWidth="6" 
-                opacity="0.3" 
-                animate={{ points: p40Points || "" }}
-             />
-             <motion.polygon 
-                points={p40Points || ""} 
-                fill="#3b82f61a" 
-                stroke="#3b82f6" 
-                strokeWidth="2" 
-                animate={{ points: p40Points || "" }}
-             />
-             
-             {/* Glass Inner representation */}
-             {p40Points && (
-                <motion.polygon 
-                  points={p40Points} 
-                  fill="none" 
-                  stroke="white" 
-                  strokeWidth="0.5" 
-                  strokeDasharray="2,2"
-                  opacity="0.5"
-                  transform="scale(0.85)"
-                  style={{ transformOrigin: 'center' }}
-                  animate={{ points: p40Points }}
-                />
-             )}
-
-             {/* Corner Measurements labels */}
-             {large && wTop !== undefined && (
-               <g className="text-[7px] font-mono font-black italic fill-brand-accent uppercase">
-                  <text x="50%" y="-8" textAnchor="middle">{formatFraction(wTop)}</text>
-                  <text x="50%" y={scaledH + 12} textAnchor="middle">{formatFraction(wBottom || 0)}</text>
-                  <text x="-16" y="50%" textAnchor="middle" transform={`rotate(-90, -16, ${scaledH/2})`}>{formatFraction(hLeft || 0)}</text>
-                  <text x={scaledW + 16} y="50%" textAnchor="middle" transform={`rotate(90, ${scaledW + 16}, ${scaledH/2})`}>{formatFraction(hRight || 0)}</text>
-               </g>
-             )}
-          </svg>
-        ) : windowType === "PUERTA_COMERCIAL" ? (
+        {windowType === "PUERTA_COMERCIAL" ? (
           <div className="absolute inset-x-0 inset-y-0 flex bg-brand-accent/5 transition-all duration-700">
              <div className="absolute inset-0 border-[8px] border-brand-accent/40 shadow-inner z-10" />
              <div className="flex-1 border-r-2 border-brand-accent/30 relative overflow-hidden group/door">
@@ -1063,7 +958,7 @@ function WindowPreview({
                 {windowType === "PUERTA_COMERCIAL" ? "Sistema de Acceso" : "Sistema de Cerramiento"}
               </p>
               <h4 className="text-sm font-black text-white italic tracking-tighter uppercase">
-                {windowType === "P40" ? "PAÑO FIJO" : windowType === "PUERTA_COMERCIAL" ? "PUERTA COMERCIAL" : `${vias} HOJAS`} / {windowType.replace("_", " ")}
+                {windowType === "PUERTA_COMERCIAL" ? "PUERTA COMERCIAL" : `${vias} HOJAS`} / {windowType.replace("_", " ")}
               </h4>
            </div>
            
@@ -1076,7 +971,7 @@ function WindowPreview({
       )}
 
       {/* Mini indicator labels for non-large preview */}
-      {!large && windowType !== "P40" && (
+      {!large && (
         <>
           <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-mono font-black text-brand-accent bg-brand-bg/60 px-1 rounded">
             {formatFraction(width)}
@@ -1170,7 +1065,7 @@ export default function App() {
   const [hRightFrac, setHRightFrac] = useState<number>(0);
   const [vias, setVias] = useState<1 | 2 | 3 | 4>(2);
   const [windowType, setWindowType] = useState<
-    "P65" | "P92" | "P40" | "VENTILADA" | "GAVETAS" | "PUERTA_COMERCIAL"
+    "P65" | "P92" | "VENTILADA" | "GAVETAS" | "PUERTA_COMERCIAL"
   >("P65");
   const [showResults, setShowResults] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -1359,52 +1254,17 @@ export default function App() {
       glassHeightFrameDeduction = 48; // Vidrio Alto 3.0"
     }
 
-    if (windowType === "P40") {
-      // User request: Frame = Hole (no deduction), Glass deduction = 2.87 (approx 46/16 = 2.875)
-      // For P40 Fixed Panel, we use 100% of measurements for frame and fixed deduction for glass
-      const wt = wTop !== undefined ? wTop : totalWidth;
-      const wb = wBottom !== undefined ? wBottom : totalWidth;
-      const hl = hLeft !== undefined ? hLeft : totalHeight;
-      const hr = hRight !== undefined ? hRight : totalHeight;
-
-      const gWidth = Math.max(wt, wb) - 46; // 2.875 deduction
-      const gHeight = Math.max(hl, hr) - 46; // 2.875 deduction
-
-      return {
-        inputs: { w: totalWidth, h: totalHeight, type: windowType, vias: 1, wTop: wt, wBottom: wb, hLeft: hl, hRight: hr },
-        marco: [
-          { id: "p40-top", piece: "Marco Superior", qty: 1, size: wt, formula: `Igual al Hueco Superior` },
-          { id: "p40-bottom", piece: "Marco Inferior", qty: 1, size: wb, formula: `Igual al Hueco Inferior` },
-          { id: "p40-left", piece: "Marco Izquierdo", qty: 1, size: hl, formula: `Igual al Hueco Izquierdo` },
-          { id: "p40-right", piece: "Marco Derecho", qty: 1, size: hr, formula: `Igual al Hueco Derecho` },
-        ],
-        hojas: [], // Fixed panel doesn't have leaves in this context or they are same as frame
-        vidrios: [
-          {
-            id: "glass",
-            piece: "Cristal P40",
-            qty: 1,
-            size: gWidth,
-            dimensions: formatDimensionSet(gWidth, gHeight),
-            formula: `Max(Anchos) - 2.87" | Max(Altos) - 2.87"`,
-          },
-        ],
-      };
-    }
-
-    // Adjustments based on Vias
-    if (vias === 3 && windowType !== "P92") {
-      leafOverlap = 4; // Cabezal 0.25"
-      frameHorizDeduction = 22; // Riel 1.375"
-    }
-
     if (windowType === "PUERTA_COMERCIAL") {
-      const dintelSize = totalWidth - 58; // Ancho - 3.625
-      const jambaSize = totalHeight - 46; // Alto - 2.875 (Swapped)
-      const lateralSize = totalHeight - 4; // Alto - 0.25 (Swapped)
-      const cabezalSize = Math.floor((totalWidth - 128) / vias); // (Ancho - 8) / vias
+      const dintelSize = totalWidth - 58; // Ancho - 3.625 (3 5/8")
+      const lateralSize = totalHeight - 4; // Alto - 0.25 (1/4")
+      const jambaSize = totalHeight - 46; // Alto - 2.875 (2 7/8")
       
-      // Glass estimation for commercial door (typically fits inside rails)
+      // Cabezal formula changes for double door
+      const cabezalDeduction = vias === 2 ? 63 : 128; // 3.9375" (3 15/16") for double, 8" for single
+      const cabezalSize = Math.floor((totalWidth - cabezalDeduction) / vias);
+      const cabezalFormula = vias === 2 ? `(Ancho - 3 15/16") / 2` : `Ancho - 8"`;
+      
+      // Glass estimation for commercial door
       const glassWidth = Math.floor((totalWidth - 160) / vias);
       const glassHeight = totalHeight - 110;
 
@@ -1439,7 +1299,7 @@ export default function App() {
             piece: "CABEZAL",
             qty: vias * 2,
             size: cabezalSize,
-            formula: `(Ancho - 8") / ${vias}`,
+            formula: cabezalFormula,
           },
         ],
         vidrios: [
@@ -2031,7 +1891,6 @@ export default function App() {
                       [
                         { id: "P65", desc: "Series 65 Premium" },
                         { id: "P92", desc: "Industrial Heavy" },
-                        { id: "P40", desc: "Residencial Slim" },
                         { id: "VENTILADA", desc: "Flujo de Aire" },
                         { id: "GAVETAS", desc: "Sistema de Gavetas" },
                         { id: "PUERTA_COMERCIAL", desc: "Perfil de Alto Tráfico" },
@@ -2182,63 +2041,25 @@ export default function App() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {windowType === "P40" ? (
-                            <>
-                              <div className="space-y-6">
-                                <DimensionInput
-                                  label="Ancho Arriba (W1)"
-                                  whole={wTopWhole}
-                                  fraction={wTopFrac}
-                                  onWholeChange={setWTopWhole}
-                                  onFractionChange={setWTopFrac}
-                                />
-                                <DimensionInput
-                                  label="Ancho Abajo (W2)"
-                                  whole={wBottomWhole}
-                                  fraction={wBottomFrac}
-                                  onWholeChange={setWBottomWhole}
-                                  onFractionChange={setWBottomFrac}
-                                />
-                              </div>
-                              <div className="space-y-6">
-                                <DimensionInput
-                                  label="Alto Izquierdo (H1)"
-                                  whole={hLeftWhole}
-                                  fraction={hLeftFrac}
-                                  onWholeChange={setHLeftWhole}
-                                  onFractionChange={setHLeftFrac}
-                                />
-                                <DimensionInput
-                                  label="Alto Derecho (H2)"
-                                  whole={hRightWhole}
-                                  fraction={hRightFrac}
-                                  onWholeChange={setHRightWhole}
-                                  onFractionChange={setHRightFrac}
-                                />
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <DimensionInput
-                                label="Ancho"
-                                whole={widthWhole}
-                                fraction={widthFrac}
-                                onWholeChange={setWidthWhole}
-                                onFractionChange={setWidthFrac}
-                              />
-                              <DimensionInput
-                                label="Alto"
-                                whole={heightWhole}
-                                fraction={heightFrac}
-                                onWholeChange={setHeightWhole}
-                                onFractionChange={setHeightFrac}
-                              />
-                            </>
-                          )}
+                          <>
+                            <DimensionInput
+                              label="Ancho"
+                              whole={widthWhole}
+                              fraction={widthFrac}
+                              onWholeChange={setWidthWhole}
+                              onFractionChange={setWidthFrac}
+                            />
+                            <DimensionInput
+                              label="Alto"
+                              whole={heightWhole}
+                              fraction={heightFrac}
+                              onWholeChange={setHeightWhole}
+                              onFractionChange={setHeightFrac}
+                            />
+                          </>
                         </div>
 
-     {windowType !== "P40" && (
-                         <div className="space-y-4">
+                        <div className="space-y-4">
                            <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
                              {windowType === "GAVETAS" 
                                ? "Cantidad de Gavetas" 
@@ -2277,8 +2098,6 @@ export default function App() {
                              ))}
                            </div>
                          </div>
-     )}
-
                         <button
                           onClick={addToBatch}
                           className="w-full h-16 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-xs shadow-xl transition-all"
