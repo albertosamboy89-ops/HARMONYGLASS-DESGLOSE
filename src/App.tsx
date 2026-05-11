@@ -1315,15 +1315,15 @@ export default function App() {
     }
 
     if (windowType === "PUERTA_COMERCIAL") {
-      const dintelSize = totalWidth - 58; // Ancho - 3.625 (3 5/8")
-      const lateralSize = totalHeight - 4; // Alto - 0.25 (1/4") - Modified per user request
-      const jambaSize = totalHeight - 46; // Alto - 2.875 (2 7/8") - Modified per user request
+      const dintelSize = totalWidth - 60; // Ancho - 3.75 (3 3/4")
+      const lateralSize = totalHeight - 4; // Alto - 0.25 (1/4")
+      const jambaSize = totalHeight - 46; // Alto - 2.875 (2 7/8")
       
-      // Cabezal formula: (Ancho / 2) - 3.9375" for double, Ancho - 8" for single
+      // Cabezal formula: (Ancho - 12 1/8") / 2 for double, Ancho - 8 1/8" for single
       const cabezalSize = vias === 2 
-        ? Math.floor((totalWidth / 2) - 63)
-        : Math.floor(totalWidth - 128);
-      const cabezalFormula = vias === 2 ? `(Ancho / 2) - 3 15/16"` : `Ancho - 8"`;
+        ? Math.floor((totalWidth - 194) / 2)
+        : Math.floor(totalWidth - 130);
+      const cabezalFormula = vias === 2 ? `(Ancho - 12 1/8") / 2` : `Ancho - 8 1/8"`;
       
       // Glass estimation
       const glassWidth = Math.floor((totalWidth - 160) / vias);
@@ -1337,7 +1337,7 @@ export default function App() {
             piece: "DINTEL",
             qty: 1,
             size: dintelSize,
-            formula: `Ancho - 3 5/8"`,
+            formula: `Ancho - 3 3/4"`,
           },
           {
             id: "jamba",
