@@ -1215,6 +1215,8 @@ export default function App() {
   const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
   const [clientPricing, setClientPricing] = useState<Record<string, number>>({});
 
+  const [authError, setAuthError] = useState<string | null>(null);
+
   // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -1224,11 +1226,20 @@ export default function App() {
   }, []);
 
   const handleLogin = async () => {
+    setAuthError(null);
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed", error);
+      if (error.code === 'auth/popup-blocked') {
+        setAuthError("El navegador bloqueó la ventana de inicio de sesión. Por favor, permita las ventanas emergentes.");
+      } else if (error.code === 'auth/operation-not-allowed') {
+        setAuthError("El inicio de sesión con Google no está habilitado en la consola de Firebase.");
+      } else {
+        setAuthError("Error al iniciar sesión. Inténtelo de nuevo.");
+      }
     }
   };
 
@@ -1489,16 +1500,7 @@ export default function App() {
             formula: cabezalFormula,
           },
         ],
-        vidrios: [
-          {
-            id: "glass",
-            piece: `Cristal Puerta`,
-            qty: vias,
-            size: glassWidth,
-            dimensions: formatDimensionSet(glassWidth, glassHeight),
-            formula: `Deducción estándar comercial`,
-          },
-        ],
+        vidrios: [],
       };
     }
 
@@ -1938,35 +1940,42 @@ export default function App() {
           </div>
 
           {/* User Auth */}
-          <div className="flex items-center gap-2 border-l border-brand-border pl-2 sm:pl-4">
-            {user ? (
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="hidden lg:flex flex-col items-end">
-                  <span className="text-[10px] font-black text-white italic truncate max-w-[120px]">
-                    {user.displayName?.split(' ')[0] || user.email?.split('@')[0]}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[8px] font-black text-brand-accent uppercase tracking-widest">
-                      Nube
+          <div className="flex flex-col items-end gap-1 border-l border-brand-border pl-2 sm:pl-4">
+            <div className="flex items-center gap-2">
+              {user ? (
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="hidden lg:flex flex-col items-end">
+                    <span className="text-[10px] font-black text-white italic truncate max-w-[120px]">
+                      {user.displayName?.split(' ')[0] || user.email?.split('@')[0]}
                     </span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[8px] font-black text-brand-accent uppercase tracking-widest">
+                        Nube
+                      </span>
+                    </div>
                   </div>
+                  <button
+                    onClick={handleLogout}
+                    title="Cerrar sesión"
+                    className="p-2 sm:p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
+                  >
+                    <LogOut size={18} />
+                  </button>
                 </div>
+              ) : (
                 <button
-                  onClick={handleLogout}
-                  title="Cerrar sesión"
-                  className="p-2 sm:p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
+                  onClick={handleLogin}
+                  className="flex items-center gap-2 px-3 sm:px-4 h-10 sm:h-12 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-xl font-black uppercase text-[9px] sm:text-[10px] tracking-widest shadow-lg transition-all"
                 >
-                  <LogOut size={18} />
+                  <LogIn size={16} /> <span className="hidden sm:inline">Acceder</span>
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleLogin}
-                className="flex items-center gap-2 px-3 sm:px-4 h-10 sm:h-12 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-xl font-black uppercase text-[9px] sm:text-[10px] tracking-widest shadow-lg transition-all"
-              >
-                <LogIn size={16} /> <span className="hidden sm:inline">Acceder</span>
-              </button>
+              )}
+            </div>
+            {authError && (
+              <span className="text-[8px] text-red-400 font-bold uppercase tracking-tight max-w-[150px] text-right">
+                {authError}
+              </span>
             )}
           </div>
 
