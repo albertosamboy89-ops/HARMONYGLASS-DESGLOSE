@@ -845,8 +845,27 @@ function PurchaseDetail({
             Detalle de Material y Accesorios
           </h4>
           <p className="text-[8px] font-black text-brand-accent uppercase tracking-widest print:hidden">
-            Optimización y Cálculo de Perfilería
+            Optimización y Consumo de Perfilería
           </p>
+        </div>
+        <div className="text-right w-full sm:w-auto p-4 bg-black/20 rounded-2xl border border-brand-border/50">
+          <div className="flex justify-between sm:block gap-4">
+            <div className="space-y-1">
+               <p className="text-[7px] font-black text-brand-muted uppercase tracking-widest mb-1">
+                Uso del Lote (250')
+               </p>
+               <div className="h-1.5 w-32 bg-white/5 rounded-full overflow-hidden print:hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${consumptionPercent}%` }}
+                    className={`h-full ${consumptionPercent > 90 ? "bg-red-500" : consumptionPercent > 70 ? "bg-amber-500" : "bg-emerald-500"}`}
+                  />
+               </div>
+               <p className="text-[10px] text-white font-black uppercase">
+                  {consumptionPercent.toFixed(1)}% Consumido
+               </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1116,7 +1135,10 @@ function WindowPreview({
   const baseW = wTop !== undefined && wBottom !== undefined ? Math.max(wTop, wBottom) : width;
   const baseH = hLeft !== undefined && hRight !== undefined ? Math.max(hLeft, hRight) : height;
 
-  const ratio = baseW / baseH;
+  // Fallback visual dimensions when real dimensions are zero (60x48 proportion)
+  const visualW = baseW || (60 * 16);
+  const visualH = baseH || (48 * 16);
+  const ratio = visualW / visualH;
   
   // Dynamic max dimensions based on container space
   const maxWidth = large ? (windowType === "PUERTA_COMERCIAL" ? 220 : 280) : 120;
@@ -1327,17 +1349,17 @@ export default function App() {
   const [clientPhone, setClientPhone] = useState<string>("");
   const [clientLocation, setClientLocation] = useState<string>("");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
-  const [widthWhole, setWidthWhole] = useState<number>(60);
+  const [widthWhole, setWidthWhole] = useState<number>(0);
   const [widthFrac, setWidthFrac] = useState<number>(0);
-  const [heightWhole, setHeightWhole] = useState<number>(48);
+  const [heightWhole, setHeightWhole] = useState<number>(0);
   const [heightFrac, setHeightFrac] = useState<number>(0);
-  const [wTopWhole, setWTopWhole] = useState<number>(60);
+  const [wTopWhole, setWTopWhole] = useState<number>(0);
   const [wTopFrac, setWTopFrac] = useState<number>(0);
-  const [wBottomWhole, setWBottomWhole] = useState<number>(60);
+  const [wBottomWhole, setWBottomWhole] = useState<number>(0);
   const [wBottomFrac, setWBottomFrac] = useState<number>(0);
-  const [hLeftWhole, setHLeftWhole] = useState<number>(48);
+  const [hLeftWhole, setHLeftWhole] = useState<number>(0);
   const [hLeftFrac, setHLeftFrac] = useState<number>(0);
-  const [hRightWhole, setHRightWhole] = useState<number>(48);
+  const [hRightWhole, setHRightWhole] = useState<number>(0);
   const [hRightFrac, setHRightFrac] = useState<number>(0);
   const [vias, setVias] = useState<1 | 2 | 3 | 4>(2);
   const [windowType, setWindowType] = useState<
@@ -1794,6 +1816,18 @@ export default function App() {
     setDeliveryDate("");
     const defaultTag = windowType === "PUERTA_COMERCIAL" ? "PUERTA 01" : "VENTANA 01";
     setWindowTag(defaultTag);
+    setWidthWhole(0);
+    setWidthFrac(0);
+    setHeightWhole(0);
+    setHeightFrac(0);
+    setWTopWhole(0);
+    setWTopFrac(0);
+    setWBottomWhole(0);
+    setWBottomFrac(0);
+    setHLeftWhole(0);
+    setHLeftFrac(0);
+    setHRightWhole(0);
+    setHRightFrac(0);
     setOrderWindows([]);
     setOrderStep(1);
     setActiveView("new-order");
@@ -1836,6 +1870,18 @@ export default function App() {
     setOrderWindows((prev) => [...prev, newWindow]);
     setShowResults(false);
     setWindowTag(nextTag);
+    setWidthWhole(0);
+    setWidthFrac(0);
+    setHeightWhole(0);
+    setHeightFrac(0);
+    setWTopWhole(0);
+    setWTopFrac(0);
+    setWBottomWhole(0);
+    setWBottomFrac(0);
+    setHLeftWhole(0);
+    setHLeftFrac(0);
+    setHRightWhole(0);
+    setHRightFrac(0);
   };
 
   const pendingProjects = projects
@@ -2477,7 +2523,7 @@ export default function App() {
                                     <div className="text-3xl font-mono font-black text-white italic">
                                         {orderWindows.reduce((acc, p) => {
                                             const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
-                                            const adjustedArea = Math.max(14, areaSqFt);
+                                            const adjustedArea = (p.width === 0 || p.height === 0) ? 0 : Math.max(14, areaSqFt);
                                             return acc + (adjustedArea * (p.qty || 1));
                                         }, 0).toFixed(2)}
                                     </div>
@@ -2514,7 +2560,7 @@ export default function App() {
                                     <div className="text-4xl font-mono font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.3)]">
                                         ${(orderWindows.reduce((acc, p) => {
                                             const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
-                                            const adjustedArea = Math.max(14, areaSqFt);
+                                            const adjustedArea = (p.width === 0 || p.height === 0) ? 0 : Math.max(14, areaSqFt);
                                             return acc + (adjustedArea * (p.qty || 1));
                                         }, 0) * (clientPricing[clientName] || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </div>
