@@ -2464,6 +2464,64 @@ export default function App() {
                           <Save size={20} /> Guardar y Confirmar Pedido Completo
                         </button>
 
+                        {/* SQFT Calculator */}
+                        <div className="bg-brand-sidebar/60 border border-brand-border/50 rounded-[2.5rem] p-6 space-y-4 shadow-xl backdrop-blur-sm">
+                            <div className="flex justify-between items-center border-b border-white/5 pb-3 mb-2">
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-muted opacity-50">Cálculo de Cotización (Pie²)</h4>
+                                <div className="px-2 py-1 bg-brand-accent/20 rounded text-[8px] font-black text-brand-accent uppercase">Automático</div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-1">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-brand-muted opacity-40">Total Pie²</span>
+                                    <div className="text-3xl font-mono font-black text-white italic">
+                                        {orderWindows.reduce((acc, p) => {
+                                            const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
+                                            const adjustedArea = Math.max(14, areaSqFt);
+                                            return acc + (adjustedArea * (p.qty || 1));
+                                        }, 0).toFixed(2)}
+                                    </div>
+                                    <p className="text-[6px] text-brand-accent font-black uppercase opacity-60">Mínimo 14ft² p/ ventana</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-brand-muted opacity-40">Venta / Pie²</span>
+                                    <div className="flex items-center gap-1.5 border-b border-brand-accent/30 pb-0.5">
+                                        <span className="text-xs font-black text-brand-accent">$</span>
+                                        <input 
+                                            type="number"
+                                            value={clientPricing[clientName] || ""}
+                                            onChange={(e) => {
+                                              const val = parseFloat(e.target.value) || 0;
+                                              setClientPricing(prev => {
+                                                const next = { ...prev, [clientName]: val };
+                                                localStorage.setItem("v-cut-pricing", JSON.stringify(next));
+                                                return next;
+                                              });
+                                            }}
+                                            placeholder="0.00"
+                                            className="w-full bg-transparent text-white font-mono font-black text-lg focus:outline-none placeholder:text-white/10"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 mt-2 border-t border-brand-accent/10">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">Total Venta Estimada</span>
+                                        <span className="text-[7px] text-brand-muted italic opacity-40 lowercase">Ajustado a mínimo 14'</span>
+                                    </div>
+                                    <div className="text-4xl font-mono font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.3)]">
+                                        ${(orderWindows.reduce((acc, p) => {
+                                            const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
+                                            const adjustedArea = Math.max(14, areaSqFt);
+                                            return acc + (adjustedArea * (p.qty || 1));
+                                        }, 0) * (clientPricing[clientName] || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <PurchaseDetail
                           projects={orderWindows}
                           linearPrice={linearPrice}
