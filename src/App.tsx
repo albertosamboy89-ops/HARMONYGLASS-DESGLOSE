@@ -157,10 +157,18 @@ function PrintReport({
   clientName,
   projects,
   onExit,
+  linearPrice,
+  setLinearPrice,
+  barLength,
+  setBarLength,
 }: {
   clientName: string;
   projects: WindowProject[];
   onExit: () => void;
+  linearPrice: number;
+  setLinearPrice: (v: number) => void;
+  barLength: number;
+  setBarLength: (v: number) => void;
 }) {
   // Helper to find a dimension by piece name
   const getS = (items: CutDetail[], name: string) => {
@@ -466,6 +474,14 @@ function PrintReport({
           </div>
         ))}
 
+        <PurchaseDetail
+          projects={projects}
+          linearPrice={linearPrice}
+          setLinearPrice={setLinearPrice}
+          barLength={barLength}
+          setBarLength={setBarLength}
+        />
+
         <div className="flex justify-between items-center pt-4 border-t border-black/5 transition-opacity hover:opacity-100 opacity-30 italic text-[7px] font-black uppercase tracking-widest leading-none">
           <div className="flex items-center gap-2">
             <BrandLogo className="w-5 h-5 filter grayscale" />
@@ -740,6 +756,206 @@ function ClientDashboard({
         })}
       </div>
     </section>
+  );
+}
+
+function PurchaseDetail({
+  projects,
+  linearPrice,
+  setLinearPrice,
+  barLength,
+  setBarLength,
+}: {
+  projects: WindowProject[];
+  linearPrice: number;
+  setLinearPrice: (v: number) => void;
+  barLength: number;
+  setBarLength: (v: number) => void;
+}) {
+  const barLengthSixteenths = barLength * 12 * 16;
+  const stockLot = 250 * 12 * 16; // 250 feet in sixteenths
+
+  // Group all linear pieces from all projects by piece name
+  const piecesByName: Record<string, { size: number; qty: number }[]> = {};
+  projects.forEach((p) => {
+    [...p.results.marco, ...p.results.hojas].forEach((item) => {
+      if (!piecesByName[item.piece]) piecesByName[item.piece] = [];
+      piecesByName[item.piece].push({ size: item.size, qty: item.qty });
+    });
+  });
+
+  const totalWindows = projects.reduce((sum, p) => sum + (p.qty || 1), 0);
+  const accessorySummary = [
+    { name: "Ruedas de Ventana", qty: totalWindows * 2, unit: "Unidades" },
+    { name: "Kit de Guías / Plásticos", qty: totalWindows, unit: "Kit" },
+  ];
+
+  const summary = Object.entries(piecesByName).map(([name, pieces], index) => {
+    const flatPieces = pieces
+      .flatMap((p) => Array(p.qty).fill(p.size))
+      .sort((a, b) => b - a);
+    const bars: number[][] = [];
+
+    flatPieces.forEach((pieceSize) => {
+      let placed = false;
+      for (const bar of bars) {
+        const used = bar.reduce((a, b) => a + b, 0);
+        if (used + pieceSize <= barLengthSixteenths) {
+          bar.push(pieceSize);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) bars.push([pieceSize]);
+    });
+
+    const totalFeetUsed = bars.length * barLength;
+    const cost = totalFeetUsed * linearPrice;
+
+    return {
+      index: index + 1,
+      name,
+      bars: bars.length,
+      cost,
+      totalSixteenths: bars.length * barLengthSixteenths,
+      barDetails: bars,
+    };
+  });
+
+  const grandTotalCost = summary.reduce((sum, s) => sum + s.cost, 0);
+  const totalSixteenthsUsed = summary.reduce(
+    (sum, s) => sum + s.totalSixteenths,
+    0,
+  );
+  
+  // Real linear consumption (only pieces, not full bars)
+  const actualUsedSixteenths = Object.values(piecesByName).reduce((sum, pieces) => {
+    return sum + pieces.reduce((s, p) => s + (p.size * p.qty), 0);
+  }, 0);
+
+  const remainingSixteenths = stockLot - actualUsedSixteenths;
+  const remainingFeet = remainingSixteenths / (12 * 16);
+  const consumptionPercent = Math.min(100, (actualUsedSixteenths / stockLot) * 100);
+
+  return (
+    <div className="mt-8 p-6 bg-brand-sidebar/40 border-2 border-brand-border rounded-[2.5rem] space-y-6 print:border-black print:p-4 print:mt-4 print:bg-white print:rounded-none">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 gap-4">
+        <div>
+          <h4 className="text-xl font-black text-white italic tracking-tighter uppercase print:text-black">
+            Detalle de Material y Accesorios
+          </h4>
+          <p className="text-[8px] font-black text-brand-accent uppercase tracking-widest print:hidden">
+            Optimización y Cálculo de Perfilería
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h5 className="px-4 text-[9px] font-black text-brand-muted uppercase tracking-[0.3em] opacity-60">
+          Perfiles de Aluminio
+        </h5>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border-2 border-brand-border text-xs print:border-black">
+            <thead>
+              <tr className="bg-brand-sidebar/60 text-brand-muted font-black uppercase tracking-widest text-[9px] print:bg-gray-100 print:text-black print:border-black">
+                <th className="border-2 border-brand-border px-4 py-3 text-left print:border-black w-10">
+                  #
+                </th>
+                <th className="border-2 border-brand-border px-4 py-3 text-left print:border-black">
+                  Descripción del Perfil
+                </th>
+                <th className="border-2 border-brand-border px-4 py-3 text-center print:border-black">
+                  Corte Lineal
+                </th>
+                <th className="border-2 border-brand-border px-4 py-3 text-center print:border-black">
+                  Barras ({barLength}')
+                </th>
+              </tr>
+            </thead>
+            <tbody className="font-mono font-bold">
+              {summary.map((row) => (
+                <tr
+                  key={row.name}
+                  className="border-b border-brand-border print:border-black print:text-black hover:bg-white/5"
+                >
+                  <td className="border-2 border-brand-border px-4 py-3 text-left print:border-black text-brand-muted print:text-black">
+                    {row.index}
+                  </td>
+                  <td className="border-2 border-brand-border px-4 py-3 text-left italic print:border-black text-white print:text-black font-black">
+                    {row.name}
+                  </td>
+                  <td className="border-2 border-brand-border px-4 py-3 text-center print:border-black text-brand-accent print:text-black">
+                    {Object.values(piecesByName[row.name]).reduce((sum, p) => sum + (p.size * p.qty), 0) / (12 * 16) >= 1 
+                      ? (Object.values(piecesByName[row.name]).reduce((sum, p) => sum + (p.size * p.qty), 0) / (12 * 16)).toFixed(1) + " FT"
+                      : "—"}
+                  </td>
+                  <td className="border-2 border-brand-border px-4 py-3 text-center print:border-black text-white print:text-black">
+                    {row.bars}
+                  </td>
+                </tr>
+              ))}
+              {summary.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-brand-muted italic opacity-30">
+                    No hay perfiles registrados
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <h5 className="px-4 pt-2 text-[9px] font-black text-brand-muted uppercase tracking-[0.3em] opacity-60">
+          Accesorios Requeridos
+        </h5>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border-2 border-brand-border text-xs print:border-black">
+            <thead>
+              <tr className="bg-brand-sidebar/60 text-brand-muted font-black uppercase tracking-widest text-[9px] print:bg-gray-100 print:text-black print:border-black">
+                <th className="border-2 border-brand-border px-4 py-3 text-left print:border-black w-10">
+                  #
+                </th>
+                <th className="border-2 border-brand-border px-4 py-3 text-left print:border-black">
+                  Accesorio
+                </th>
+                <th className="border-2 border-brand-border px-4 py-3 text-center print:border-black">
+                  Cantidad
+                </th>
+                <th className="border-2 border-brand-border px-4 py-3 text-right print:border-black">
+                  Detalle
+                </th>
+              </tr>
+            </thead>
+            <tbody className="font-mono font-bold">
+              {accessorySummary.map((acc, idx) => (
+                <tr key={acc.name} className="border-b border-brand-border print:border-black print:text-black">
+                  <td className="border-2 border-brand-border px-4 py-3 text-left print:border-black text-brand-muted">
+                    {idx + 1}
+                  </td>
+                  <td className="border-2 border-brand-border px-4 py-3 text-left text-white print:text-black uppercase">
+                    {acc.name}
+                  </td>
+                  <td className="border-2 border-brand-border px-4 py-3 text-center text-emerald-400 print:text-black font-black text-lg">
+                    {acc.qty}
+                  </td>
+                  <td className="border-2 border-brand-border px-4 py-3 text-right text-brand-muted print:text-black italic">
+                    {acc.unit}
+                  </td>
+                </tr>
+              ))}
+              {totalWindows === 0 && (
+                <tr>
+                   <td colSpan={4} className="px-4 py-8 text-center text-brand-muted italic opacity-30">
+                    Agregue ventanas para ver accesorios
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
   );
 }
 
@@ -1157,6 +1373,8 @@ export default function App() {
   const [isSinglePrintMode, setIsSinglePrintMode] = useState(false);
   const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
   const [clientPricing, setClientPricing] = useState<Record<string, number>>({});
+  const [linearPrice, setLinearPrice] = useState<number>(0);
+  const [barLength, setBarLength] = useState<number>(20);
 
   // Load from localStorage
   useEffect(() => {
@@ -1176,6 +1394,11 @@ export default function App() {
         console.error("Failed to load pricing", e);
       }
     }
+    const savedLinearPrice = localStorage.getItem("v-cut-linear-price");
+    if (savedLinearPrice) setLinearPrice(parseFloat(savedLinearPrice) || 0);
+    const savedBarLength = localStorage.getItem("v-cut-bar-length");
+    if (savedBarLength) setBarLength(parseFloat(savedBarLength) || 20);
+
     const savedOrder = localStorage.getItem("v-cut-temp-order");
     if (savedOrder) {
       try {
@@ -1194,6 +1417,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("v-cut-pricing", JSON.stringify(clientPricing));
   }, [clientPricing]);
+
+  useEffect(() => {
+    localStorage.setItem("v-cut-linear-price", linearPrice.toString());
+  }, [linearPrice]);
+
+  useEffect(() => {
+    localStorage.setItem("v-cut-bar-length", barLength.toString());
+  }, [barLength]);
 
   useEffect(() => {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
@@ -2233,53 +2464,13 @@ export default function App() {
                           <Save size={20} /> Guardar y Confirmar Pedido Completo
                         </button>
 
-                        {/* SQFT Calculator in Active Console */}
-                        <div className="bg-brand-sidebar border border-brand-border/50 rounded-2xl p-6 space-y-4 shadow-xl backdrop-blur-sm">
-                            <div className="flex justify-between items-center border-b border-white/5 pb-3 mb-2">
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-muted opacity-50">Calculadora de Pie Cuadrado</h4>
-                                <div className="px-2 py-1 bg-brand-accent/20 rounded text-[8px] font-black text-brand-accent uppercase">Verificación</div>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-1">
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-brand-muted opacity-40">Total Pie²</span>
-                                    <div className="text-2xl font-mono font-black text-white italic">
-                                        {orderWindows.reduce((acc, p) => {
-                                            const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
-                                            return acc + (areaSqFt < 13 ? 14 : areaSqFt);
-                                        }, 0).toFixed(2)}
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-brand-muted opacity-40">Precio / Pie²</span>
-                                    <div className="flex items-center gap-1.5 border-b border-brand-accent/30 pb-0.5">
-                                        <span className="text-xs font-black text-brand-accent">$</span>
-                                        <input 
-                                            type="number"
-                                            value={clientPricing[clientName] || ""}
-                                            onChange={(e) => setClientPricing(prev => ({ ...prev, [clientName]: parseFloat(e.target.value) }))}
-                                            placeholder="0.00"
-                                            className="w-full bg-transparent text-white font-mono font-black text-lg focus:outline-none placeholder:text-white/10"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="pt-4 mt-2 border-t border-brand-accent/10">
-                                <div className="flex justify-between items-center">
-                                    <div className="flex flex-col">
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">Total en Efectivo</span>
-                                        <span className="text-[7px] text-brand-muted italic opacity-40 lowercase">*Mínimo 14 pies p/ ventana {"<"} 13</span>
-                                    </div>
-                                    <div className="text-3xl font-mono font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.3)]">
-                                        ${(orderWindows.reduce((acc, p) => {
-                                            const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
-                                            return acc + (areaSqFt < 13 ? 14 : areaSqFt);
-                                        }, 0) * (clientPricing[clientName] || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <PurchaseDetail
+                          projects={orderWindows}
+                          linearPrice={linearPrice}
+                          setLinearPrice={setLinearPrice}
+                          barLength={barLength}
+                          setBarLength={setBarLength}
+                        />
                       </div>
                     </div>
                   )}
@@ -2651,6 +2842,14 @@ export default function App() {
                                   </div>
                                 </div>
                               )}
+
+                              <PurchaseDetail
+                                projects={[...group.pending, ...group.completed]}
+                                linearPrice={linearPrice}
+                                setLinearPrice={setLinearPrice}
+                                barLength={barLength}
+                                setBarLength={setBarLength}
+                              />
                             </div>
                         </motion.div>
                       ))}
@@ -2675,6 +2874,10 @@ export default function App() {
           clientName={selectedClientName}
           projects={projects.filter((p) => p.clientName === selectedClientName)}
           onExit={() => setIsPrintMode(false)}
+          linearPrice={linearPrice}
+          setLinearPrice={setLinearPrice}
+          barLength={barLength}
+          setBarLength={setBarLength}
         />
       )}
 
@@ -2799,6 +3002,14 @@ export default function App() {
                     );
                   })}
                 </div>
+
+                <PurchaseDetail 
+                  projects={[singlePrintProject]} 
+                  linearPrice={linearPrice}
+                  setLinearPrice={setLinearPrice}
+                  barLength={barLength}
+                  setBarLength={setBarLength}
+                />
               </div>
 
               <div className="pt-10 flex justify-between items-end italic opacity-40 text-[10px] font-black uppercase tracking-[0.4em]">
