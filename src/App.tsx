@@ -778,13 +778,17 @@ function PurchaseDetail({
   // Group all linear pieces from all projects by piece name
   const piecesByName: Record<string, { size: number; qty: number }[]> = {};
   projects.forEach((p) => {
+    if (!p.width || !p.height) return; // Skip windows with zero dimensions
     [...p.results.marco, ...p.results.hojas].forEach((item) => {
       if (!piecesByName[item.piece]) piecesByName[item.piece] = [];
       piecesByName[item.piece].push({ size: item.size, qty: item.qty });
     });
   });
 
-  const totalWindows = projects.reduce((sum, p) => sum + (p.qty || 1), 0);
+  const totalWindows = projects.reduce((sum, p) => {
+    if (!p.width || !p.height) return sum;
+    return sum + (p.qty || 1);
+  }, 0);
   const accessorySummary = [
     { name: "Ruedas de Ventana", qty: totalWindows * 2, unit: "Unidades" },
     { name: "Kit de Guías / Plásticos", qty: totalWindows, unit: "Kit" },
