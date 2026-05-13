@@ -65,6 +65,7 @@ interface WindowProject {
   };
   completedCuts: string[]; // List of CutDetail IDs that are finished
   status: "pending" | "completed";
+  qty?: number;
   createdAt: number;
   deliveryDate?: string;
 }
@@ -260,7 +261,8 @@ function PrintReport({
 
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full border-collapse border border-black text-[10px]">
-                <thead>                  {type === "GAVETAS" ? (
+                <thead>
+                  {type === "GAVETAS" ? (
                     <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
                       <th className="border border-black px-1 py-1 w-12">#</th>
                       <th className="border border-black px-1 py-1 w-20">Hueco</th>
@@ -474,13 +476,7 @@ function PrintReport({
           </div>
         ))}
 
-        <PurchaseDetail
-          projects={projects}
-          linearPrice={linearPrice}
-          setLinearPrice={setLinearPrice}
-          barLength={barLength}
-          setBarLength={setBarLength}
-        />
+
 
         <div className="flex justify-between items-center pt-4 border-t border-black/5 transition-opacity hover:opacity-100 opacity-30 italic text-[7px] font-black uppercase tracking-widest leading-none">
           <div className="flex items-center gap-2">
@@ -842,7 +838,7 @@ function PurchaseDetail({
   const consumptionPercent = Math.min(100, (actualUsedSixteenths / stockLot) * 100);
 
   return (
-    <div className="mt-8 p-6 bg-brand-sidebar/40 border-2 border-brand-border rounded-[2.5rem] space-y-6 print:border-black print:p-4 print:mt-4 print:bg-white print:rounded-none">
+    <div className="mt-8 p-6 bg-brand-sidebar/40 border-2 border-brand-border rounded-[2.5rem] space-y-6 print:hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 gap-4">
         <div>
           <h4 className="text-xl font-black text-white italic tracking-tighter uppercase print:text-black">
@@ -1382,7 +1378,7 @@ export default function App() {
 
   // Navigation & Order Creation State
   const [activeView, setActiveView] = useState<
-    "dashboard" | "history" | "new-order"
+    "dashboard" | "history" | "new-order" | "unfinished"
   >("dashboard");
   const [orderStep, setOrderStep] = useState<1 | 2 | 3>(1);
   const [orderWindows, setOrderWindows] = useState<WindowProject[]>([]);
@@ -1391,6 +1387,9 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [passInput, setPassInput] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingDeleteUnfinishedId, setPendingDeleteUnfinishedId] = useState<string | null>(null);
+  const [pendingDeleteUnfinishedClient, setPendingDeleteUnfinishedClient] = useState<string | null>(null);
+  const [selectedUnfinishedClient, setSelectedUnfinishedClient] = useState<string | null>(null);
   const [pendingDeleteClient, setPendingDeleteClient] = useState<string | null>(
     null,
   );
@@ -1454,6 +1453,14 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
+  }, [orderWindows]);
+
+  const groupedUnfinished = useMemo(() => {
+    return orderWindows.reduce((acc, p) => {
+      if (!acc[p.clientName]) acc[p.clientName] = [];
+      acc[p.clientName].push(p);
+      return acc;
+    }, {} as Record<string, WindowProject[]>);
   }, [orderWindows]);
 
   const exportData = () => {
@@ -1793,6 +1800,13 @@ export default function App() {
         if (selectedProject?.id === pendingDeleteId) {
           setSelectedProject(null);
         }
+      } else if (pendingDeleteUnfinishedId) {
+        setOrderWindows((prev) => prev.filter((p) => p.id !== pendingDeleteUnfinishedId));
+      } else if (pendingDeleteUnfinishedClient) {
+        setOrderWindows((prev) => prev.filter((p) => p.clientName !== pendingDeleteUnfinishedClient));
+        if (selectedUnfinishedClient === pendingDeleteUnfinishedClient) {
+          setSelectedUnfinishedClient(null);
+        }
       } else if (pendingDeleteClient) {
         setProjects((prev) =>
           prev.filter((p) => p.clientName !== pendingDeleteClient),
@@ -1805,6 +1819,8 @@ export default function App() {
       }
       setIsAuthModalOpen(false);
       setPendingDeleteId(null);
+      setPendingDeleteUnfinishedId(null);
+      setPendingDeleteUnfinishedClient(null);
       setPendingDeleteClient(null);
       setPendingChangeProfile(false);
       setPassInput("");
@@ -1832,16 +1848,25 @@ export default function App() {
     setHLeftFrac(0);
     setHRightWhole(0);
     setHRightFrac(0);
-    setOrderWindows([]);
+    // Removed setOrderWindows([]) - Keep unfinished orders
     setOrderStep(1);
     setActiveView("new-order");
   };
 
   const saveBatchOrder = () => {
     if (orderWindows.length === 0) return;
-    setProjects((prev) => [...prev, ...orderWindows]);
+    // Only confirm windows for the currently active client name
+    const windowsToConfirm = orderWindows.filter(p => p.clientName === clientName);
+    if (windowsToConfirm.length === 0) return;
+
+    setProjects((prev) => [...prev, ...windowsToConfirm]);
+    setOrderWindows((prev) => prev.filter(p => p.clientName !== clientName));
     setActiveView("dashboard");
-    setOrderWindows([]);
+    setOrderStep(1);
+    setClientName("");
+    setClientPhone("");
+    setClientLocation("");
+    setDeliveryDate("");
   };
 
   const addToBatch = () => {
@@ -2460,11 +2485,11 @@ export default function App() {
                     <div className="space-y-6 pt-12">
                       <div className="flex items-center px-4">
                         <h5 className="text-xs font-black text-brand-muted uppercase tracking-[0.4em]">
-                          Resumen de Carga ({orderWindows.length})
+                          Resumen de Carga ({orderWindows.filter(p => p.clientName === clientName).length})
                         </h5>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {orderWindows.map((p) => (
+                        {orderWindows.filter(p => p.clientName === clientName).map((p) => (
                           <div
                             key={p.id}
                             className="p-5 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-between"
@@ -2525,7 +2550,7 @@ export default function App() {
                                 <div className="space-y-1">
                                     <span className="text-[8px] font-black uppercase tracking-widest text-brand-muted opacity-40">Total Pie²</span>
                                     <div className="text-3xl font-mono font-black text-white italic">
-                                        {orderWindows.reduce((acc, p) => {
+                                        {orderWindows.filter(p => p.clientName === clientName).reduce((acc, p) => {
                                             const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
                                             const adjustedArea = (p.width === 0 || p.height === 0) ? 0 : Math.max(14, areaSqFt);
                                             return acc + (adjustedArea * (p.qty || 1));
@@ -2611,6 +2636,88 @@ export default function App() {
                   subtitle="Ordenes Finalizadas"
                 />
               )}
+
+              {!selectedClientName && activeView === "unfinished" && (
+                <section className="space-y-6">
+                  <div className="flex flex-col gap-1 px-1">
+                    <h2 className="text-xl sm:text-2xl font-black text-white italic tracking-tighter uppercase leading-tight">
+                      Ordenes sin Terminar
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-0.5 bg-amber-500 rounded-full" />
+                      <p className="text-[8px] text-brand-muted uppercase tracking-[0.3em] font-medium opacity-60">
+                        Selecciona un cliente para continuar
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(groupedUnfinished).length > 0 ? (
+                      Object.entries(groupedUnfinished).map(([name, windows]) => {
+                        const winList = windows as WindowProject[];
+                        return (
+                        <motion.div
+                          layout
+                          key={name}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="relative overflow-hidden group rounded-[2.5rem] bg-brand-sidebar/40 border border-white/5 hover:border-amber-500/30 transition-all cursor-pointer shadow-2xl backdrop-blur-xl"
+                          onClick={() => {
+                            // Automatically resume this client's order
+                            setClientName(name);
+                            const firstWin = winList[0];
+                            if (firstWin) {
+                              setClientPhone(firstWin.clientPhone || "");
+                              setClientLocation(firstWin.clientLocation || "");
+                            }
+                            setOrderStep(3);
+                            setActiveView("new-order");
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                        >
+                          <div className="p-6 pb-20">
+                            <div className="flex justify-between items-start mb-4">
+                               <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                                  <Clock size={24} />
+                               </div>
+                               <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPendingDeleteUnfinishedClient(name);
+                                    setIsAuthModalOpen(true);
+                                    setPassInput("");
+                                  }}
+                                  className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl transition-all"
+                               >
+                                  <Trash2 size={16} />
+                               </button>
+                            </div>
+                            <h3 className="text-xl font-black text-white italic truncate uppercase tracking-tight">
+                              {name}
+                            </h3>
+                            <p className="text-[9px] text-brand-muted font-black uppercase tracking-widest opacity-60 mt-1">
+                              {winList.length} {winList.length === 1 ? "Ventana" : "Ventanas"} Pendientes
+                            </p>
+                          </div>
+
+                          <div className="absolute bottom-0 left-0 right-0 p-4 bg-amber-500/10 border-t border-white/5 flex justify-between items-center transition-colors group-hover:bg-amber-500/20">
+                             <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Continuar Pedido</span>
+                             <ArrowRight size={16} className="text-amber-400 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </motion.div>
+                        );
+                      })
+                    ) : (
+                      <div className="col-span-full py-20 text-center opacity-20 bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
+                        <RotateCcw size={40} className="mx-auto mb-4 text-brand-muted" />
+                        <p className="text-xs font-black uppercase tracking-[0.5em]">No hay ordenes pendientes</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
 
               {/* Empty States */}
               {!selectedClientName &&
@@ -2951,13 +3058,7 @@ export default function App() {
                                 </div>
                               )}
 
-                              <PurchaseDetail
-                                projects={[...group.pending, ...group.completed]}
-                                linearPrice={linearPrice}
-                                setLinearPrice={setLinearPrice}
-                                barLength={barLength}
-                                setBarLength={setBarLength}
-                              />
+
                             </div>
                         </motion.div>
                       ))}
@@ -3111,13 +3212,7 @@ export default function App() {
                   })}
                 </div>
 
-                <PurchaseDetail 
-                  projects={[singlePrintProject]} 
-                  linearPrice={linearPrice}
-                  setLinearPrice={setLinearPrice}
-                  barLength={barLength}
-                  setBarLength={setBarLength}
-                />
+
               </div>
 
               <div className="pt-10 flex justify-between items-end italic opacity-40 text-[10px] font-black uppercase tracking-[0.4em]">
@@ -3136,14 +3231,14 @@ export default function App() {
       )}
 
       {/* Global Bottom Navigation */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] w-[92%] max-w-lg flex items-center gap-1 p-1 bg-brand-sidebar/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)] print:hidden">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] w-[96%] max-w-xl flex items-center gap-1 p-1 bg-brand-sidebar/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)] print:hidden">
         <button
           onClick={() => {
             setActiveView("dashboard");
             setSelectedClientName(null);
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
-          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[9px] tracking-widest transition-all z-10 ${activeView === "dashboard" ? "text-white" : "text-brand-muted hover:text-white"}`}
+          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[8px] sm:text-[9px] tracking-widest transition-all z-10 ${activeView === "dashboard" ? "text-white" : "text-brand-muted hover:text-white"}`}
         >
           {activeView === "dashboard" && (
             <motion.div
@@ -3161,7 +3256,7 @@ export default function App() {
             setSelectedClientName(null);
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
-          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[9px] tracking-widest transition-all z-10 ${activeView === "history" ? "text-white" : "text-brand-muted hover:text-white"}`}
+          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[8px] sm:text-[9px] tracking-widest transition-all z-10 ${activeView === "history" ? "text-white" : "text-brand-muted hover:text-white"}`}
         >
           {activeView === "history" && (
             <motion.div
@@ -3174,8 +3269,26 @@ export default function App() {
           <span className="relative z-10">Historial</span>
         </button>
         <button
+          onClick={() => {
+            setActiveView("unfinished");
+            setSelectedClientName(null);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[8px] sm:text-[9px] tracking-widest transition-all z-10 ${activeView === "unfinished" ? "text-white" : "text-brand-muted hover:text-white"}`}
+        >
+          {activeView === "unfinished" && (
+            <motion.div
+              layoutId="nav-pill"
+              className="absolute inset-0 bg-red-600 rounded-[1.5rem] shadow-[0_0_20px_rgba(220,38,38,0.4)]"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <Clock size={16} className="relative z-10" strokeWidth={3} />
+          <span className="relative z-10">Sin Terminar</span>
+        </button>
+        <button
           onClick={startNewOrder}
-          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[9px] tracking-widest transition-all z-10 ${activeView === "new-order" ? "text-white" : "text-brand-muted hover:text-white"}`}
+          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[8px] sm:text-[9px] tracking-widest transition-all z-10 ${activeView === "new-order" ? "text-white" : "text-brand-muted hover:text-white"}`}
         >
           {activeView === "new-order" && (
             <motion.div
@@ -3185,7 +3298,7 @@ export default function App() {
             />
           )}
           <Plus size={16} className="relative z-10" strokeWidth={3} />
-          <span className="relative z-10">Nueva Orden</span>
+          <span className="relative z-10 text-[7px] sm:text-[9px]">Nuevo</span>
         </button>
       </nav>
 
