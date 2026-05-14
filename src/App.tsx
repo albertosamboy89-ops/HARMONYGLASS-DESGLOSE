@@ -1216,37 +1216,28 @@ function WindowPreview({
             </div>
           </div>
         ) : windowType === "COCINA_MODULAR" ? (
-          <div className="absolute inset-x-0 inset-y-0 flex bg-brand-accent/5 transition-all duration-700">
-             {/* External Frame */}
-             <div className="absolute inset-0 border-[4px] border-amber-600/30 shadow-inner z-10" />
-             {Array.from({ length: vias }).map((_, i) => (
-                <div key={i} className={`flex-1 border-r border-amber-600/20 relative overflow-hidden group/cabinet ${i === vias - 1 ? "border-r-0" : ""}`}>
-                   {/* Internal Shelf indicator */}
-                   <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-amber-600/10" />
-                   
-                   {/* Cabinet Door simulation (semi-transparent to see 'skeleton') */}
-                   <div className="absolute inset-1.5 bg-amber-600/10 border border-amber-600/20 rounded-sm flex flex-col gap-1 p-2 opacity-60">
-                      <div className="w-full h-[1px] bg-amber-600/5" />
-                      <div className="w-full h-[1px] bg-amber-600/5" />
-                   </div>
-                   
-                   {/* Opening Lines */}
-                   <svg className="absolute inset-x-3 inset-y-4 w-[calc(100%-1.5rem)] h-[calc(100%-2rem)] pointer-events-none opacity-10" preserveAspectRatio="none" viewBox="0 0 100 100">
-                      {i % 2 === 0 ? (
-                         <path d="M 100 0 L 0 50 L 100 100" fill="none" stroke="white" strokeWidth="2" strokeDasharray="4" vectorEffect="non-scaling-stroke" />
-                      ) : (
-                         <path d="M 0 0 L 100 50 L 0 100" fill="none" stroke="white" strokeWidth="2" strokeDasharray="4" vectorEffect="non-scaling-stroke" />
-                      )}
-                   </svg>
-                   
-                   {/* Handle */}
-                   <div 
-                      className={`absolute top-[45%] -translate-y-1/2 w-1 h-8 bg-amber-600/40 rounded-full z-20 shadow-sm ${i % 2 === 0 ? "right-1.5" : "left-1.5"}`} 
-                   />
+          <div className="absolute inset-x-0 inset-y-0 flex flex-col items-center justify-center bg-brand-bg transition-all duration-700 p-8">
+             <a 
+               href="https://cocina-dusky.vercel.app/" 
+               target="_blank" 
+               rel="noopener noreferrer"
+               className="group flex flex-col items-center gap-6 p-10 rounded-[2.5rem] border-2 border-brand-accent/20 bg-brand-accent/5 hover:bg-brand-accent/10 hover:border-brand-accent transition-all duration-500 shadow-2xl hover:shadow-brand-accent/20 text-center max-w-sm"
+             >
+                <div className="w-24 h-24 rounded-3xl bg-brand-accent flex items-center justify-center text-white shadow-xl shadow-brand-accent/30 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                   <ExternalLink size={48} />
                 </div>
-             ))}
-             {/* Top Countertop area */}
-             <div className="absolute top-0 left-0 right-0 h-1.5 bg-white/10 z-30" />
+                <div>
+                   <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">
+                      Ir al Calculador
+                   </h3>
+                   <p className="text-[9px] text-brand-muted uppercase tracking-[0.2em] font-mono opacity-60 group-hover:opacity-100 transition-opacity">
+                      cocina-dusky.vercel.app
+                   </p>
+                </div>
+                <div className="px-6 py-3 bg-white/5 rounded-2xl border border-white/10 text-white font-black text-[10px] uppercase tracking-widest group-hover:bg-brand-accent group-hover:border-brand-accent transition-all">
+                  Abrir Herramienta
+                </div>
+             </a>
           </div>
         ) : (
           Array.from({ length: vias }).map((_, i) => {
@@ -1697,62 +1688,18 @@ export default function App() {
     }
 
     if (windowType === "COCINA_MODULAR") {
-      const thickness = 12; // 3/4" estandar en dieciseisavos (12/16)
-      const interiorWidth = totalWidth - (thickness * 2);
-      const interiorHeight = totalHeight - (thickness * 2);
-      const numDivisions = vias - 1;
-      // Calculamos el ancho de cada hueco/compartimiento descontando las divisiones internas
-      const compartmentWidth = (interiorWidth - (numDivisions * thickness)) / vias;
-      const doorGap = 2; // 1/8" de holgura para que no rocen
-
       return {
         inputs: { w: totalWidth, h: totalHeight, type: windowType, vias },
         marco: [
           {
-             id: "laterales",
-             piece: "LATERALES (Costados)",
-             qty: 2,
-             size: totalHeight,
-             formula: `Altura Total: ${formatFraction(totalHeight)}`,
-          },
-          {
-             id: "piso_techo",
-             piece: "PISO Y TECHO (Horizontal)",
-             qty: 2,
-             size: interiorWidth,
-             formula: `Ancho Total - 2 Espesores (${formatFraction(thickness * 2)})`,
-          },
-          {
-             id: "divisiones",
-             piece: "DIVISIONES INTERNAS",
-             qty: numDivisions,
-             size: interiorHeight,
-             formula: `Luz interna de altura: ${formatFraction(interiorHeight)}`,
-          },
-          {
-             id: "espacio_luz",
-             piece: "ANCHO DE HUECO (Luz por puerta)",
-             qty: vias,
-             size: compartmentWidth,
-             formula: `Ancho de cada espacio para puerta`,
-          },
-          {
-             id: "amarres",
-             piece: "AMARRES (Refuerzos traseros)",
-             qty: 2,
-             size: interiorWidth,
-             formula: `Horizontal: ${formatFraction(interiorWidth)}`,
-          },
+             id: "link",
+             piece: "IR AL CALCULADOR EXTERNO",
+             qty: 1,
+             size: 0,
+             formula: "Haga clic en el enlace del visor superior",
+          }
         ],
-        hojas: [
-          {
-             id: "puerta",
-             piece: "PUERTAS (Fabricar después del marco)",
-             qty: vias,
-             size: totalHeight - (doorGap * 2),
-             formula: `Ancho Sugerido: ${formatFraction(compartmentWidth + (thickness / 2))}`,
-          },
-        ],
+        hojas: [],
         vidrios: [],
       };
     }
@@ -2353,13 +2300,14 @@ export default function App() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => {
+                          if (type.id === "COCINA_MODULAR") {
+                            window.open("https://cocina-dusky.vercel.app/", "_blank");
+                            return;
+                          }
                           setWindowType(type.id);
                           if (type.id === "PUERTA_COMERCIAL") {
                             setVias(1);
                             setWindowTag("PUERTA 01");
-                          } else if (type.id === "COCINA_MODULAR") {
-                            setVias(1);
-                            setWindowTag("GABINETE 01");
                           } else {
                             setVias(2);
                             setWindowTag("VENTANA 01");
@@ -2471,6 +2419,7 @@ export default function App() {
                       />
                     </div>
 
+                    {windowType !== "COCINA_MODULAR" && (
                     <div className="p-6 sm:p-8 pt-0 space-y-6 sm:space-y-8">
                       <header className="flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -2578,6 +2527,7 @@ export default function App() {
                         />
                       </div>
                     </div>
+                    )}
                   </section>
 
                   {/* Batch Summary */}
