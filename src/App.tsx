@@ -50,10 +50,10 @@ interface WindowProject {
   clientName: string;
   clientPhone?: string;
   clientLocation?: string;
-  type: "P65" | "P92" | "VENTILADA" | "GAVETAS" | "PUERTA_COMERCIAL";
+  type: "P65" | "P92" | "VENTILADA" | "GAVETAS" | "PUERTA_COMERCIAL" | "COCINA_MODULAR";
   width: number; // sixteenths
   height: number; // sixteenths
-  vias: 1 | 2 | 3 | 4;
+  vias: 1 | 2 | 3 | 4 | 5 | 6;
   wTop?: number;
   wBottom?: number;
   hLeft?: number;
@@ -1018,12 +1018,12 @@ function ResultsBreakdown({
       ]
     : [
         { 
-          title: windowType === "GAVETAS" ? "M. MOLDURAS" : "M. Marco", 
+          title: windowType === "GAVETAS" ? "M. MOLDURAS" : windowType === "COCINA_MODULAR" ? "ESTRUCTURA" : "M. Marco", 
           items: results.marco, 
           color: "blue" 
         },
         { 
-          title: windowType === "GAVETAS" ? "M. FACIAS" : "M. Hojas", 
+          title: windowType === "GAVETAS" ? "M. FACIAS" : windowType === "COCINA_MODULAR" ? "PUERTAS" : "M. Hojas", 
           items: results.hojas, 
           color: "purple" 
         },
@@ -1034,7 +1034,7 @@ function ResultsBreakdown({
     <div className={`grid grid-cols-1 ${windowType === "PUERTA_COMERCIAL" ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"} gap-2 sm:gap-3`}>
       {categories.map((cat) => {
         if (!cat) return null;
-        if (windowType === "GAVETAS" && cat.title === "M. Cristal") return null;
+        if ((windowType === "GAVETAS" || windowType === "COCINA_MODULAR") && cat.title === "M. Cristal") return null;
 
         return (
           <div
@@ -1215,6 +1215,39 @@ function WindowPreview({
               <div className="w-4 h-1 bg-brand-accent rounded-full opacity-50" />
             </div>
           </div>
+        ) : windowType === "COCINA_MODULAR" ? (
+          <div className="absolute inset-x-0 inset-y-0 flex bg-brand-accent/5 transition-all duration-700">
+             {/* External Frame */}
+             <div className="absolute inset-0 border-[4px] border-amber-600/30 shadow-inner z-10" />
+             {Array.from({ length: vias }).map((_, i) => (
+                <div key={i} className={`flex-1 border-r border-amber-600/20 relative overflow-hidden group/cabinet ${i === vias - 1 ? "border-r-0" : ""}`}>
+                   {/* Internal Shelf indicator */}
+                   <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-amber-600/10" />
+                   
+                   {/* Cabinet Door simulation (semi-transparent to see 'skeleton') */}
+                   <div className="absolute inset-1.5 bg-amber-600/10 border border-amber-600/20 rounded-sm flex flex-col gap-1 p-2 opacity-60">
+                      <div className="w-full h-[1px] bg-amber-600/5" />
+                      <div className="w-full h-[1px] bg-amber-600/5" />
+                   </div>
+                   
+                   {/* Opening Lines */}
+                   <svg className="absolute inset-x-3 inset-y-4 w-[calc(100%-1.5rem)] h-[calc(100%-2rem)] pointer-events-none opacity-10" preserveAspectRatio="none" viewBox="0 0 100 100">
+                      {i % 2 === 0 ? (
+                         <path d="M 100 0 L 0 50 L 100 100" fill="none" stroke="white" strokeWidth="2" strokeDasharray="4" vectorEffect="non-scaling-stroke" />
+                      ) : (
+                         <path d="M 0 0 L 100 50 L 0 100" fill="none" stroke="white" strokeWidth="2" strokeDasharray="4" vectorEffect="non-scaling-stroke" />
+                      )}
+                   </svg>
+                   
+                   {/* Handle */}
+                   <div 
+                      className={`absolute top-[45%] -translate-y-1/2 w-1 h-8 bg-amber-600/40 rounded-full z-20 shadow-sm ${i % 2 === 0 ? "right-1.5" : "left-1.5"}`} 
+                   />
+                </div>
+             ))}
+             {/* Top Countertop area */}
+             <div className="absolute top-0 left-0 right-0 h-1.5 bg-white/10 z-30" />
+          </div>
         ) : (
           Array.from({ length: vias }).map((_, i) => {
             const widthPct = 100 / vias;
@@ -1361,7 +1394,7 @@ export default function App() {
   const [hLeftFrac, setHLeftFrac] = useState<number>(0);
   const [hRightWhole, setHRightWhole] = useState<number>(0);
   const [hRightFrac, setHRightFrac] = useState<number>(0);
-  const [vias, setVias] = useState<1 | 2 | 3 | 4>(2);
+  const [vias, setVias] = useState<1 | 2 | 3 | 4 | 5 | 6>(2);
   const [windowType, setWindowType] = useState<
     "P65" | "P92" | "VENTILADA" | "GAVETAS" | "PUERTA_COMERCIAL"
   >("P65");
@@ -1657,6 +1690,67 @@ export default function App() {
             qty: 1 * vias,
             size: faciaWidth,
             formula: `Ancho: ${formatFraction(faciaWidth)} / Salida: ${formatFraction(faciaSalida)}`,
+          },
+        ],
+        vidrios: [],
+      };
+    }
+
+    if (windowType === "COCINA_MODULAR") {
+      const thickness = 12; // 3/4" estandar en dieciseisavos (12/16)
+      const interiorWidth = totalWidth - (thickness * 2);
+      const interiorHeight = totalHeight - (thickness * 2);
+      const numDivisions = vias - 1;
+      // Calculamos el ancho de cada hueco/compartimiento descontando las divisiones internas
+      const compartmentWidth = (interiorWidth - (numDivisions * thickness)) / vias;
+      const doorGap = 2; // 1/8" de holgura para que no rocen
+
+      return {
+        inputs: { w: totalWidth, h: totalHeight, type: windowType, vias },
+        marco: [
+          {
+             id: "laterales",
+             piece: "LATERALES (Costados)",
+             qty: 2,
+             size: totalHeight,
+             formula: `Altura Total: ${formatFraction(totalHeight)}`,
+          },
+          {
+             id: "piso_techo",
+             piece: "PISO Y TECHO (Horizontal)",
+             qty: 2,
+             size: interiorWidth,
+             formula: `Ancho Total - 2 Espesores (${formatFraction(thickness * 2)})`,
+          },
+          {
+             id: "divisiones",
+             piece: "DIVISIONES INTERNAS",
+             qty: numDivisions,
+             size: interiorHeight,
+             formula: `Luz interna de altura: ${formatFraction(interiorHeight)}`,
+          },
+          {
+             id: "espacio_luz",
+             piece: "ANCHO DE HUECO (Luz por puerta)",
+             qty: vias,
+             size: compartmentWidth,
+             formula: `Ancho de cada espacio para puerta`,
+          },
+          {
+             id: "amarres",
+             piece: "AMARRES (Refuerzos traseros)",
+             qty: 2,
+             size: interiorWidth,
+             formula: `Horizontal: ${formatFraction(interiorWidth)}`,
+          },
+        ],
+        hojas: [
+          {
+             id: "puerta",
+             piece: "PUERTAS (Fabricar después del marco)",
+             qty: vias,
+             size: totalHeight - (doorGap * 2),
+             formula: `Ancho Sugerido: ${formatFraction(compartmentWidth + (thickness / 2))}`,
           },
         ],
         vidrios: [],
@@ -2251,6 +2345,7 @@ export default function App() {
                         { id: "VENTILADA", desc: "Flujo de Aire" },
                         { id: "GAVETAS", desc: "Sistema de Gavetas" },
                         { id: "PUERTA_COMERCIAL", desc: "Perfil de Alto Tráfico" },
+                        { id: "COCINA_MODULAR", desc: "Muebles de Cocina" },
                       ] as const
                     ).map((type) => (
                       <motion.button
@@ -2262,6 +2357,9 @@ export default function App() {
                           if (type.id === "PUERTA_COMERCIAL") {
                             setVias(1);
                             setWindowTag("PUERTA 01");
+                          } else if (type.id === "COCINA_MODULAR") {
+                            setVias(1);
+                            setWindowTag("GABINETE 01");
                           } else {
                             setVias(2);
                             setWindowTag("VENTANA 01");
@@ -2340,7 +2438,7 @@ export default function App() {
                           </div>
                           <div className="overflow-hidden">
                             <h4 className="text-sm font-black text-white uppercase italic truncate">
-                              {windowType === "PUERTA_COMERCIAL" ? "COMERCIAL" : windowType}
+                              {windowType === "PUERTA_COMERCIAL" ? "COMERCIAL" : windowType.replace("_", " ")}
                             </h4>
                             <p className="text-[8px] text-brand-muted uppercase font-mono tracking-widest opacity-60">
                               Perfil Seleccionado
@@ -2383,7 +2481,7 @@ export default function App() {
                         </div>
                         <div className="px-3 py-1.5 bg-brand-accent/10 border border-brand-accent/20 rounded-lg">
                           <p className="text-[8px] font-black text-brand-accent uppercase tracking-widest">
-                            {windowType === "PUERTA_COMERCIAL" ? "COMERCIAL" : windowType} EUROPEO
+                            {windowType === "PUERTA_COMERCIAL" ? "COMERCIAL" : windowType.replace("_", " ")} EUROPEO
                           </p>
                         </div>
                       </header>
@@ -2424,21 +2522,23 @@ export default function App() {
                                ? "Cantidad de Gavetas" 
                                : windowType === "PUERTA_COMERCIAL" 
                                  ? "Cantidad de Hojas" 
-                                 : "Configuración de Hojas (Vías)"}
+                                 : windowType === "COCINA_MODULAR"
+                                   ? "Cantidad de Puertas"
+                                   : "Configuración de Hojas (Vías)"}
                            </label>
-                           <div className={`grid ${windowType === "PUERTA_COMERCIAL" ? "grid-cols-2" : "grid-cols-3"} gap-3`}>
-                             {(windowType === "PUERTA_COMERCIAL" ? [1, 2] : [2, 3, 4]).map((v) => (
+                           <div className={`grid ${windowType === "PUERTA_COMERCIAL" ? "grid-cols-2" : windowType === "COCINA_MODULAR" ? "grid-cols-3" : "grid-cols-3"} gap-3`}>
+                             {(windowType === "PUERTA_COMERCIAL" ? [1, 2] : windowType === "COCINA_MODULAR" ? [1, 2, 3, 4, 5, 6] : [2, 3, 4]).map((v) => (
                                <button
                                  key={v}
                                  onClick={() => setVias(v as any)}
-                                 className={`group relative ${windowType === "PUERTA_COMERCIAL" ? "h-40" : "h-32"} rounded-2xl border-2 transition-all flex flex-col items-center justify-between p-3 ${vias === v ? "bg-brand-accent/10 border-brand-accent shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "bg-brand-bg border-brand-border text-brand-muted hover:border-brand-accent/50"}`}
+                                 className={`group relative ${windowType === "PUERTA_COMERCIAL" || windowType === "COCINA_MODULAR" ? "h-40" : "h-32"} rounded-2xl border-2 transition-all flex flex-col items-center justify-between p-3 ${vias === v ? "bg-brand-accent/10 border-brand-accent shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "bg-brand-bg border-brand-border text-brand-muted hover:border-brand-accent/50"}`}
                                >
                                  <div className="w-full pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity flex-1 flex items-center justify-center">
                                    <WindowPreview
                                      width={
-                                       v === 1 ? 40 * 16 : v === 2 ? 80 * 16 : v === 3 ? 90 * 16 : 120 * 16
+                                       v === 1 ? 40 * 16 : v === 2 ? 80 * 16 : v === 3 ? 90 * 16 : v === 4 ? 120 * 16 : v === 5 ? 140 * 16 : 160 * 16
                                      }
-                                     height={v === 1 || v === 2 && windowType === "PUERTA_COMERCIAL" ? 84 * 16 : 60 * 16}
+                                     height={v === 1 || (v === 2 && windowType === "PUERTA_COMERCIAL") ? 84 * 16 : 60 * 16}
                                      vias={v as any}
                                      windowType={windowType}
                                    />
@@ -2446,7 +2546,7 @@ export default function App() {
                                  <span
                                    className={`text-[9px] font-black uppercase tracking-widest transition-colors mt-2 ${vias === v ? "text-brand-accent" : "text-brand-muted group-hover:text-white"}`}
                                  >
-                                   {v} {windowType === "GAVETAS" ? "Gavetas" : v === 1 ? "Hoja" : "Hojas"}
+                                   {v} {windowType === "GAVETAS" ? "Gavetas" : windowType === "COCINA_MODULAR" ? (v === 1 ? "Puerta" : "Puertas") : v === 1 ? "Hoja" : "Hojas"}
                                  </span>
                                  {vias === v && (
                                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-accent text-white flex items-center justify-center shadow-md">
