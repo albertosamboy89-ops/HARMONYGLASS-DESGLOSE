@@ -3641,20 +3641,87 @@ export default function App() {
         }
       `}</style>
 
-      {/* Botón de WhatsApp Flotante */}
+      {/* Botón de WhatsApp Flotante (Fantasmita de Ayuda) */}
       <motion.a
         href="https://wa.me/18094130846"
         target="_blank"
         rel="noopener noreferrer"
-        whileHover={{ scale: 1.1, y: -2 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed bottom-20 right-6 z-[200] flex items-center gap-2 p-3 sm:p-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full sm:rounded-2xl shadow-2xl transition-all duration-300 border border-emerald-400/30 font-black tracking-wider uppercase print:hidden"
-        title="WhatsApp Directo"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 0.85, scale: 1 }}
+        whileHover={{ opacity: 1, scale: 1.05 }}
+        className="fixed bottom-20 right-6 z-[200] flex flex-col items-center gap-1 group print:hidden select-none"
+        title="Ayuda Directa por WhatsApp"
       >
-        <MessageCircle size={24} className="fill-white/15" />
-        <span className="text-[10px] font-black tracking-widest hidden sm:inline-block">
-          WhatsApp
-        </span>
+        {/* Globito de diálogo que dice "Ayuda" */}
+        <motion.div 
+          animate={{ y: [2, -2, 2] }}
+          transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+          className="bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg border border-emerald-400/35 flex items-center gap-1 relative"
+        >
+          <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+          <span>Ayuda ✨</span>
+          {/* Triangulito de bocadillo */}
+          <div className="absolute bottom-[-3px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-t-[3.5px] border-t-emerald-500" />
+        </motion.div>
+
+        {/* El fantasmita animado */}
+        <motion.div
+          animate={{ 
+            y: [0, -8, 0],
+            rotate: [-3, 3, -3],
+          }}
+          transition={{ 
+            repeat: Infinity, 
+            duration: 2.8, 
+            ease: "easeInOut" 
+          }}
+          className="relative drop-shadow-[0_8px_16px_rgba(16,185,129,0.35)] filter"
+        >
+          <svg width="56" height="56" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="ghostGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+                <stop offset="60%" stopColor="#f0fdf4" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#bbf7d0" stopOpacity="0.8" />
+              </linearGradient>
+            </defs>
+            {/* Cuerpo del fantasmita */}
+            <path 
+              d="M 20 45 
+                 C 20 15, 80 15, 80 45 
+                 C 80 65, 75 75, 70 75 
+                 C 64 75, 60 65, 55 70 
+                 C 50 75, 45 70, 40 70 
+                 C 35 70, 30 75, 25 75 
+                 C 20 75, 20 65, 20 45 Z" 
+              fill="url(#ghostGrad)"
+              stroke="#10b981"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+            />
+            {/* Brazos tiernos */}
+            <path d="M 18 46 Q 10 42, 14 38" stroke="#10b981" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+            <path d="M 82 46 Q 90 42, 86 38" stroke="#10b981" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+            
+            {/* Ojitos tiernos y expresivos */}
+            <circle cx="38" cy="40" r="4.5" fill="#044e37" />
+            <circle cx="62" cy="40" r="4.5" fill="#044e37" />
+            <circle cx="36.5" cy="38" r="1.5" fill="#ffffff" />
+            <circle cx="60.5" cy="38" r="1.5" fill="#ffffff" />
+            
+            {/* Mejillas sonrojadas rositas */}
+            <circle cx="31" cy="46" r="3.5" fill="#f43f5e" opacity="0.65" />
+            <circle cx="69" cy="46" r="3.5" fill="#f43f5e" opacity="0.65" />
+            
+            {/* Boquita sonriente */}
+            <path d="M 45 46 Q 50 51, 55 46" stroke="#044e37" strokeWidth="3" strokeLinecap="round" fill="none" />
+          </svg>
+
+          {/* Mini logo de WhatsApp verde flotando al lado del fantasmita */}
+          <div className="absolute bottom-1 right-1 bg-emerald-500 text-white p-1 rounded-full border border-emerald-400 shadow-md group-hover:scale-110 transition-transform">
+            <MessageCircle size={10} className="fill-white" />
+          </div>
+        </motion.div>
       </motion.a>
     </div>
   );
