@@ -793,6 +793,7 @@ function PurchaseDetail({
   const accessorySummary = [
     { name: "Ruedas de Ventana", qty: totalWindows * 2, unit: "Unidades" },
     { name: "Kit de Guías / Plásticos", qty: totalWindows, unit: "Kit" },
+    { name: "Puñito", qty: totalWindows, unit: "Unidades" },
   ];
 
   const summary = Object.entries(piecesByName).map(([name, pieces], index) => {
@@ -847,11 +848,38 @@ function PurchaseDetail({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 gap-4">
         <div>
           <h4 className="text-xl font-black text-white italic tracking-tighter uppercase print:text-black">
-            Detalle de Material y Accesorios
+            Uso de Lote
           </h4>
-          <p className="text-[8px] font-black text-brand-accent uppercase tracking-widest print:hidden">
+          <p className="text-[8px] font-black text-brand-accent uppercase tracking-widest print:hidden mb-2">
             Optimización y Consumo de Perfilería
           </p>
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <button
+              onClick={() => {
+                let message = `*RESUMEN DE USO DE LOTE Y MATERIALES*\n`;
+                message += `_Cliente: ${projects[0]?.clientName || "General"}_\n\n`;
+                
+                message += `*PERFILES DE ALUMINIO:*\n`;
+                summary.forEach((row) => {
+                  const totalFt = Object.values(piecesByName[row.name]).reduce((sum, p) => sum + (p.size * p.qty), 0) / (12 * 16);
+                  const textFt = totalFt >= 1 ? `${totalFt.toFixed(1)} FT` : `—`;
+                  message += `• ${row.name}: ${row.bars} barras (${barLength}') - Consumo: ${textFt}\n`;
+                });
+                
+                message += `\n*ACCESORIOS REQUERIDOS:*\n`;
+                accessorySummary.forEach((acc) => {
+                  message += `• ${acc.name}: ${acc.qty} ${acc.unit}\n`;
+                });
+
+                const url = `https://wa.me/18094130846?text=${encodeURIComponent(message)}`;
+                window.open(url, "_blank");
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-lg border border-emerald-400/20 uppercase tracking-wider transition-all duration-300"
+            >
+              <MessageCircle size={14} className="fill-white/10" strokeWidth={2.5} />
+              Enviar a WhatsApp
+            </button>
+          </div>
         </div>
         <div className="text-right w-full sm:w-auto p-4 bg-black/20 rounded-2xl border border-brand-border/50">
           <div className="flex justify-between sm:block gap-4">
