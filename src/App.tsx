@@ -30,6 +30,8 @@ import {
   Download,
   Upload,
   Share2,
+  MessageCircle,
+  ExternalLink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -111,6 +113,9 @@ const BrandingText = () => (
       <span className="text-red-600 drop-shadow-[0_2px_0_rgba(0,0,0,1)]">HARMONY</span>
       <span className="text-blue-400 ml-1.5 drop-shadow-[0_2px_4px_rgba(30,58,138,0.4)]">GLASS</span>
     </h1>
+    <span className="text-[10px] sm:text-xs font-bold text-brand-muted uppercase tracking-[0.2em] leading-tight opacity-70">
+      Sistemas de Aluminio y Vidrio
+    </span>
   </div>
 );
 
@@ -3607,6 +3612,22 @@ export default function App() {
           -moz-appearance: textfield;
         }
       `}</style>
+
+      {/* Botón de WhatsApp Flotante */}
+      <motion.a
+        href="https://wa.me/18094130846"
+        target="_blank"
+        rel="noopener noreferrer"
+        whileHover={{ scale: 1.1, y: -2 }}
+        whileTap={{ scale: 0.95 }}
+        className="fixed bottom-6 right-6 z-[200] flex items-center gap-2 p-3 sm:p-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full sm:rounded-2xl shadow-2xl transition-all duration-300 border border-emerald-400/30 font-black tracking-wider uppercase print:hidden"
+        title="WhatsApp Directo"
+      >
+        <MessageCircle size={24} className="fill-white/15" />
+        <span className="text-[10px] font-black tracking-widest hidden sm:inline-block">
+          WhatsApp
+        </span>
+      </motion.a>
     </div>
   );
 }
