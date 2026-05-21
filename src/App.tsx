@@ -3620,7 +3620,7 @@ export default function App() {
         rel="noopener noreferrer"
         whileHover={{ scale: 1.1, y: -2 }}
         whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-6 z-[200] flex items-center gap-2 p-3 sm:p-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full sm:rounded-2xl shadow-2xl transition-all duration-300 border border-emerald-400/30 font-black tracking-wider uppercase print:hidden"
+        className="fixed bottom-20 right-6 z-[200] flex items-center gap-2 p-3 sm:p-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full sm:rounded-2xl shadow-2xl transition-all duration-300 border border-emerald-400/30 font-black tracking-wider uppercase print:hidden"
         title="WhatsApp Directo"
       >
         <MessageCircle size={24} className="fill-white/15" />
