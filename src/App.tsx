@@ -463,13 +463,17 @@ function PrintReport({
                         </td>
 
                         <td className="border border-black px-1 py-0.5 font-black text-black">
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="text-[13px] tracking-tight tabular-nums leading-none">
-                              {getD(combinedVidrio, "Cristal")}
-                            </span>
-                            <span className="text-[9px] font-bold text-black opacity-40">
-                              x{p.vias}
-                            </span>
+                          <div className="flex flex-col items-center justify-center gap-1.5 py-1">
+                            {combinedVidrio.map((v, vIdx) => (
+                              <div key={vIdx} className="flex items-center justify-center gap-1 leading-none">
+                                <span className="text-[12px] tracking-tight tabular-nums leading-none font-black text-black">
+                                  {v.dimensions || formatFraction(v.size)}
+                                </span>
+                                <span className="text-[8px] font-bold text-black/55 whitespace-nowrap">
+                                  ({v.piece.includes("Menos") ? "M. 3/8\"" : "Ppal."}) x{v.qty}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </td>
                       </tr>
@@ -1745,13 +1749,45 @@ export default function App() {
 
     // Width Logic based on Vias
     // Target for 23.63: 11.31 (181/16). 378/2 - 8 = 181.
-    const leafHorizontalSize = Math.floor(totalWidth / vias - leafOverlap);
+    // User requested: "(Ancho + 0.75) / 3" which for 88.25 results in exactly 29.66" (29 11/16")
+    // Formula for 3 vias in sixteenths: Math.round((totalWidth + 12) / 3)
+    // Otherwise standard formula: Ancho / vias - leafOverlap
+    let leafHorizontalSize = vias === 3
+      ? Math.round((totalWidth + 12) / 3)
+      : Math.floor(totalWidth / vias - leafOverlap);
+
+    const leafHorizontalFormula = vias === 3
+      ? `(Ancho + 0.75") / 3`
+      : `Ancho/${vias} - ${formatFraction(leafOverlap)}`;
 
     // GLASS FORMULA PER USER: 
     // Width target for 23.63: 8.69 (139/16). (378 - 100) / 2 = 139.
-    const glassWidth = Math.floor((totalWidth - glassWidthFrameDeduction) / vias);
+    // For 3 or 4 vias, the glasswidth is based on leafHorizontalSize minus 2.63" (42 sixteenths)
+    let glassWidth = Math.floor((totalWidth - glassWidthFrameDeduction) / vias);
+    if (vias === 3 || vias === 4) {
+      glassWidth = leafHorizontalSize - 42;
+    }
     // Height target for 23.63: 18.63 (298/16). 378 - 80 = 298.
     const glassHeight = totalHeight - glassHeightFrameDeduction;
+
+    // Second glass width calculation: "el principal menos 0.38" (3/8" or 6 sixteenths)
+    let glassWidthAlt = Math.max(0, glassWidth - 6);
+
+    // Apply precise decimal-based workshop math overrides for 3 vias
+    if (vias === 3) {
+      const totalWidthDecimal = totalWidth / 16;
+      // Formula: (Ancho + 0.75) / 3. Truncating to 2 decimal places to get 29.66"
+      const leafHorizontalDecimal = Math.floor((totalWidthDecimal + 0.75) / 3 * 100) / 100;
+      // First glass = leafHorizontalDecimal - 2.63 = 27.03"
+      const glassWidthDecimal = parseFloat((leafHorizontalDecimal - 2.63).toFixed(2));
+      // Second glass = glassWidthDecimal - 0.38 = 26.65"
+      const glassWidthAltDecimal = parseFloat((glassWidthDecimal - 0.38).toFixed(2));
+
+      // Translate back to the closest 16th values for fractions rendering
+      leafHorizontalSize = Math.round(leafHorizontalDecimal * 16);
+      glassWidth = Math.round(glassWidthDecimal * 16);
+      glassWidthAlt = Math.round(glassWidthAltDecimal * 16);
+    }
 
     return {
       inputs: { w: totalWidth, h: totalHeight, type: windowType, vias },
@@ -1784,19 +1820,57 @@ export default function App() {
           piece: "Alf / Rueda",
           qty: vias * 2,
           size: leafHorizontalSize,
-          formula: `Ancho/vias - ${formatFraction(leafOverlap)}`,
+          formula: leafHorizontalFormula,
         },
       ],
-      vidrios: [
-        {
-          id: "glass",
-          piece: "Cristal",
-          qty: vias,
-          size: glassWidth,
-          dimensions: formatDimensionSet(glassWidth, glassHeight),
-          formula: `(Ancho - ${formatFraction(glassWidthFrameDeduction)}) / ${vias} | Alto - ${formatFraction(glassHeightFrameDeduction)}`,
-        },
-      ],
+      vidrios: (() => {
+        const list: CutDetail[] = [];
+        if (vias === 3) {
+          list.push({
+            id: "glass",
+            piece: "Cristal Principal",
+            qty: 2,
+            size: glassWidth,
+            dimensions: formatDimensionSet(glassWidth, glassHeight),
+            formula: `Alfeizar - 2.63" (Principal)`,
+          });
+          list.push({
+            id: "glass_alt",
+            piece: "Cristal (Menos 3/8\" / 0.38\")",
+            qty: 1,
+            size: glassWidthAlt,
+            dimensions: formatDimensionSet(glassWidthAlt, glassHeight),
+            formula: `Principal - 0.38"`,
+          });
+        } else if (vias === 4) {
+          list.push({
+            id: "glass",
+            piece: "Cristal Principal",
+            qty: 2,
+            size: glassWidth,
+            dimensions: formatDimensionSet(glassWidth, glassHeight),
+            formula: `Alfeizar - 2.63" (Principal)`,
+          });
+          list.push({
+            id: "glass_alt",
+            piece: "Cristal (Menos 3/8\" / 0.38\")",
+            qty: 2,
+            size: glassWidthAlt,
+            dimensions: formatDimensionSet(glassWidthAlt, glassHeight),
+            formula: `Principal - 0.38"`,
+          });
+        } else {
+          list.push({
+            id: "glass",
+            piece: "Cristal Principal",
+            qty: vias,
+            size: glassWidth,
+            dimensions: formatDimensionSet(glassWidth, glassHeight),
+            formula: `(Ancho - ${formatFraction(glassWidthFrameDeduction)}) / ${vias} | Alto - ${formatFraction(glassHeightFrameDeduction)}`,
+          });
+        }
+        return list;
+      })(),
     };
   }, [widthWhole, widthFrac, heightWhole, heightFrac, vias, windowType]);
 
