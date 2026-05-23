@@ -153,6 +153,29 @@ function formatFraction(sixteenths: number): string {
   return whole === 0 ? `${n}/${d}"` : `${whole} ${n}/${d}"`;
 }
 
+function parseFractionInches(str: string): number {
+  if (!str) return 0;
+  const trimmed = str.replace('"', "").replace('"', "").trim();
+  const parts = trimmed.split(" ");
+  if (parts.length === 2) {
+    const whole = parseFloat(parts[0]);
+    const fracParts = parts[1].split("/");
+    if (fracParts.length === 2) {
+      return whole + (parseFloat(fracParts[0]) / parseFloat(fracParts[1]));
+    }
+    return whole;
+  } else if (parts.length === 1) {
+    if (parts[0].includes("/")) {
+      const fracParts = parts[0].split("/");
+      if (fracParts.length === 2) {
+        return parseFloat(fracParts[0]) / parseFloat(fracParts[1]);
+      }
+    }
+    return parseFloat(parts[0]) || 0;
+  }
+  return 0;
+}
+
 function formatDimensionSet(w: number, h: number): string {
   const fw = formatFraction(w).replace('"', "");
   const fh = formatFraction(h).replace('"', "");
@@ -1436,10 +1459,12 @@ export default function App() {
   const [selectedClientName, setSelectedClientName] = useState<string | null>(
     null,
   );
+  const [selectedDetailClient, setSelectedDetailClient] = useState<string | null>(null);
+  const [expandedWindowId, setExpandedWindowId] = useState<string | null>(null);
 
   // Navigation & Order Creation State
   const [activeView, setActiveView] = useState<
-    "dashboard" | "history" | "new-order" | "unfinished"
+    "dashboard" | "history" | "new-order" | "unfinished" | "detail"
   >("dashboard");
   const [orderStep, setOrderStep] = useState<1 | 2 | 3>(1);
   const [orderWindows, setOrderWindows] = useState<WindowProject[]>([]);
@@ -2147,6 +2172,152 @@ export default function App() {
       })
       .sort((a, b) => a.entryDate - b.entryDate);
   }, [projects]);
+
+  const clientsWithProjects = useMemo(() => {
+    const clientMap: Record<string, WindowProject[]> = {};
+    projects.forEach((p) => {
+      const name = p.clientName?.trim() || "COTIZACIÓN";
+      if (!clientMap[name]) clientMap[name] = [];
+      clientMap[name].push(p);
+    });
+    return Object.entries(clientMap).map(([name, clientProjects]) => {
+      let totalRealSqFt = 0;
+      let totalAdjustedSqFt = 0;
+      let totalGlassSqFt = 0;
+      let completedCutsCount = 0;
+      let totalCutsCount = 0;
+      
+      clientProjects.forEach((p) => {
+        const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
+        const adjustedArea = (p.width === 0 || p.height === 0) ? 0 : Math.max(14, areaSqFt);
+        const qty = p.qty || 1;
+        totalRealSqFt += areaSqFt * qty;
+        totalAdjustedSqFt += adjustedArea * qty;
+
+        // Parse glass
+        if (p.results?.vidrios) {
+          p.results.vidrios.forEach((vidrio) => {
+            if (vidrio.dimensions) {
+              const [wStr, hStr] = vidrio.dimensions.split(" x ");
+              const wInches = parseFractionInches(wStr);
+              const hInches = parseFractionInches(hStr);
+              totalGlassSqFt += (wInches * hInches) / 144 * (vidrio.qty || 1) * qty;
+            }
+          });
+        }
+
+        const windowCuts = (p.results?.marco?.length || 0) + (p.results?.hojas?.length || 0) + (p.results?.vidrios?.length || 0);
+        totalCutsCount += windowCuts;
+        completedCutsCount += p.completedCuts?.length || 0;
+      });
+
+      const progressPct = totalCutsCount > 0 ? Math.round((completedCutsCount / totalCutsCount) * 100) : 0;
+
+      return {
+        name,
+        projectsCount: clientProjects.length,
+        realSqFt: totalRealSqFt,
+        adjustedSqFt: totalAdjustedSqFt,
+        glassSqFt: totalGlassSqFt,
+        progress: progressPct,
+        rawProjects: clientProjects
+      };
+    }).sort((a, b) => b.projectsCount - a.projectsCount);
+  }, [projects]);
+
+  const currentDetailClient = useMemo(() => {
+    return clientsWithProjects.find((c) => c.name === selectedDetailClient);
+  }, [clientsWithProjects, selectedDetailClient]);
+
+  const clientPiecesByName = useMemo(() => {
+    const piecesByName: Record<string, { size: number; qty: number }[]> = {};
+    if (currentDetailClient) {
+      currentDetailClient.rawProjects.forEach((p) => {
+        if (!p.width || !p.height) return;
+        [...p.results.marco, ...p.results.hojas].forEach((item) => {
+          if (!piecesByName[item.piece]) piecesByName[item.piece] = [];
+          piecesByName[item.piece].push({ size: item.size, qty: item.qty * (p.qty || 1) });
+        });
+      });
+    }
+    return piecesByName;
+  }, [currentDetailClient]);
+
+  const clientBarsSummary = useMemo(() => {
+    return Object.entries(clientPiecesByName).map(([name, pieces], index) => {
+      const typedPieces = pieces as { size: number; qty: number }[];
+      const flatPieces = typedPieces
+        .flatMap((p) => Array(p.qty).fill(p.size))
+        .sort((a, b) => b - a);
+      const bars: number[][] = [];
+
+      const currentBarLen = barLength || 20;
+      const barLengthSixteenths = currentBarLen * 12 * 16;
+
+      flatPieces.forEach((pieceSize) => {
+        let placed = false;
+        for (const bar of bars) {
+          const used = bar.reduce((a, b) => a + b, 0);
+          if (used + pieceSize <= barLengthSixteenths) {
+            bar.push(pieceSize);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) bars.push([pieceSize]);
+      });
+
+      return {
+        index: index + 1,
+        name,
+        barsCount: bars.length,
+        piecesCount: flatPieces.length,
+      };
+    });
+  }, [clientPiecesByName, barLength]);
+
+  const clientGlassSummary = useMemo(() => {
+    if (!currentDetailClient) return [];
+    const glassMap: Record<string, { qty: number; area: number; dimensions: string }> = {};
+    currentDetailClient.rawProjects.forEach((p) => {
+      if (p.results?.vidrios) {
+        p.results.vidrios.forEach((vidrio) => {
+          if (vidrio.dimensions) {
+            const key = vidrio.dimensions;
+            const [wStr, hStr] = key.split(" x ");
+            const wInches = parseFractionInches(wStr);
+            const hInches = parseFractionInches(hStr);
+            const singleGlassArea = (wInches * hInches) / 144;
+            const totalQty = (vidrio.qty || 1) * (p.qty || 1);
+
+            if (!glassMap[key]) {
+              glassMap[key] = {
+                qty: 0,
+                area: 0,
+                dimensions: key,
+              };
+            }
+            glassMap[key].qty += totalQty;
+            glassMap[key].area += singleGlassArea * totalQty;
+          }
+        });
+      }
+    });
+    return Object.values(glassMap);
+  }, [currentDetailClient]);
+
+  const clientAccessories = useMemo(() => {
+    if (!currentDetailClient) return [];
+    let totalWindowsCount = 0;
+    currentDetailClient.rawProjects.forEach((p) => {
+      totalWindowsCount += (p.qty || 1);
+    });
+    return [
+      { name: "Ruedas de Ventana", qty: totalWindowsCount * 2, unit: "Unidades" },
+      { name: "Kit de Guías / Plásticos", qty: totalWindowsCount, unit: "Kit" },
+      { name: "Puñito", qty: totalWindowsCount, unit: "Unidades" },
+    ];
+  }, [currentDetailClient]);
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent/30 selection:text-white overflow-x-hidden uppercase-none print:bg-white print:text-black">
@@ -2876,6 +3047,385 @@ export default function App() {
               )}
 
 
+              {!selectedClientName && activeView === "detail" && (
+                <section className="space-y-8">
+                  {/* Head Title */}
+                  <div className="flex flex-col gap-1 px-1">
+                    <h2 className="text-xl sm:text-2xl font-black text-white italic tracking-tighter uppercase leading-tight flex items-center gap-2">
+                      <ClipboardList className="text-brand-accent shrink-0" size={24} /> 
+                      {selectedDetailClient ? `Detalle: ${selectedDetailClient}` : "Desglose por Cliente"}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-0.5 bg-brand-accent rounded-full" />
+                      <p className="text-[8px] text-brand-muted uppercase tracking-[0.3em] font-medium opacity-60">
+                        {selectedDetailClient 
+                          ? "Cálculos de pies cuadrados, optimización de materiales y cristales"
+                          : "Selecciona un cliente para ver su inventario de cortes, materiales y pies cuadrados"
+                        }
+                      </p>
+                    </div>
+                  </div>
+
+                  {!selectedDetailClient ? (
+                    /* CLIENT LISTS WITH SUMS */
+                    clientsWithProjects.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {clientsWithProjects.map((client) => (
+                          <motion.div
+                            key={client.name}
+                            onClick={() => {
+                              setSelectedDetailClient(client.name);
+                              setExpandedWindowId(null);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            whileHover={{ y: -4, scale: 1.01 }}
+                            className="bg-brand-sidebar border border-brand-border hover:border-brand-accent/40 rounded-[2.5rem] p-6 cursor-pointer shadow-xl transition-all group flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex justify-between items-start mb-4">
+                                <span className="px-3.5 py-1.5 bg-brand-accent/10 border border-brand-accent/20 rounded-full text-[9px] font-black text-brand-accent uppercase tracking-widest leading-none">
+                                  {client.projectsCount} {client.projectsCount === 1 ? "Ventana" : "Ventanas"}
+                                </span>
+                                <div className="text-[10px] font-mono text-brand-accent group-hover:underline flex items-center gap-1 font-bold">
+                                  VER DETALLES <ArrowRight size={12} />
+                                </div>
+                              </div>
+                              <h3 className="text-xl font-black text-white uppercase italic tracking-tight font-sans leading-none mb-4 truncate group-hover:text-brand-accent transition-colors">
+                                {client.name}
+                              </h3>
+
+                              <div className="space-y-2 border-t border-white/5 pt-3 text-xs mb-4">
+                                <div className="flex justify-between">
+                                  <span className="text-brand-muted font-bold">Ventanería Real:</span>
+                                  <span className="text-white font-mono font-bold">{client.realSqFt.toFixed(2)} Pie²</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-brand-muted font-bold">Cobrado (Mín. 14'):</span>
+                                  <span className="text-emerald-400 font-mono font-bold">{client.adjustedSqFt.toFixed(2)} Pie²</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-brand-muted font-bold">Cristal Requerido:</span>
+                                  <span className="text-blue-400 font-mono font-bold">{client.glassSqFt.toFixed(2)} Pie²</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Progress bar */}
+                            <div className="space-y-1 mt-auto">
+                              <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-brand-muted opacity-60">
+                                <span>Avance General</span>
+                                <span>{client.progress}%</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-brand-accent"
+                                  style={{ width: `${client.progress}%` }}
+                                />
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-20 text-center opacity-40 border border-dashed border-white/10 rounded-[2.5rem] bg-brand-sidebar/40">
+                        <ClipboardList className="mx-auto mb-4 text-brand-muted" size={40} />
+                        <p className="text-sm font-black uppercase tracking-[0.3em] text-white">No hay clientes con órdenes creadas</p>
+                        <p className="text-[10px] text-brand-muted mt-2">Crea una orden desde la pestaña "Nuevo" para ver el detalle de cálculos.</p>
+                      </div>
+                    )
+                  ) : (
+                    /* CLIENT CHOSEN PANEL DETAILS */
+                    currentDetailClient ? (
+                      <div className="space-y-6">
+                        {/* Subheader Toolbar */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 bg-brand-sidebar border border-brand-border rounded-[2rem] gap-4 shadow-xl">
+                          <button
+                            onClick={() => setSelectedDetailClient(null)}
+                            className="flex items-center gap-2 text-xs font-black text-brand-muted hover:text-white uppercase tracking-widest border border-white/10 hover:border-white/20 px-4 py-2 bg-white/5 rounded-xl transition-all"
+                          >
+                            <ArrowLeft size={14} /> Volver a Clientes
+                          </button>
+
+                          <div className="flex flex-wrap gap-4 text-xs font-bold leading-none shrink-0 w-full sm:w-auto">
+                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex-1 sm:flex-initial text-center min-w-[100px]">
+                              <span className="block text-[8px] font-black uppercase tracking-wider text-brand-muted opacity-50 mb-1">Ventanas</span>
+                              <span className="text-lg font-black text-white">{currentDetailClient.projectsCount}</span>
+                            </div>
+                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex-1 sm:flex-initial text-center min-w-[120px]">
+                              <span className="block text-[8px] font-black uppercase tracking-wider text-brand-muted opacity-50 mb-1">Ventanería Real</span>
+                              <span className="text-lg font-black text-brand-accent font-mono">{currentDetailClient.realSqFt.toFixed(1)} <sub className="text-[10px] lowercase">ft²</sub></span>
+                            </div>
+                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex-1 sm:flex-initial text-center min-w-[120px]">
+                              <span className="block text-[8px] font-black uppercase tracking-wider text-brand-muted opacity-50 mb-1">Mín. Ajustado</span>
+                              <span className="text-lg font-black text-emerald-400 font-mono">{currentDetailClient.adjustedSqFt.toFixed(1)} <sub className="text-[10px] lowercase">ft²</sub></span>
+                            </div>
+                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex-1 sm:flex-initial text-center min-w-[120px]">
+                              <span className="block text-[8px] font-black uppercase tracking-wider text-white/40 mb-1">Cristal Requerido</span>
+                              <span className="text-lg font-black text-blue-400 font-mono">{currentDetailClient.glassSqFt.toFixed(1)} <sub className="text-[10px] lowercase">ft²</sub></span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Interactive columns: left = Window accordion list, right = optimized materials */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                          
+                          {/* Left: Window Breakdown */}
+                          <div className="lg:col-span-7 space-y-4">
+                            <div className="flex flex-col gap-1 mb-2 px-1">
+                              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <ClipboardList size={16} className="text-brand-accent" /> Desglose por Ventana ({currentDetailClient.projectsCount})
+                              </h3>
+                              <p className="text-[9px] text-brand-muted uppercase tracking-widest opacity-60">
+                                Expande cada ventana para ver su desglose de cortes específico
+                              </p>
+                            </div>
+
+                            <div className="space-y-3">
+                              {currentDetailClient.rawProjects.map((p) => {
+                                const isExpanded = expandedWindowId === p.id;
+                                const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
+                                const adjustedArea = (p.width === 0 || p.height === 0) ? 0 : Math.max(14, areaSqFt);
+
+                                return (
+                                  <div 
+                                    key={p.id}
+                                    className="bg-brand-sidebar border border-brand-border rounded-[2rem] overflow-hidden transition-all duration-300 shadow-lg"
+                                  >
+                                    <div 
+                                      onClick={() => setExpandedWindowId(isExpanded ? null : p.id)}
+                                      className="p-5 flex items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                                    >
+                                      <div className="flex items-center gap-4 overflow-hidden">
+                                        <div className="w-12 h-12 shrink-0 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center p-1.5 overflow-hidden">
+                                          <div className="scale-60 transform origin-center">
+                                            <WindowPreview
+                                              width={p.width}
+                                              height={p.height}
+                                              vias={p.vias}
+                                              windowType={p.type}
+                                              wTop={p.wTop}
+                                              wBottom={p.wBottom}
+                                              hLeft={p.hLeft}
+                                              hRight={p.hRight}
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="overflow-hidden">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="text-sm font-black text-white uppercase tracking-tight truncate max-w-[160px] sm:max-w-xs">{p.name}</h4>
+                                            {p.qty && p.qty > 1 && (
+                                              <span className="px-2 py-0.5 bg-brand-accent/20 border border-brand-accent/30 rounded text-[9px] font-black text-brand-accent">
+                                                x{p.qty}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-[10px] text-brand-muted font-mono mt-0.5">
+                                            {formatFraction(p.width)}" x {formatFraction(p.height)}" • Vías: {p.vias}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-3 shrink-0">
+                                        <div className="text-right hidden sm:block">
+                                          <div className="text-xs font-mono font-black text-white">{adjustedArea.toFixed(2)} Pie² <sub className="text-[8px] text-brand-muted font-medium font-sans">min 14</sub></div>
+                                          <span className="text-[8px] font-black uppercase text-brand-accent/80 tracking-widest">{p.type}</span>
+                                        </div>
+                                        <div className="text-white/40 hover:text-white p-1">
+                                          {isExpanded ? <ChevronDown size={20} className="rotate-180 transition-transform duration-300" /> : <ChevronDown size={20} className="transition-transform duration-300" />}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <AnimatePresence>
+                                      {isExpanded && (
+                                        <motion.div
+                                          initial={{ height: 0, opacity: 0 }}
+                                          animate={{ height: "auto", opacity: 1 }}
+                                          exit={{ height: 0, opacity: 0 }}
+                                          transition={{ duration: 0.3 }}
+                                          className="border-t border-white/5 bg-black/25 overflow-hidden"
+                                        >
+                                          <div className="p-6 space-y-4">
+                                            {/* Extra individual area info for windows and glass */}
+                                            <div className="grid grid-cols-3 gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold font-mono">
+                                              <div>
+                                                <span className="block text-[8px] font-black uppercase text-brand-muted tracking-wider mb-0.5">Medida</span>
+                                                <span className="text-white font-black">{formatFraction(p.width)}" x {formatFraction(p.height)}"</span>
+                                              </div>
+                                              <div>
+                                                <span className="block text-[8px] font-black uppercase text-brand-muted tracking-wider mb-0.5">Pies² Reales</span>
+                                                <span className="text-white">{areaSqFt.toFixed(2)} Pie²</span>
+                                              </div>
+                                              <div>
+                                                <span className="block text-[8px] font-black uppercase text-blue-400 tracking-wider mb-0.5">Vidrio</span>
+                                                <span className="text-blue-400">
+                                                  {(() => {
+                                                    let totalGlass = 0;
+                                                    p.results.vidrios.forEach((vidrio) => {
+                                                      if (vidrio.dimensions) {
+                                                        const [wStr, hStr] = vidrio.dimensions.split(" x ");
+                                                        totalGlass += (parseFractionInches(wStr) * parseFractionInches(hStr)) / 144 * (vidrio.qty || 1);
+                                                      }
+                                                    });
+                                                    return totalGlass.toFixed(2);
+                                                  })()}{" "}
+                                                  Pie²
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            <div className="border-t border-white/5 pt-4">
+                                              <p className="text-[8px] font-black text-brand-muted uppercase tracking-[0.3em] mb-3">Plan de Cortes y Avances</p>
+                                              <ResultsBreakdown 
+                                                results={p.results} 
+                                                windowType={p.type}
+                                                completedCuts={p.completedCuts}
+                                                onToggleCut={(cutId) => toggleCutStatus(p.id, cutId)}
+                                              />
+                                            </div>
+                                          </div>
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Right: Optimized Materials & Glass Lists */}
+                          <div className="lg:col-span-5 space-y-6">
+                            
+                            {/* Materials Summary / Optimize Aluminum */}
+                            <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl relative overflow-hidden space-y-4">
+                              <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                  <Info size={16} className="text-brand-accent shrink-0" /> Perfiles Requeridos
+                                </h3>
+                                <span className="px-2 py-0.5 bg-brand-border rounded text-[8px] font-bold text-brand-muted uppercase tracking-wider">
+                                  Largo {barLength || 20}'
+                                </span>
+                              </div>
+
+                              <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                                {clientBarsSummary.length > 0 ? (
+                                  clientBarsSummary.map((item) => (
+                                    <div 
+                                      key={item.index} 
+                                      className="p-3.5 bg-white/5 border border-white/10 rounded-2xl flex justify-between items-center text-xs"
+                                    >
+                                      <div>
+                                        <p className="font-extrabold text-white uppercase">{item.name}</p>
+                                        <p className="text-[10px] text-brand-muted font-mono">{item.piecesCount} {item.piecesCount === 1 ? "pieza" : "piezas"} cargadas</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="px-2.5 py-1 bg-red-600/25 border border-red-500/20 rounded-xl text-[10px] font-mono font-black text-brand-accent uppercase">
+                                          {item.barsCount} {item.barsCount === 1 ? "barra" : "barras"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="py-6 text-center text-brand-muted opacity-40">No hay perfiles listados</div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Crystals Summary / Grouped Glass Pieces */}
+                            <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl space-y-4">
+                              <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <ClipboardList size={16} className="text-brand-accent shrink-0" /> Lista de Cristales / Vidrios
+                              </h3>
+
+                              <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                                {clientGlassSummary.length > 0 ? (
+                                  clientGlassSummary.map((item, idx) => (
+                                    <div 
+                                      key={idx} 
+                                      className="p-3.5 bg-white/5 border border-white/10 rounded-2xl flex justify-between items-center text-xs font-mono"
+                                    >
+                                      <div>
+                                        <p className="font-black text-emerald-400 text-sm leading-none">{item.dimensions}"</p>
+                                        <p className="text-[10px] text-brand-muted font-sans font-bold mt-1 uppercase">Área pane: {(item.area / item.qty).toFixed(2)} ft²</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="block text-white font-sans font-black text-[13px] leading-none">x{item.qty} <sub className="text-[9px] text-brand-muted font-medium lowercase">unds</sub></span>
+                                        <span className="text-[9px] font-sans font-black text-blue-400 uppercase tracking-widest">{item.area.toFixed(1)} ft² total</span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="py-6 text-center text-brand-muted opacity-40">No hay vidrios requeridos</div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Client Accessories */}
+                            <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl space-y-3">
+                              <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <Info size={16} className="text-brand-accent" /> Accesorios Estimados
+                              </h3>
+                              <div className="space-y-2">
+                                {clientAccessories.map((acc, index) => (
+                                  <div key={index} className="flex justify-between items-center py-2 border-b border-white/5 text-xs text-brand-muted font-bold">
+                                    <span>{acc.name}</span>
+                                    <span className="text-white font-mono font-black">{acc.qty} {acc.unit}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* WhatsApp Share Button */}
+                            <button
+                              onClick={() => {
+                                let message = `*DETALLE DE MATERIALES Y CORTES - HARMONY GLASS*\n`;
+                                message += ` _Cliente: ${currentDetailClient.name}_\n`;
+                                message += `_Total Ventanas: ${currentDetailClient.projectsCount}_\n`;
+                                message += `_Total Ventanería Real: ${currentDetailClient.realSqFt.toFixed(2)} ft²_\n`;
+                                message += `_Total Cobrado Mínimo: ${currentDetailClient.adjustedSqFt.toFixed(2)} ft²_\n`;
+                                message += `_Total Cristal: ${currentDetailClient.glassSqFt.toFixed(2)} ft²_\n\n`;
+
+                                if (clientBarsSummary.length > 0) {
+                                  message += `*PERFILES DE ALUMINIO (Largo ${barLength || 20}'):*\n`;
+                                  clientBarsSummary.forEach((p) => {
+                                    message += `• ${p.name}: ${p.barsCount} barras\n`;
+                                  });
+                                  message += `\n`;
+                                }
+
+                                if (clientGlassSummary.length > 0) {
+                                  message += `*CRISTALES / VIDRIOS REQUERIDOS:*\n`;
+                                  clientGlassSummary.forEach((g) => {
+                                    message += `• ${g.dimensions}": ${g.qty} unidades (${g.area.toFixed(1)} ft² total)\n`;
+                                  });
+                                  message += `\n`;
+                                }
+
+                                message += `*ACCESORIOS REQUERIDOS:*\n`;
+                                clientAccessories.forEach((acc) => {
+                                  message += `• ${acc.name}: ${acc.qty} ${acc.unit}\n`;
+                                });
+
+                                const url = `https://wa.me/18094130846?text=${encodeURIComponent(message)}`;
+                                window.open(url, "_blank");
+                              }}
+                              className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl flex items-center justify-center gap-3 font-extrabold uppercase text-xs shadow-xl transition-all duration-300"
+                            >
+                              <MessageCircle size={20} className="fill-white/10" strokeWidth={2.5} /> Enviar Detalle por WhatsApp
+                            </button>
+
+                          </div>
+                        </div>
+
+                      </div>
+                    ) : (
+                      <div className="py-20 text-center text-brand-muted opacity-40">¡Ha ocurrido un error al cargar el cliente!</div>
+                    )
+                  )}
+                </section>
+              )}
+
+
               {/* Empty States */}
               {!selectedClientName &&
                 activeView === "dashboard" &&
@@ -3175,6 +3725,7 @@ export default function App() {
                                                 className={`h-full ${isFullyCut ? "bg-red-500" : "bg-brand-accent"}`}
                                               />
                                             </div>
+
                                           </motion.div>
                                         );
                                       })}
@@ -3408,6 +3959,20 @@ export default function App() {
           <span className="relative z-10">Principal</span>
         </button>
         <button
+          onClick={startNewOrder}
+          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[8px] sm:text-[9px] tracking-widest transition-all z-10 ${activeView === "new-order" ? "text-white" : "text-brand-muted hover:text-white"}`}
+        >
+          {activeView === "new-order" && (
+            <motion.div
+              layoutId="nav-pill"
+              className="absolute inset-0 bg-red-600 rounded-[1.5rem] shadow-[0_0_20px_rgba(220,38,38,0.4)]"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <Plus size={16} className="relative z-10" strokeWidth={3} />
+          <span className="relative z-10 text-[7px] sm:text-[9px]">Nuevo</span>
+        </button>
+        <button
           onClick={() => {
             setActiveView("history");
             setSelectedClientName(null);
@@ -3444,18 +4009,22 @@ export default function App() {
           <span className="relative z-10">Sin Terminar</span>
         </button>
         <button
-          onClick={startNewOrder}
-          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[8px] sm:text-[9px] tracking-widest transition-all z-10 ${activeView === "new-order" ? "text-white" : "text-brand-muted hover:text-white"}`}
+          onClick={() => {
+            setActiveView("detail");
+            setSelectedClientName(null);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className={`relative flex-1 h-12 rounded-[1.5rem] flex items-center justify-center gap-2 font-black uppercase text-[8px] sm:text-[9px] tracking-widest transition-all z-10 ${activeView === "detail" ? "text-white" : "text-brand-muted hover:text-white"}`}
         >
-          {activeView === "new-order" && (
+          {activeView === "detail" && (
             <motion.div
               layoutId="nav-pill"
               className="absolute inset-0 bg-red-600 rounded-[1.5rem] shadow-[0_0_20px_rgba(220,38,38,0.4)]"
               transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
             />
           )}
-          <Plus size={16} className="relative z-10" strokeWidth={3} />
-          <span className="relative z-10 text-[7px] sm:text-[9px]">Nuevo</span>
+          <Info size={16} className="relative z-10" />
+          <span className="relative z-10">Detalle</span>
         </button>
       </nav>
 
