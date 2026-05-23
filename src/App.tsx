@@ -825,23 +825,22 @@ function PurchaseDetail({
   ];
 
   const summary = Object.entries(piecesByName).map(([name, pieces], index) => {
-    // Group pieces by their exact size in sixteenths
-    const sizeGroups: Record<number, number> = {};
-    pieces.forEach((p) => {
-      sizeGroups[p.size] = (sizeGroups[p.size] || 0) + p.qty;
-    });
+    const flatCuts = pieces.flatMap((p) => Array(p.qty).fill(p.size));
+    const sortedCuts = [...flatCuts].sort((a, b) => b - a);
 
     let totalBars = 0;
-    Object.entries(sizeGroups).forEach(([sizeStr, qty]) => {
-      const sizeVal = parseFloat(sizeStr);
-      const sizeInches = sizeVal / 16;
-      const piecesPerBar = Math.floor(250 / sizeInches);
-      if (piecesPerBar <= 0) {
-        totalBars += qty;
-      } else {
-        totalBars += Math.ceil(qty / piecesPerBar);
-      }
-    });
+    if (sortedCuts.length > 0) {
+      totalBars = 1;
+      let currentBarSum = 0;
+      sortedCuts.forEach((cut) => {
+        if (currentBarSum + cut <= barLengthSixteenths) {
+          currentBarSum += cut;
+        } else {
+          totalBars += 1;
+          currentBarSum = cut;
+        }
+      });
+    }
 
     const totalFeetUsed = totalBars * (250 / 12);
     const cost = totalFeetUsed * linearPrice;
@@ -2224,23 +2223,22 @@ export default function App() {
   const clientBarsSummary = useMemo(() => {
     return Object.entries(clientPiecesByName).map(([name, pieces], index) => {
       const typedPieces = pieces as { size: number; qty: number }[];
-      
-      const sizeGroups: Record<number, number> = {};
-      typedPieces.forEach((p) => {
-        sizeGroups[p.size] = (sizeGroups[p.size] || 0) + p.qty;
-      });
+      const flatCuts = typedPieces.flatMap((p) => Array(p.qty).fill(p.size));
+      const sortedCuts = [...flatCuts].sort((a, b) => b - a);
 
       let totalBars = 0;
-      Object.entries(sizeGroups).forEach(([sizeStr, qty]) => {
-        const sizeVal = parseFloat(sizeStr);
-        const sizeInches = sizeVal / 16;
-        const piecesPerBar = Math.floor(250 / sizeInches);
-        if (piecesPerBar <= 0) {
-          totalBars += qty;
-        } else {
-          totalBars += Math.ceil(qty / piecesPerBar);
-        }
-      });
+      if (sortedCuts.length > 0) {
+        totalBars = 1;
+        let currentBarSum = 0;
+        sortedCuts.forEach((cut) => {
+          if (currentBarSum + cut <= 250 * 16) {
+            currentBarSum += cut;
+          } else {
+            totalBars += 1;
+            currentBarSum = cut;
+          }
+        });
+      }
 
       const totalPiecesCount = typedPieces.reduce((sum, p) => sum + p.qty, 0);
 
@@ -2387,23 +2385,20 @@ export default function App() {
     });
 
     const consolidatedProfiles = Object.values(profileCutsGroup).map((group) => {
-      // Group group.cuts by their exact size in sixteenths
-      const sizeGroups: Record<number, number> = {};
-      group.cuts.forEach((cutSize) => {
-        sizeGroups[cutSize] = (sizeGroups[cutSize] || 0) + 1;
-      });
-
+      const sortedCuts = [...group.cuts].sort((a, b) => b - a);
       let totalBars = 0;
-      Object.entries(sizeGroups).forEach(([sizeStr, qty]) => {
-        const sizeVal = parseFloat(sizeStr);
-        const sizeInches = sizeVal / 16;
-        const piecesPerBar = Math.floor(250 / sizeInches);
-        if (piecesPerBar <= 0) {
-          totalBars += qty;
-        } else {
-          totalBars += Math.ceil(qty / piecesPerBar);
-        }
-      });
+      if (sortedCuts.length > 0) {
+        totalBars = 1;
+        let currentBarSum = 0;
+        sortedCuts.forEach((cutSize) => {
+          if (currentBarSum + cutSize <= 250 * 16) {
+            currentBarSum += cutSize;
+          } else {
+            totalBars += 1;
+            currentBarSum = cutSize;
+          }
+        });
+      }
 
       return {
         name: group.rawName,
