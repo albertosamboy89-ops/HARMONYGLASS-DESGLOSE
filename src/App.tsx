@@ -801,7 +801,7 @@ function PurchaseDetail({
   barLength: number;
   setBarLength: (v: number) => void;
 }) {
-  const barLengthSixteenths = barLength * 12 * 16;
+  const barLengthSixteenths = 250 * 16; // 250 pulgadas por barra (estándar de taller)
   const stockLot = 250 * 12 * 16; // 250 feet in sixteenths
 
   // Group all linear pieces from all projects by piece name
@@ -843,7 +843,7 @@ function PurchaseDetail({
       if (!placed) bars.push([pieceSize]);
     });
 
-    const totalFeetUsed = bars.length * barLength;
+    const totalFeetUsed = bars.length * (250 / 12);
     const cost = totalFeetUsed * linearPrice;
 
     return {
@@ -891,7 +891,7 @@ function PurchaseDetail({
                 summary.forEach((row) => {
                   const totalFt = Object.values(piecesByName[row.name]).reduce((sum, p) => sum + (p.size * p.qty), 0) / (12 * 16);
                   const textFt = totalFt >= 1 ? `${totalFt.toFixed(1)} FT` : `—`;
-                  message += `• ${row.name}: ${row.bars} barras (${barLength}') - Consumo: ${textFt}\n`;
+                  message += `• ${row.name}: ${row.bars} barras (250") - Consumo: ${textFt}\n`;
                 });
                 
                 message += `\n*ACCESORIOS REQUERIDOS:*\n`;
@@ -948,7 +948,7 @@ function PurchaseDetail({
                   Corte Lineal
                 </th>
                 <th className="border-2 border-brand-border px-4 py-3 text-center print:border-black">
-                  Barras ({barLength}')
+                  Barras (250")
                 </th>
               </tr>
             </thead>
@@ -2256,8 +2256,7 @@ export default function App() {
         .sort((a, b) => b - a);
       const bars: number[][] = [];
 
-      const currentBarLen = barLength || 20;
-      const barLengthSixteenths = currentBarLen * 12 * 16;
+      const barLengthSixteenths = 250 * 16; // 250 pulgadas por barra (estándar de taller)
 
       flatPieces.forEach((pieceSize) => {
         let placed = false;
@@ -2279,7 +2278,7 @@ export default function App() {
         piecesCount: flatPieces.length,
       };
     });
-  }, [clientPiecesByName, barLength]);
+  }, [clientPiecesByName]);
 
   const clientGlassSummary = useMemo(() => {
     if (!currentDetailClient) return [];
@@ -2414,8 +2413,7 @@ export default function App() {
       }
     });
 
-    const currentBarLen = barLength || 20;
-    const barLengthSixteenths = currentBarLen * 12 * 16;
+    const barLengthSixteenths = 250 * 16; // 250 pulgadas por barra (estándar de taller)
 
     const consolidatedProfiles = Object.values(profileCutsGroup).map((group) => {
       const sortedCuts = [...group.cuts].sort((a, b) => b - a);
@@ -2462,7 +2460,7 @@ export default function App() {
       profiles: consolidatedProfiles,
       accessories: consolidatedAccessories,
     };
-  }, [currentDetailClient, barLength]);
+  }, [currentDetailClient]);
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent/30 selection:text-white overflow-x-hidden uppercase-none print:bg-white print:text-black">
@@ -3442,122 +3440,139 @@ export default function App() {
                           {/* Right: Consolidated Materials & Glass Lists */}
                           <div className="lg:col-span-5 space-y-6">
                             
-                            {/* Unified Materials & Profile Purchases Box */}
-                            <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl relative overflow-hidden space-y-4">
+                            {/* Unified Materials, Glass & Accessories Purchase Box */}
+                            <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl relative overflow-hidden space-y-6">
                               <div className="flex justify-between items-center mb-1">
                                 <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                  <Info size={16} className="text-brand-accent shrink-0" /> Compra de Aluminio y Accesorios (Consolidado)
+                                  <ClipboardList size={16} className="text-brand-accent shrink-0" /> Resumen de Compra de Materiales
                                 </h3>
-                                <span className="px-2 py-0.5 bg-brand-border rounded text-[8px] font-bold text-brand-muted uppercase tracking-wider">
-                                  Largo {barLength || 20}'
+                                <span className="px-2 py-0.5 bg-brand-border rounded text-[8px] font-bold text-brand-muted uppercase tracking-wider font-mono">
+                                  Barras 250"
                                 </span>
                               </div>
 
-                              <div className="border border-white/5 rounded-2xl overflow-hidden bg-white/[0.01]">
-                                <div className="bg-white/[0.03] px-4 py-2 border-b border-white/5 flex justify-between items-center">
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-[#22c55e]">Perfiles de Aluminio a Comprar</span>
-                                  <span className="text-[9px] font-black text-brand-muted uppercase tracking-widest">Barras 20'</span>
-                                </div>
-                                <div className="divide-y divide-white/5 text-xs max-h-[300px] overflow-y-auto">
-                                  {consolidatedMaterials.profiles.length > 0 ? (
-                                    consolidatedMaterials.profiles.map((p, index) => (
-                                      <div key={index} className="px-4 py-3 flex justify-between items-center hover:bg-white/[0.01] transition-colors">
-                                        <div>
-                                          <span className="font-extrabold text-white block capitalize">{p.name.toLowerCase()}</span>
-                                          <span className="text-[10px] text-brand-muted font-bold font-mono">{p.cutsCount} corte(s) requerido(s)</span>
-                                        </div>
-                                        <div className="text-right flex items-center gap-2">
-                                          <span className="text-[8px] px-2 py-0.5 bg-brand-border text-brand-muted rounded-full font-black uppercase">{p.color}</span>
+                              <div className="space-y-5">
+                                {/* Aluminum Profiles Section */}
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center border-b border-white/5 pb-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[#22c55e]">Materiales P65 ({consolidatedMaterials.profiles[0]?.color || "Blanco"})</span>
+                                    <span className="text-[8px] font-bold text-brand-muted uppercase tracking-widest">Barras a Comprar</span>
+                                  </div>
+                                  <div className="divide-y divide-white/5 text-xs bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden">
+                                    {consolidatedMaterials.profiles.length > 0 ? (
+                                      consolidatedMaterials.profiles.map((p, index) => (
+                                        <div key={index} className="px-4 py-2.5 flex justify-between items-center hover:bg-white/[0.02] transition-colors">
+                                          <span className="font-extrabold text-white capitalize text-[11px]">{p.name.toLowerCase()}</span>
                                           <span className="px-2.5 py-1 bg-brand-accent/20 border border-brand-accent/30 rounded-xl text-[10px] font-mono font-black text-brand-accent uppercase">
                                             {p.barsNeeded} {p.barsNeeded === 1 ? "barra" : "barras"}
                                           </span>
                                         </div>
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <div className="p-4 text-center text-brand-muted opacity-40">No hay perfiles de aluminio requeridos</div>
-                                  )}
+                                      ))
+                                    ) : (
+                                      <div className="p-4 text-center text-brand-muted opacity-40 text-[10px] italic">No hay perfiles de aluminio requeridos</div>
+                                    )}
+                                  </div>
                                 </div>
 
-                                <div className="bg-white/[0.03] px-4 py-2 border-y border-white/5">
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Accesorios y Adicionales</span>
+                                {/* Glasses Section */}
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center border-b border-white/5 pb-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Detalle de Cristales</span>
+                                    <span className="text-[8px] font-bold text-brand-muted uppercase tracking-widest">Medida x Cantidad</span>
+                                  </div>
+                                  <div className="divide-y divide-white/5 text-xs bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden">
+                                    {clientGlassSummary.length > 0 ? (
+                                      clientGlassSummary.map((item, idx) => (
+                                        <div key={idx} className="px-4 py-2.5 flex justify-between items-center hover:bg-white/[0.02] transition-colors">
+                                          <span className="font-semibold text-white text-[11px] font-mono">{item.dimensions}"</span>
+                                          <span className="text-emerald-400 font-mono font-black text-[11px]">x{item.qty} uds</span>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="p-4 text-center text-brand-muted opacity-40 text-[10px] italic">No hay cristales requeridos</div>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="divide-y divide-white/5 text-xs">
-                                  {consolidatedMaterials.accessories.map((acc, index) => (
-                                    <div key={index} className="px-4 py-3 flex justify-between items-center hover:bg-white/[0.01] transition-colors">
-                                      <span className="font-semibold text-brand-muted capitalize">{acc.name.toLowerCase()}</span>
-                                      <span className="text-white font-mono font-black">{acc.qty} {acc.unit}</span>
-                                    </div>
-                                  ))}
+
+                                {/* Accessories Section */}
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center border-b border-white/5 pb-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Accesorios Requeridos</span>
+                                    <span className="text-[8px] font-bold text-brand-muted uppercase tracking-widest">Unidades / Kit</span>
+                                  </div>
+                                  <div className="divide-y divide-white/5 text-xs bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden">
+                                    {consolidatedMaterials.accessories.map((acc, index) => (
+                                      <div key={index} className="px-4 py-2.5 flex justify-between items-center hover:bg-white/[0.02] transition-colors">
+                                        <span className="font-semibold text-brand-muted capitalize text-[11px]">{acc.name.toLowerCase()}</span>
+                                        <span className="text-white font-mono font-black text-[11px]">{acc.qty} {acc.unit}</span>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
+
+                              {/* WhatsApp Share Button */}
+                              <button
+                                onClick={() => {
+                                  const formatWhatsAppTable = (items: { name: string; qty: string }[], header1: string, header2: string): string => {
+                                    const col1Width = 18;
+                                    const col2Width = 8;
+                                    const borderLine = `+${"-".repeat(col1Width + 2)}+${"-".repeat(col2Width + 2)}+\n`;
+                                    
+                                    let table = "```\n";
+                                    table += borderLine;
+                                    const h1 = header1.toUpperCase().padEnd(col1Width);
+                                    const h2 = header2.toUpperCase().padEnd(col2Width);
+                                    table += `| ${h1} | ${h2} |\n`;
+                                    table += borderLine;
+                                    
+                                    items.forEach((item) => {
+                                      const namePart = item.name.toLowerCase().slice(0, col1Width).padEnd(col1Width);
+                                      const qtyPart = item.qty.slice(0, col2Width).padEnd(col2Width);
+                                      table += `| ${namePart} | ${qtyPart} |\n`;
+                                    });
+                                    
+                                    table += borderLine;
+                                    table += "```";
+                                    return table;
+                                  };
+
+                                  const activeColor = consolidatedMaterials.profiles[0]?.color || "Blanco";
+                                  let message = `*Materiales P65 (${activeColor.toUpperCase()})*\n`;
+
+                                  const profileLines = consolidatedMaterials.profiles.map(p => ({
+                                    name: p.name,
+                                    qty: String(p.barsNeeded)
+                                  }));
+                                  message += formatWhatsAppTable(profileLines, "perfil", "canti") + "\n\n";
+
+                                  if (clientGlassSummary.length > 0) {
+                                    message += `*Vidrios*\n`;
+                                    const glassLines = clientGlassSummary.map(g => ({
+                                      name: g.dimensions,
+                                      qty: String(g.qty)
+                                    }));
+                                    message += formatWhatsAppTable(glassLines, "medida", "canti") + "\n\n";
+                                  }
+
+                                  if (consolidatedMaterials.accessories.length > 0) {
+                                    message += `*Accesorios*\n`;
+                                    const accLines = consolidatedMaterials.accessories.map(acc => ({
+                                      name: acc.name,
+                                      qty: String(acc.qty)
+                                    }));
+                                    message += formatWhatsAppTable(accLines, "detalle", "canti") + "\n\n";
+                                  }
+
+                                  const url = `https://wa.me/18094130846?text=${encodeURIComponent(message)}`;
+                                  window.open(url, "_blank");
+                                }}
+                                className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl flex items-center justify-center gap-3 font-extrabold uppercase text-xs shadow-xl transition-all duration-300"
+                              >
+                                <MessageCircle size={20} className="fill-white/10" strokeWidth={2.5} /> Enviar Detalle por WhatsApp
+                              </button>
+
                             </div>
-
-                            {/* Crystals Summary / Grouped Glass Pieces */}
-                            <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl space-y-4">
-                              <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                <ClipboardList size={16} className="text-brand-accent shrink-0" /> Lista de Cristales / Vidrios (Medidas y Cantidad)
-                              </h3>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[250px] overflow-y-auto pr-1">
-                                {clientGlassSummary.length > 0 ? (
-                                  clientGlassSummary.map((item, idx) => (
-                                    <div 
-                                      key={idx} 
-                                      className="p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col justify-between"
-                                    >
-                                      <div className="mb-2">
-                                        <span className="block text-[8px] font-black uppercase text-emerald-400 tracking-wider">Vidrio (Ancho x Alto)</span>
-                                        <p className="font-extrabold text-white text-base font-mono mt-0.5">{item.dimensions}"</p>
-                                      </div>
-                                      <div className="flex justify-between items-baseline border-t border-white/5 pt-2 mt-2">
-                                        <span className="text-[10px] text-brand-muted font-bold font-sans uppercase">Cantidad:</span>
-                                        <span className="text-emerald-400 font-sans font-black text-lg">x{item.qty} <sub className="text-[9px] text-brand-muted font-medium lowercase">unds</sub></span>
-                                      </div>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="col-span-full py-6 text-center text-brand-muted opacity-40">No hay vidrios requeridos</div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* WhatsApp Share Button */}
-                            <button
-                              onClick={() => {
-                                let message = `*DETALLE DE MATERIALES Y COMPRAS - HARMONY GLASS*\n`;
-                                message += `_Cliente: ${currentDetailClient.name}_\n`;
-                                message += `_Total Ventanas: ${currentDetailClient.projectsCount}_\n`;
-                                message += `_Total Cobrado Mínimo: ${currentDetailClient.adjustedSqFt.toFixed(2)} ft²_\n`;
-                                message += `_Largo perfil: ${barLength || 20}'_\n\n`;
-
-                                message += `*MATERIALES P65 Y OTROS (PERFILES EN BARRAS):*\n`;
-                                consolidatedMaterials.profiles.forEach((p) => {
-                                  message += `• ${p.name.toLowerCase()}: ${p.barsNeeded} barra(s) (Color/Ubicación: ${p.color})\n`;
-                                });
-
-                                message += `\n*ACCESORIOS Y OTROS:*\n`;
-                                consolidatedMaterials.accessories.forEach((acc) => {
-                                  message += `• ${acc.name.toLowerCase()}: ${acc.qty} ${acc.unit}\n`;
-                                });
-
-                                if (clientGlassSummary.length > 0) {
-                                  message += `\n*VIDRIOS (MEDIDAS Y CANTIDAD):*\n`;
-                                  clientGlassSummary.forEach((g) => {
-                                    message += `• ${g.dimensions}": ${g.qty} unidad(es)\n`;
-                                  });
-                                }
-
-                                message += `\n----------------------------------\n`;
-                                message += `_Generado por Harmony Glass_`;
-
-                                const url = `https://wa.me/18094130846?text=${encodeURIComponent(message)}`;
-                                window.open(url, "_blank");
-                              }}
-                              className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl flex items-center justify-center gap-3 font-extrabold uppercase text-xs shadow-xl transition-all duration-300"
-                            >
-                              <MessageCircle size={20} className="fill-white/10" strokeWidth={2.5} /> Enviar Detalle por WhatsApp
-                            </button>
 
                           </div>
                         </div>
