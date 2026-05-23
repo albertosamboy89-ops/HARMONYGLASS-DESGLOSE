@@ -70,6 +70,7 @@ interface WindowProject {
   qty?: number;
   createdAt: number;
   deliveryDate?: string;
+  aluminioColor?: string;
 }
 
 // --- Brand & Logo ---
@@ -1432,6 +1433,7 @@ export default function App() {
   const [clientName, setClientName] = useState<string>("");
   const [clientPhone, setClientPhone] = useState<string>("");
   const [clientLocation, setClientLocation] = useState<string>("");
+  const [aluminioColor, setAluminioColor] = useState<string>("Blanco");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
   const [widthWhole, setWidthWhole] = useState<number>(0);
   const [widthFrac, setWidthFrac] = useState<number>(0);
@@ -2006,6 +2008,7 @@ export default function App() {
     setClientName("");
     setClientPhone("");
     setClientLocation("");
+    setAluminioColor("Blanco");
     setDeliveryDate("");
     const defaultTag = windowType === "PUERTA_COMERCIAL" ? "PUERTA 01" : "VENTANA 01";
     setWindowTag(defaultTag);
@@ -2039,6 +2042,7 @@ export default function App() {
     setClientName("");
     setClientPhone("");
     setClientLocation("");
+    setAluminioColor("Blanco");
     setDeliveryDate("");
   };
 
@@ -2068,6 +2072,7 @@ export default function App() {
       status: "pending",
       createdAt: Date.now(),
       deliveryDate: deliveryDate,
+      aluminioColor: aluminioColor,
     };
     setOrderWindows((prev) => [...prev, newWindow]);
     setShowResults(false);
@@ -2480,6 +2485,23 @@ export default function App() {
                           placeholder="Dirección o Ciudad"
                           className="w-full h-12 sm:h-14 bg-brand-bg border border-brand-border px-5 rounded-[1rem] sm:rounded-[1.2rem] text-white font-black text-base sm:text-lg placeholder:text-brand-muted/10 focus:outline-none focus:border-brand-accent transition-all shadow-inner"
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
+                          Color Perfil / Aluminio
+                        </label>
+                        <select
+                          value={aluminioColor}
+                          onChange={(e) => setAluminioColor(e.target.value)}
+                          className="w-full h-12 sm:h-14 bg-brand-bg border border-brand-border px-5 rounded-[1rem] sm:rounded-[1.2rem] text-white font-black text-xs sm:text-sm focus:outline-none focus:border-brand-accent transition-all shadow-inner cursor-pointer"
+                        >
+                          <option value="Blanco" className="bg-brand-sidebar text-white font-semibold">Blanco</option>
+                          <option value="Bronce" className="bg-brand-sidebar text-white font-semibold">Bronce</option>
+                          <option value="Gris" className="bg-brand-sidebar text-white font-semibold">Gris</option>
+                          <option value="Negro" className="bg-brand-sidebar text-white font-semibold">Negro</option>
+                          <option value="Hueso" className="bg-brand-sidebar text-white font-semibold">Hueso</option>
+                        </select>
                       </div>
                     </div>
 
@@ -3367,26 +3389,69 @@ export default function App() {
                                 message += `_Total Ventanas: ${currentDetailClient.projectsCount}_\n`;
                                 message += `_Total Cobrado Mínimo: ${currentDetailClient.adjustedSqFt.toFixed(2)} ft²_\n\n`;
 
-                                if (clientBarsSummary.length > 0) {
-                                  message += `*PERFILES DE ALUMINIO (Largo ${barLength || 20}'):*\n`;
-                                  clientBarsSummary.forEach((p) => {
-                                    message += `• ${p.name}: ${p.barsCount} barras\n`;
-                                  });
-                                  message += `\n`;
-                                }
+                                // Loop over each window project
+                                currentDetailClient.rawProjects.forEach((p) => {
+                                  const windowQty = p.qty || 1;
+                                  const systemColor = p.aluminioColor || "Blanco";
+                                  message += `----------------------------------\n`;
+                                  message += `*${p.name.toUpperCase()}* (${p.type} • Vías: ${p.vias} • Cantidad: x${windowQty})\n`;
+                                  message += `*Medida:* ${formatFraction(p.width)}" x ${formatFraction(p.height)}"\n\n`;
 
-                                if (clientGlassSummary.length > 0) {
-                                  message += `*CRISTALES / VIDRIOS REQUERIDOS:*\n`;
-                                  clientGlassSummary.forEach((g) => {
-                                    message += `• ${g.dimensions}": ${g.qty} unidades (${g.area.toFixed(1)} ft² total)\n`;
-                                  });
-                                  message += `\n`;
-                                }
+                                  // Check if it's a sliding system (P65 or P92)
+                                  if (p.type === "P65" || p.type === "P92") {
+                                    const lateralDetail = p.results.marco.find((item) => item.id === "side");
+                                    const rielDetail = p.results.marco.find((item) => item.id === "riel_up_down");
+                                    const verticalDetail = p.results.hojas.find((item) => item.id === "vert");
+                                    const horizontalDetail = p.results.hojas.find((item) => item.id === "alf_rueda");
 
-                                message += `*ACCESORIOS REQUERIDOS:*\n`;
-                                clientAccessories.forEach((acc) => {
-                                  message += `• ${acc.name}: ${acc.qty} ${acc.unit}\n`;
+                                    const lateralStr = lateralDetail ? `${lateralDetail.qty * windowQty} de ${formatFraction(lateralDetail.size)}"` : `${2 * windowQty} de (N/D)`;
+                                    const rielUpStr = rielDetail ? `${windowQty} de ${formatFraction(rielDetail.size)}"` : `${windowQty} de (N/D)`;
+                                    const rielDownStr = rielDetail ? `${windowQty} de ${formatFraction(rielDetail.size)}"` : `${windowQty} de (N/D)`;
+                                    const llavinStr = verticalDetail ? `${p.vias * windowQty} de ${formatFraction(verticalDetail.size)}"` : `${p.vias * windowQty} de (N/D)`;
+                                    const engancheStr = verticalDetail ? `${p.vias * windowQty} de ${formatFraction(verticalDetail.size)}"` : `${p.vias * windowQty} de (N/D)`;
+                                    const alfeizarStr = horizontalDetail ? `${(p.vias * 2) * windowQty} de ${formatFraction(horizontalDetail.size)}"` : `${(p.vias * 2) * windowQty} de (N/D)`;
+
+                                    message += `*Materiales ${p.type}*\n`;
+                                    message += ` lateral: ${lateralStr} (Color: ${systemColor})\n`;
+                                    message += ` riel arriba: ${rielUpStr} (Color: ${systemColor})\n`;
+                                    message += ` riel abajo: ${rielDownStr} (Color: ${systemColor})\n`;
+                                    message += ` llavin: ${llavinStr} (Color: ${systemColor})\n`;
+                                    message += ` enganche: ${engancheStr} (Color: ${systemColor})\n`;
+                                    message += ` alfeizar: ${alfeizarStr} (Color: ${systemColor})\n`;
+                                    message += ` ruedas: ${p.vias * 2 * windowQty} unidades\n`;
+                                    message += ` kit: ${1 * windowQty} kit\n`;
+                                    message += ` cierre de centro: ${1 * windowQty} unidad\n\n`;
+                                  } else {
+                                    // Non-sliding system (fall back to whatever calculations are performed)
+                                    message += `*Materiales ${p.type}*\n`;
+                                    if (p.results.marco && p.results.marco.length > 0) {
+                                      p.results.marco.forEach((item) => {
+                                        message += ` ${item.piece.toLowerCase()}: ${item.qty * windowQty} de ${formatFraction(item.size)}" (Color: ${systemColor})\n`;
+                                      });
+                                    }
+                                    if (p.results.hojas && p.results.hojas.length > 0) {
+                                      p.results.hojas.forEach((item) => {
+                                        message += ` ${item.piece.toLowerCase()}: ${item.qty * windowQty} de ${formatFraction(item.size)}" (Color: ${systemColor})\n`;
+                                      });
+                                    }
+                                    // Generic accessories
+                                    message += ` ruedas: ${2 * windowQty} unidades\n`;
+                                    message += ` kit: ${1 * windowQty} kit\n`;
+                                    message += ` cierre de centro: ${1 * windowQty} unidad\n\n`;
+                                  }
+
+                                  // Glass specs for this window
+                                  if (p.results.vidrios && p.results.vidrios.length > 0) {
+                                    message += `*Vidrios*\n`;
+                                    p.results.vidrios.forEach((g) => {
+                                      message += ` Medida ${g.dimensions}": ${g.qty * windowQty} unidades\n`;
+                                    });
+                                    message += `\n`;
+                                  }
                                 });
+
+                                message += `----------------------------------\n`;
+                                message += `_Generado por Harmony Glass_`;
 
                                 const url = `https://wa.me/18094130846?text=${encodeURIComponent(message)}`;
                                 window.open(url, "_blank");
