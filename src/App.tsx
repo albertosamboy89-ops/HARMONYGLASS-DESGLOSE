@@ -810,7 +810,7 @@ function PurchaseDetail({
     if (!p.width || !p.height) return; // Skip windows with zero dimensions
     [...p.results.marco, ...p.results.hojas].forEach((item) => {
       if (!piecesByName[item.piece]) piecesByName[item.piece] = [];
-      piecesByName[item.piece].push({ size: item.size, qty: item.qty });
+      piecesByName[item.piece].push({ size: item.size, qty: item.qty * (p.qty || 1) });
     });
   });
 
