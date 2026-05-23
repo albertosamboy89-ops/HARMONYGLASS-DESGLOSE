@@ -3096,16 +3096,8 @@ export default function App() {
 
                               <div className="space-y-2 border-t border-white/5 pt-3 text-xs mb-4">
                                 <div className="flex justify-between">
-                                  <span className="text-brand-muted font-bold">Ventanería Real:</span>
-                                  <span className="text-white font-mono font-bold">{client.realSqFt.toFixed(2)} Pie²</span>
-                                </div>
-                                <div className="flex justify-between">
                                   <span className="text-brand-muted font-bold">Cobrado (Mín. 14'):</span>
                                   <span className="text-emerald-400 font-mono font-bold">{client.adjustedSqFt.toFixed(2)} Pie²</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-brand-muted font-bold">Cristal Requerido:</span>
-                                  <span className="text-blue-400 font-mono font-bold">{client.glassSqFt.toFixed(2)} Pie²</span>
                                 </div>
                               </div>
                             </div>
@@ -3152,16 +3144,8 @@ export default function App() {
                               <span className="text-lg font-black text-white">{currentDetailClient.projectsCount}</span>
                             </div>
                             <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex-1 sm:flex-initial text-center min-w-[120px]">
-                              <span className="block text-[8px] font-black uppercase tracking-wider text-brand-muted opacity-50 mb-1">Ventanería Real</span>
-                              <span className="text-lg font-black text-brand-accent font-mono">{currentDetailClient.realSqFt.toFixed(1)} <sub className="text-[10px] lowercase">ft²</sub></span>
-                            </div>
-                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex-1 sm:flex-initial text-center min-w-[120px]">
                               <span className="block text-[8px] font-black uppercase tracking-wider text-brand-muted opacity-50 mb-1">Mín. Ajustado</span>
                               <span className="text-lg font-black text-emerald-400 font-mono">{currentDetailClient.adjustedSqFt.toFixed(1)} <sub className="text-[10px] lowercase">ft²</sub></span>
-                            </div>
-                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex-1 sm:flex-initial text-center min-w-[120px]">
-                              <span className="block text-[8px] font-black uppercase tracking-wider text-white/40 mb-1">Cristal Requerido</span>
-                              <span className="text-lg font-black text-blue-400 font-mono">{currentDetailClient.glassSqFt.toFixed(1)} <sub className="text-[10px] lowercase">ft²</sub></span>
                             </div>
                           </div>
                         </div>
@@ -3381,9 +3365,7 @@ export default function App() {
                                 let message = `*DETALLE DE MATERIALES Y CORTES - HARMONY GLASS*\n`;
                                 message += ` _Cliente: ${currentDetailClient.name}_\n`;
                                 message += `_Total Ventanas: ${currentDetailClient.projectsCount}_\n`;
-                                message += `_Total Ventanería Real: ${currentDetailClient.realSqFt.toFixed(2)} ft²_\n`;
-                                message += `_Total Cobrado Mínimo: ${currentDetailClient.adjustedSqFt.toFixed(2)} ft²_\n`;
-                                message += `_Total Cristal: ${currentDetailClient.glassSqFt.toFixed(2)} ft²_\n\n`;
+                                message += `_Total Cobrado Mínimo: ${currentDetailClient.adjustedSqFt.toFixed(2)} ft²_\n\n`;
 
                                 if (clientBarsSummary.length > 0) {
                                   message += `*PERFILES DE ALUMINIO (Largo ${barLength || 20}'):*\n`;
