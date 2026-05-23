@@ -825,34 +825,34 @@ function PurchaseDetail({
   ];
 
   const summary = Object.entries(piecesByName).map(([name, pieces], index) => {
-    const flatPieces = pieces
-      .flatMap((p) => Array(p.qty).fill(p.size))
-      .sort((a, b) => b - a);
-    const bars: number[][] = [];
-
-    flatPieces.forEach((pieceSize) => {
-      let placed = false;
-      for (const bar of bars) {
-        const used = bar.reduce((a, b) => a + b, 0);
-        if (used + pieceSize <= barLengthSixteenths) {
-          bar.push(pieceSize);
-          placed = true;
-          break;
-        }
-      }
-      if (!placed) bars.push([pieceSize]);
+    // Group pieces by their exact size in sixteenths
+    const sizeGroups: Record<number, number> = {};
+    pieces.forEach((p) => {
+      sizeGroups[p.size] = (sizeGroups[p.size] || 0) + p.qty;
     });
 
-    const totalFeetUsed = bars.length * (250 / 12);
+    let totalBars = 0;
+    Object.entries(sizeGroups).forEach(([sizeStr, qty]) => {
+      const sizeVal = parseFloat(sizeStr);
+      const sizeInches = sizeVal / 16;
+      const piecesPerBar = Math.floor(250 / sizeInches);
+      if (piecesPerBar <= 0) {
+        totalBars += qty;
+      } else {
+        totalBars += Math.ceil(qty / piecesPerBar);
+      }
+    });
+
+    const totalFeetUsed = totalBars * (250 / 12);
     const cost = totalFeetUsed * linearPrice;
 
     return {
       index: index + 1,
       name,
-      bars: bars.length,
+      bars: totalBars,
       cost,
-      totalSixteenths: bars.length * barLengthSixteenths,
-      barDetails: bars,
+      totalSixteenths: totalBars * barLengthSixteenths,
+      barDetails: [],
     };
   });
 
@@ -2224,31 +2224,31 @@ export default function App() {
   const clientBarsSummary = useMemo(() => {
     return Object.entries(clientPiecesByName).map(([name, pieces], index) => {
       const typedPieces = pieces as { size: number; qty: number }[];
-      const flatPieces = typedPieces
-        .flatMap((p) => Array(p.qty).fill(p.size))
-        .sort((a, b) => b - a);
-      const bars: number[][] = [];
-
-      const barLengthSixteenths = 250 * 16; // 250 pulgadas por barra (estándar de taller)
-
-      flatPieces.forEach((pieceSize) => {
-        let placed = false;
-        for (const bar of bars) {
-          const used = bar.reduce((a, b) => a + b, 0);
-          if (used + pieceSize <= barLengthSixteenths) {
-            bar.push(pieceSize);
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) bars.push([pieceSize]);
+      
+      const sizeGroups: Record<number, number> = {};
+      typedPieces.forEach((p) => {
+        sizeGroups[p.size] = (sizeGroups[p.size] || 0) + p.qty;
       });
+
+      let totalBars = 0;
+      Object.entries(sizeGroups).forEach(([sizeStr, qty]) => {
+        const sizeVal = parseFloat(sizeStr);
+        const sizeInches = sizeVal / 16;
+        const piecesPerBar = Math.floor(250 / sizeInches);
+        if (piecesPerBar <= 0) {
+          totalBars += qty;
+        } else {
+          totalBars += Math.ceil(qty / piecesPerBar);
+        }
+      });
+
+      const totalPiecesCount = typedPieces.reduce((sum, p) => sum + p.qty, 0);
 
       return {
         index: index + 1,
         name,
-        barsCount: bars.length,
-        piecesCount: flatPieces.length,
+        barsCount: totalBars,
+        piecesCount: totalPiecesCount,
       };
     });
   }, [clientPiecesByName]);
@@ -2316,28 +2316,28 @@ export default function App() {
 
         // 1. Laterales
         if (lateralDetail) {
-          const key = `Lateral-${color}`;
-          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Lateral" };
+          const key = `lateral-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "lateral" };
           const times = 2 * windowQty;
           for (let i = 0; i < times; i++) {
             profileCutsGroup[key].cuts.push(lateralDetail.size);
           }
         }
 
-        // 2. Riel Arriba
+        // 2. Cabezal
         if (rielDetail) {
-          const key = `Riel Arriba-${color}`;
-          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Riel Arriba" };
+          const key = `cabezal-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "cabezal" };
           const times = 1 * windowQty;
           for (let i = 0; i < times; i++) {
             profileCutsGroup[key].cuts.push(rielDetail.size);
           }
         }
 
-        // 3. Riel Abajo
+        // 3. Riel
         if (rielDetail) {
-          const key = `Riel Abajo-${color}`;
-          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Riel Abajo" };
+          const key = `riel-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "riel" };
           const times = 1 * windowQty;
           for (let i = 0; i < times; i++) {
             profileCutsGroup[key].cuts.push(rielDetail.size);
@@ -2346,8 +2346,8 @@ export default function App() {
 
         // 4. Llavín
         if (verticalDetail) {
-          const key = `Llavín-${color}`;
-          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Llavín" };
+          const key = `llavín-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "llavín" };
           const times = vias * windowQty;
           for (let i = 0; i < times; i++) {
             profileCutsGroup[key].cuts.push(verticalDetail.size);
@@ -2356,18 +2356,18 @@ export default function App() {
 
         // 5. Enganche
         if (verticalDetail) {
-          const key = `Enganche-${color}`;
-          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Enganche" };
+          const key = `enganche-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "enganche" };
           const times = vias * windowQty;
           for (let i = 0; i < times; i++) {
             profileCutsGroup[key].cuts.push(verticalDetail.size);
           }
         }
 
-        // 6. Alfeízar
+        // 6. Zócalo
         if (horizontalDetail) {
-          const key = `Alfeízar-${color}`;
-          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Alfeízar" };
+          const key = `zócalo-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "zócalo" };
           const times = (vias * 2) * windowQty;
           for (let i = 0; i < times; i++) {
             profileCutsGroup[key].cuts.push(horizontalDetail.size);
@@ -2376,8 +2376,8 @@ export default function App() {
       } else {
         // Fallback for non-sliding parts
         [...p.results.marco, ...p.results.hojas].forEach((item) => {
-          const key = `${item.piece}-${color}`;
-          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: item.piece };
+          const key = `${item.piece.toLowerCase()}-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: item.piece.toLowerCase() };
           const times = item.qty * windowQty;
           for (let i = 0; i < times; i++) {
             profileCutsGroup[key].cuts.push(item.size);
@@ -2386,32 +2386,30 @@ export default function App() {
       }
     });
 
-    const barLengthSixteenths = 250 * 16; // 250 pulgadas por barra (estándar de taller)
-
     const consolidatedProfiles = Object.values(profileCutsGroup).map((group) => {
-      const sortedCuts = [...group.cuts].sort((a, b) => b - a);
-      const bars: number[][] = [];
+      // Group group.cuts by their exact size in sixteenths
+      const sizeGroups: Record<number, number> = {};
+      group.cuts.forEach((cutSize) => {
+        sizeGroups[cutSize] = (sizeGroups[cutSize] || 0) + 1;
+      });
 
-      sortedCuts.forEach((cutSize) => {
-        let placed = false;
-        for (const bar of bars) {
-          const used = bar.reduce((s, it) => s + it, 0);
-          if (used + cutSize <= barLengthSixteenths) {
-            bar.push(cutSize);
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) {
-          bars.push([cutSize]);
+      let totalBars = 0;
+      Object.entries(sizeGroups).forEach(([sizeStr, qty]) => {
+        const sizeVal = parseFloat(sizeStr);
+        const sizeInches = sizeVal / 16;
+        const piecesPerBar = Math.floor(250 / sizeInches);
+        if (piecesPerBar <= 0) {
+          totalBars += qty;
+        } else {
+          totalBars += Math.ceil(qty / piecesPerBar);
         }
       });
 
       return {
         name: group.rawName,
         color: group.color,
-        cutsCount: sortedCuts.length,
-        barsNeeded: bars.length,
+        cutsCount: group.cuts.length,
+        barsNeeded: totalBars,
       };
     }).filter((p) => p.barsNeeded > 0);
 
@@ -3424,54 +3422,80 @@ export default function App() {
                                 </span>
                               </div>
 
-                              <div className="space-y-5">
-                                {/* Aluminum Profiles Section */}
-                                <div className="space-y-2">
-                                  <div className="flex justify-between items-center border-b border-white/5 pb-1">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-[#22c55e]">Materiales P65 ({consolidatedMaterials.profiles[0]?.color || "Blanco"})</span>
-                                    <span className="text-[8px] font-bold text-brand-muted uppercase tracking-widest">Barras a Comprar</span>
+                              <div className="space-y-6">
+                                {/* Grid container for Profiles and Glass side-by-side */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  
+                                  {/* Profiles Box (Cuadrito bonito) */}
+                                  <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl space-y-3">
+                                    <div className="border-b border-white/10 pb-1.5 flex justify-between items-center">
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                                        P65 ({consolidatedMaterials.profiles[0]?.color || "Blanco"})
+                                      </span>
+                                    </div>
+                                    <table className="w-full text-left text-xs">
+                                      <thead>
+                                        <tr className="text-brand-muted uppercase text-[9px] tracking-widest border-b border-white/5">
+                                          <th className="py-1 font-bold">perfil</th>
+                                          <th className="py-1 text-right font-bold w-12">canti</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-white/[0.02]">
+                                        {consolidatedMaterials.profiles.length > 0 ? (
+                                          consolidatedMaterials.profiles.map((p, idx) => (
+                                            <tr key={idx} className="hover:bg-white/[0.01]">
+                                              <td className="py-2 font-semibold text-white/90 capitalize text-[11px]">{p.name}</td>
+                                              <td className="py-2 text-right font-mono font-black text-brand-accent text-[11px]">{p.barsNeeded}</td>
+                                            </tr>
+                                          ))
+                                        ) : (
+                                          <tr>
+                                            <td colSpan={2} className="py-2 text-center text-[10px] italic text-brand-muted opacity-40">Sin perfiles</td>
+                                          </tr>
+                                        )}
+                                      </tbody>
+                                    </table>
                                   </div>
-                                  <div className="divide-y divide-white/5 text-xs bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden">
-                                    {consolidatedMaterials.profiles.length > 0 ? (
-                                      consolidatedMaterials.profiles.map((p, index) => (
-                                        <div key={index} className="px-4 py-2.5 flex justify-between items-center hover:bg-white/[0.02] transition-colors">
-                                          <span className="font-extrabold text-white capitalize text-[11px]">{p.name.toLowerCase()}</span>
-                                          <span className="px-2.5 py-1 bg-brand-accent/20 border border-brand-accent/30 rounded-xl text-[10px] font-mono font-black text-brand-accent uppercase">
-                                            {p.barsNeeded} {p.barsNeeded === 1 ? "barra" : "barras"}
-                                          </span>
-                                        </div>
-                                      ))
-                                    ) : (
-                                      <div className="p-4 text-center text-brand-muted opacity-40 text-[10px] italic">No hay perfiles de aluminio requeridos</div>
-                                    )}
+
+                                  {/* Glass Box (Cuadrito bonito) */}
+                                  <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl space-y-3">
+                                    <div className="border-b border-white/10 pb-1.5 flex justify-between items-center">
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-[#22c55e]">
+                                        Detalle de Cristales
+                                      </span>
+                                    </div>
+                                    <table className="w-full text-left text-xs">
+                                      <thead>
+                                        <tr className="text-brand-muted uppercase text-[9px] tracking-widest border-b border-white/5">
+                                          <th className="py-1 font-bold">medida</th>
+                                          <th className="py-1 text-right font-bold w-12">canti</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-white/[0.02]">
+                                        {clientGlassSummary.length > 0 ? (
+                                          clientGlassSummary.map((item, idx) => (
+                                            <tr key={idx} className="hover:bg-white/[0.01]">
+                                              <td className="py-2 font-mono text-white/90 text-[11px]">{item.dimensions}"</td>
+                                              <td className="py-2 text-right font-mono font-black text-[#22c55e] text-[11px]">x{item.qty}</td>
+                                            </tr>
+                                          ))
+                                        ) : (
+                                          <tr>
+                                            <td colSpan={2} className="py-2 text-center text-[10px] italic text-brand-muted opacity-40">Sin cristales</td>
+                                          </tr>
+                                        )}
+                                      </tbody>
+                                    </table>
                                   </div>
+
                                 </div>
 
-                                {/* Glasses Section */}
-                                <div className="space-y-2">
-                                  <div className="flex justify-between items-center border-b border-white/5 pb-1">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Detalle de Cristales</span>
-                                    <span className="text-[8px] font-bold text-brand-muted uppercase tracking-widest">Medida x Cantidad</span>
-                                  </div>
-                                  <div className="divide-y divide-white/5 text-xs bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden">
-                                    {clientGlassSummary.length > 0 ? (
-                                      clientGlassSummary.map((item, idx) => (
-                                        <div key={idx} className="px-4 py-2.5 flex justify-between items-center hover:bg-white/[0.02] transition-colors">
-                                          <span className="font-semibold text-white text-[11px] font-mono">{item.dimensions}"</span>
-                                          <span className="text-emerald-400 font-mono font-black text-[11px]">x{item.qty} uds</span>
-                                        </div>
-                                      ))
-                                    ) : (
-                                      <div className="p-4 text-center text-brand-muted opacity-40 text-[10px] italic">No hay cristales requeridos</div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Accessories Section */}
-                                <div className="space-y-2">
-                                  <div className="flex justify-between items-center border-b border-white/5 pb-1">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Accesorios Requeridos</span>
-                                    <span className="text-[8px] font-bold text-brand-muted uppercase tracking-widest">Unidades / Kit</span>
+                                {/* Divider & Accessories Section (Dividido de último) */}
+                                <div className="border-t border-white/10 pt-4 space-y-3">
+                                  <div className="flex justify-between items-center pb-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">
+                                      Accesorios Requeridos
+                                    </span>
                                   </div>
                                   <div className="divide-y divide-white/5 text-xs bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden">
                                     {consolidatedMaterials.accessories.map((acc, index) => (
@@ -3482,6 +3506,7 @@ export default function App() {
                                     ))}
                                   </div>
                                 </div>
+
                               </div>
 
                               {/* WhatsApp Share Button */}
@@ -3511,7 +3536,7 @@ export default function App() {
                                   };
 
                                   const activeColor = consolidatedMaterials.profiles[0]?.color || "Blanco";
-                                  let message = `*Materiales P65 (${activeColor.toUpperCase()})*\n`;
+                                  let message = `*P65 (${activeColor.toUpperCase()})*\n`;
 
                                   const profileLines = consolidatedMaterials.profiles.map(p => ({
                                     name: p.name,
