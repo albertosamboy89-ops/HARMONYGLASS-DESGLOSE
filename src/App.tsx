@@ -2814,48 +2814,17 @@ export default function App() {
                       </header>
 
                       <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="relative group">
-                            <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1 mb-1 block">
-                              Etiqueta / Identificador
-                            </label>
-                            <input
-                              type="text"
-                              value={windowTag}
-                              onChange={(e) => setWindowTag(e.target.value)}
-                              placeholder="Etiqueta"
-                              className="w-full h-14 bg-brand-bg border border-brand-border px-6 rounded-2xl text-white font-black text-lg placeholder:text-brand-muted/20 focus:outline-none focus:border-brand-accent transition-all text-center tracking-tighter"
-                            />
-                          </div>
-
-                          <div className="relative group">
-                            <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1 mb-1 block">
-                              Cantidad de Ventanas
-                            </label>
-                            <div className="flex items-center h-14 bg-brand-bg border border-brand-border rounded-2xl overflow-hidden px-4">
-                              <button
-                                type="button"
-                                onClick={() => setWindowQty((prev) => Math.max(1, prev - 1))}
-                                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition-all text-lg font-bold"
-                              >
-                                -
-                              </button>
-                              <input
-                                type="number"
-                                min="1"
-                                value={windowQty}
-                                onChange={(e) => setWindowQty(Math.max(1, parseInt(e.target.value) || 1))}
-                                className="flex-1 bg-transparent text-white font-mono font-black text-center text-lg focus:outline-none"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setWindowQty((prev) => prev + 1)}
-                                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition-all text-lg font-bold"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
+                        <div className="relative group">
+                          <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1 mb-1 block">
+                            Etiqueta / Identificador
+                          </label>
+                          <input
+                            type="text"
+                            value={windowTag}
+                            onChange={(e) => setWindowTag(e.target.value)}
+                            placeholder="Etiqueta"
+                            className="w-full h-14 bg-brand-bg border border-brand-border px-6 rounded-2xl text-white font-black text-lg placeholder:text-brand-muted/20 focus:outline-none focus:border-brand-accent transition-all text-center tracking-tighter"
+                          />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2985,41 +2954,6 @@ export default function App() {
                               </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
-                              <div className="flex items-center bg-black/25 border border-white/5 rounded-full p-1 gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setOrderWindows((prev) =>
-                                      prev.map((w) =>
-                                        w.id === p.id
-                                          ? { ...w, qty: Math.max(1, (w.qty || 1) - 1) }
-                                          : w
-                                      )
-                                    )
-                                  }
-                                  className="w-6 h-6 rounded-full bg-white/5 text-white flex items-center justify-center text-xs font-bold hover:bg-white/10 active:scale-95 transition-all"
-                                >
-                                  -
-                                </button>
-                                <span className="text-[10px] font-mono font-black text-white px-1 block w-5 text-center">
-                                  {p.qty || 1}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setOrderWindows((prev) =>
-                                      prev.map((w) =>
-                                        w.id === p.id
-                                          ? { ...w, qty: (w.qty || 1) + 1 }
-                                          : w
-                                      )
-                                    )
-                                  }
-                                  className="w-6 h-6 rounded-full bg-white/5 text-white flex items-center justify-center text-xs font-bold hover:bg-white/10 active:scale-95 transition-all"
-                                >
-                                  +
-                                </button>
-                              </div>
                               <button
                                 onClick={() =>
                                   setOrderWindows((prev) =>
@@ -3326,135 +3260,11 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Interactive columns: left = Window accordion list, right = optimized materials */}
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Interactive layout: top = optimized materials, bottom = Window breakdown */}
+                        <div className="space-y-8">
                           
-                          {/* Left: Window Breakdown */}
-                          <div className="lg:col-span-7 space-y-4">
-                            <div className="flex flex-col gap-1 mb-2 px-1">
-                              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                <ClipboardList size={16} className="text-brand-accent" /> Desglose por Ventana ({currentDetailClient.projectsCount})
-                              </h3>
-                              <p className="text-[9px] text-brand-muted uppercase tracking-widest opacity-60">
-                                Expande cada ventana para ver su desglose de cortes específico
-                              </p>
-                            </div>
-
-                            <div className="space-y-3">
-                              {currentDetailClient.rawProjects.map((p) => {
-                                const isExpanded = expandedWindowId === p.id;
-                                const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
-                                const adjustedArea = (p.width === 0 || p.height === 0) ? 0 : Math.max(14, areaSqFt);
-
-                                return (
-                                  <div 
-                                    key={p.id}
-                                    className="bg-brand-sidebar border border-brand-border rounded-[2rem] overflow-hidden transition-all duration-300 shadow-lg"
-                                  >
-                                    <div 
-                                      onClick={() => setExpandedWindowId(isExpanded ? null : p.id)}
-                                      className="p-5 flex items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
-                                    >
-                                      <div className="flex items-center gap-4 overflow-hidden">
-                                        <div className="w-12 h-12 shrink-0 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center p-1.5 overflow-hidden">
-                                          <div className="scale-60 transform origin-center">
-                                            <WindowPreview
-                                              width={p.width}
-                                              height={p.height}
-                                              vias={p.vias}
-                                              windowType={p.type}
-                                              wTop={p.wTop}
-                                              wBottom={p.wBottom}
-                                              hLeft={p.hLeft}
-                                              hRight={p.hRight}
-                                            />
-                                          </div>
-                                        </div>
-                                        <div className="overflow-hidden">
-                                          <div className="flex items-center gap-2">
-                                            <h4 className="text-sm font-black text-white uppercase tracking-tight truncate max-w-[160px] sm:max-w-xs">{p.name}</h4>
-                                            {p.qty && p.qty > 1 && (
-                                              <span className="px-2 py-0.5 bg-brand-accent/20 border border-brand-accent/30 rounded text-[9px] font-black text-brand-accent">
-                                                x{p.qty}
-                                              </span>
-                                            )}
-                                          </div>
-                                          <p className="text-[10px] text-brand-muted font-mono mt-0.5">
-                                            {formatFraction(p.width)}" x {formatFraction(p.height)}" • Vías: {p.vias}
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-center gap-3 shrink-0">
-                                        <div className="text-right hidden sm:block">
-                                          <div className="text-xs font-mono font-black text-white">{adjustedArea.toFixed(2)} Pie² <sub className="text-[8px] text-brand-muted font-medium font-sans">min 14</sub></div>
-                                          <span className="text-[8px] font-black uppercase text-brand-accent/80 tracking-widest">{p.type}</span>
-                                        </div>
-                                        <div className="text-white/40 hover:text-white p-1">
-                                          {isExpanded ? <ChevronDown size={20} className="rotate-180 transition-transform duration-300" /> : <ChevronDown size={20} className="transition-transform duration-300" />}
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <AnimatePresence>
-                                      {isExpanded && (
-                                        <motion.div
-                                          initial={{ height: 0, opacity: 0 }}
-                                          animate={{ height: "auto", opacity: 1 }}
-                                          exit={{ height: 0, opacity: 0 }}
-                                          transition={{ duration: 0.3 }}
-                                          className="border-t border-white/5 bg-black/25 overflow-hidden"
-                                        >
-                                          <div className="p-6 space-y-4">
-                                            {/* Extra individual area info for windows and glass */}
-                                            <div className="grid grid-cols-3 gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold font-mono">
-                                              <div>
-                                                <span className="block text-[8px] font-black uppercase text-brand-muted tracking-wider mb-0.5">Medida</span>
-                                                <span className="text-white font-black">{formatFraction(p.width)}" x {formatFraction(p.height)}"</span>
-                                              </div>
-                                              <div>
-                                                <span className="block text-[8px] font-black uppercase text-brand-muted tracking-wider mb-0.5">Pies² Reales</span>
-                                                <span className="text-white">{areaSqFt.toFixed(2)} Pie²</span>
-                                              </div>
-                                              <div>
-                                                <span className="block text-[8px] font-black uppercase text-blue-400 tracking-wider mb-0.5">Vidrio</span>
-                                                <span className="text-blue-400">
-                                                  {(() => {
-                                                    let totalGlass = 0;
-                                                    p.results.vidrios.forEach((vidrio) => {
-                                                      if (vidrio.dimensions) {
-                                                        const [wStr, hStr] = vidrio.dimensions.split(" x ");
-                                                        totalGlass += (parseFractionInches(wStr) * parseFractionInches(hStr)) / 144 * (vidrio.qty || 1);
-                                                      }
-                                                    });
-                                                    return totalGlass.toFixed(2);
-                                                  })()}{" "}
-                                                  Pie²
-                                                </span>
-                                              </div>
-                                            </div>
-
-                                            <div className="border-t border-white/5 pt-4">
-                                              <p className="text-[8px] font-black text-brand-muted uppercase tracking-[0.3em] mb-3">Plan de Cortes y Avances</p>
-                                              <ResultsBreakdown 
-                                                results={p.results} 
-                                                windowType={p.type}
-                                                completedCuts={p.completedCuts}
-                                                onToggleCut={(cutId) => toggleCutStatus(p.id, cutId)}
-                                              />
-                                            </div>
-                                          </div>
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Right: Consolidated Materials & Glass Lists */}
-                          <div className="lg:col-span-5 space-y-6">
+                          {/* Top: Consolidated Materials & Glass Lists */}
+                          <div className="space-y-6">
                             
                             {/* Unified Materials, Glass & Accessories Purchase Box */}
                             <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl relative overflow-hidden space-y-6">
@@ -3617,6 +3427,130 @@ export default function App() {
 
                             </div>
 
+                          </div>
+
+                          {/* Bottom: Window Breakdown */}
+                          <div className="space-y-4">
+                            <div className="flex flex-col gap-1 mb-2 px-1">
+                              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <ClipboardList size={16} className="text-brand-accent" /> Desglose por Ventana ({currentDetailClient.projectsCount})
+                              </h3>
+                              <p className="text-[9px] text-brand-muted uppercase tracking-widest opacity-60">
+                                Expande cada ventana para ver su desglose de cortes específico
+                              </p>
+                            </div>
+
+                            <div className="space-y-3">
+                              {currentDetailClient.rawProjects.map((p) => {
+                                const isExpanded = expandedWindowId === p.id;
+                                const areaSqFt = ((p.width / 16) * (p.height / 16)) / 144;
+                                const adjustedArea = (p.width === 0 || p.height === 0) ? 0 : Math.max(14, areaSqFt);
+
+                                return (
+                                  <div 
+                                    key={p.id}
+                                    className="bg-brand-sidebar border border-brand-border rounded-[2rem] overflow-hidden transition-all duration-300 shadow-lg"
+                                  >
+                                    <div 
+                                      onClick={() => setExpandedWindowId(isExpanded ? null : p.id)}
+                                      className="p-5 flex items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                                    >
+                                      <div className="flex items-center gap-4 overflow-hidden">
+                                        <div className="w-12 h-12 shrink-0 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center p-1.5 overflow-hidden">
+                                          <div className="scale-60 transform origin-center">
+                                            <WindowPreview
+                                              width={p.width}
+                                              height={p.height}
+                                              vias={p.vias}
+                                              windowType={p.type}
+                                              wTop={p.wTop}
+                                              wBottom={p.wBottom}
+                                              hLeft={p.hLeft}
+                                              hRight={p.hRight}
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="overflow-hidden">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="text-sm font-black text-white uppercase tracking-tight truncate max-w-[160px] sm:max-w-xs">{p.name}</h4>
+                                            {p.qty && p.qty > 1 && (
+                                              <span className="px-2 py-0.5 bg-brand-accent/20 border border-brand-accent/30 rounded text-[9px] font-black text-brand-accent">
+                                                x{p.qty}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-[10px] text-brand-muted font-mono mt-0.5">
+                                            {formatFraction(p.width)}" x {formatFraction(p.height)}" • Vías: {p.vias}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-3 shrink-0">
+                                        <div className="text-right hidden sm:block">
+                                          <div className="text-xs font-mono font-black text-white">{adjustedArea.toFixed(2)} Pie² <sub className="text-[8px] text-brand-muted font-medium font-sans">min 14</sub></div>
+                                          <span className="text-[8px] font-black uppercase text-brand-accent/80 tracking-widest">{p.type}</span>
+                                        </div>
+                                        <div className="text-white/40 hover:text-white p-1">
+                                          {isExpanded ? <ChevronDown size={20} className="rotate-180 transition-transform duration-300" /> : <ChevronDown size={20} className="transition-transform duration-300" />}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <AnimatePresence>
+                                      {isExpanded && (
+                                        <motion.div
+                                          initial={{ height: 0, opacity: 0 }}
+                                          animate={{ height: "auto", opacity: 1 }}
+                                          exit={{ height: 0, opacity: 0 }}
+                                          transition={{ duration: 0.3 }}
+                                          className="border-t border-white/5 bg-black/25 overflow-hidden"
+                                        >
+                                          <div className="p-6 space-y-4">
+                                            {/* Extra individual area info for windows and glass */}
+                                            <div className="grid grid-cols-3 gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold font-mono">
+                                              <div>
+                                                <span className="block text-[8px] font-black uppercase text-brand-muted tracking-wider mb-0.5">Medida</span>
+                                                <span className="text-white font-black">{formatFraction(p.width)}" x {formatFraction(p.height)}"</span>
+                                              </div>
+                                              <div>
+                                                <span className="block text-[8px] font-black uppercase text-brand-muted tracking-wider mb-0.5">Pies² Reales</span>
+                                                <span className="text-white">{areaSqFt.toFixed(2)} Pie²</span>
+                                              </div>
+                                              <div>
+                                                <span className="block text-[8px] font-black uppercase text-blue-400 tracking-wider mb-0.5">Vidrio</span>
+                                                <span className="text-blue-400">
+                                                  {(() => {
+                                                    let totalGlass = 0;
+                                                    p.results.vidrios.forEach((vidrio) => {
+                                                      if (vidrio.dimensions) {
+                                                        const [wStr, hStr] = vidrio.dimensions.split(" x ");
+                                                        totalGlass += (parseFractionInches(wStr) * parseFractionInches(hStr)) / 144 * (vidrio.qty || 1);
+                                                      }
+                                                    });
+                                                    return totalGlass.toFixed(2);
+                                                  })()}{" "}
+                                                  Pie²
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            <div className="border-t border-white/5 pt-4">
+                                              <p className="text-[8px] font-black text-brand-muted uppercase tracking-[0.3em] mb-3">Plan de Cortes y Avances</p>
+                                              <ResultsBreakdown 
+                                                results={p.results} 
+                                                windowType={p.type}
+                                                completedCuts={p.completedCuts}
+                                                onToggleCut={(cutId) => toggleCutStatus(p.id, cutId)}
+                                              />
+                                            </div>
+                                          </div>
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
 
