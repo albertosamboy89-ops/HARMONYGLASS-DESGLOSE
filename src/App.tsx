@@ -825,22 +825,13 @@ function PurchaseDetail({
   ];
 
   const summary = Object.entries(piecesByName).map(([name, pieces], index) => {
-    const flatCuts = pieces.flatMap((p) => Array(p.qty).fill(p.size));
-    const sortedCuts = [...flatCuts].sort((a, b) => b - a);
+    // Exact sizing in sixteenths of an inch (1 inch = 16 sixteenths)
+    // Merma (loss) per cut is 1/8" = 2 sixteenths
+    const totalSixteenthsWithMerma = pieces.reduce((sum, p) => {
+      return sum + ((p.size + 2) * p.qty);
+    }, 0);
 
-    let totalBars = 0;
-    if (sortedCuts.length > 0) {
-      totalBars = 1;
-      let currentBarSum = 0;
-      sortedCuts.forEach((cut) => {
-        if (currentBarSum + cut <= barLengthSixteenths) {
-          currentBarSum += cut;
-        } else {
-          totalBars += 1;
-          currentBarSum = cut;
-        }
-      });
-    }
+    const totalBars = totalSixteenthsWithMerma > 0 ? Math.ceil(totalSixteenthsWithMerma / (250 * 16)) : 0;
 
     const totalFeetUsed = totalBars * (250 / 12);
     const cost = totalFeetUsed * linearPrice;
@@ -850,7 +841,7 @@ function PurchaseDetail({
       name,
       bars: totalBars,
       cost,
-      totalSixteenths: totalBars * barLengthSixteenths,
+      totalSixteenths: totalBars * (250 * 16),
       barDetails: [],
     };
   });
@@ -2223,23 +2214,12 @@ export default function App() {
   const clientBarsSummary = useMemo(() => {
     return Object.entries(clientPiecesByName).map(([name, pieces], index) => {
       const typedPieces = pieces as { size: number; qty: number }[];
-      const flatCuts = typedPieces.flatMap((p) => Array(p.qty).fill(p.size));
-      const sortedCuts = [...flatCuts].sort((a, b) => b - a);
+      
+      const totalSixteenthsWithMerma = typedPieces.reduce((sum, p) => {
+        return sum + ((p.size + 2) * p.qty);
+      }, 0);
 
-      let totalBars = 0;
-      if (sortedCuts.length > 0) {
-        totalBars = 1;
-        let currentBarSum = 0;
-        sortedCuts.forEach((cut) => {
-          if (currentBarSum + cut <= 250 * 16) {
-            currentBarSum += cut;
-          } else {
-            totalBars += 1;
-            currentBarSum = cut;
-          }
-        });
-      }
-
+      const totalBars = totalSixteenthsWithMerma > 0 ? Math.ceil(totalSixteenthsWithMerma / (250 * 16)) : 0;
       const totalPiecesCount = typedPieces.reduce((sum, p) => sum + p.qty, 0);
 
       return {
@@ -2385,20 +2365,11 @@ export default function App() {
     });
 
     const consolidatedProfiles = Object.values(profileCutsGroup).map((group) => {
-      const sortedCuts = [...group.cuts].sort((a, b) => b - a);
-      let totalBars = 0;
-      if (sortedCuts.length > 0) {
-        totalBars = 1;
-        let currentBarSum = 0;
-        sortedCuts.forEach((cutSize) => {
-          if (currentBarSum + cutSize <= 250 * 16) {
-            currentBarSum += cutSize;
-          } else {
-            totalBars += 1;
-            currentBarSum = cutSize;
-          }
-        });
-      }
+      const totalSixteenthsWithMerma = group.cuts.reduce((sum, cutSize) => {
+        return sum + (cutSize + 2); // size + 2 sixteenths (1/8") merma
+      }, 0);
+
+      const totalBars = totalSixteenthsWithMerma > 0 ? Math.ceil(totalSixteenthsWithMerma / (250 * 16)) : 0;
 
       return {
         name: group.rawName,
