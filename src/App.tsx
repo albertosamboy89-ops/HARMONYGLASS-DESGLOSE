@@ -2324,6 +2324,146 @@ export default function App() {
     ];
   }, [currentDetailClient]);
 
+  const consolidatedMaterials = useMemo(() => {
+    if (!currentDetailClient) return { profiles: [], accessories: [] };
+
+    const profileCutsGroup: Record<string, { cuts: number[]; color: string; rawName: string }> = {};
+
+    currentDetailClient.rawProjects.forEach((p) => {
+      if (!p.width || !p.height) return;
+      const windowQty = p.qty || 1;
+      const color = p.aluminioColor || "Blanco";
+
+      if (p.type === "P65" || p.type === "P92") {
+        const lateralDetail = p.results.marco.find((item) => item.id === "side");
+        const rielDetail = p.results.marco.find((item) => item.id === "riel_up_down");
+        const verticalDetail = p.results.hojas.find((item) => item.id === "vert");
+        const horizontalDetail = p.results.hojas.find((item) => item.id === "alf_rueda");
+
+        const vias = p.vias || 2;
+
+        // 1. Laterales
+        if (lateralDetail) {
+          const key = `Lateral-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Lateral" };
+          const times = 2 * windowQty;
+          for (let i = 0; i < times; i++) {
+            profileCutsGroup[key].cuts.push(lateralDetail.size);
+          }
+        }
+
+        // 2. Riel Arriba
+        if (rielDetail) {
+          const key = `Riel Arriba-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Riel Arriba" };
+          const times = 1 * windowQty;
+          for (let i = 0; i < times; i++) {
+            profileCutsGroup[key].cuts.push(rielDetail.size);
+          }
+        }
+
+        // 3. Riel Abajo
+        if (rielDetail) {
+          const key = `Riel Abajo-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Riel Abajo" };
+          const times = 1 * windowQty;
+          for (let i = 0; i < times; i++) {
+            profileCutsGroup[key].cuts.push(rielDetail.size);
+          }
+        }
+
+        // 4. Llavín
+        if (verticalDetail) {
+          const key = `Llavín-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Llavín" };
+          const times = vias * windowQty;
+          for (let i = 0; i < times; i++) {
+            profileCutsGroup[key].cuts.push(verticalDetail.size);
+          }
+        }
+
+        // 5. Enganche
+        if (verticalDetail) {
+          const key = `Enganche-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Enganche" };
+          const times = vias * windowQty;
+          for (let i = 0; i < times; i++) {
+            profileCutsGroup[key].cuts.push(verticalDetail.size);
+          }
+        }
+
+        // 6. Alfeízar
+        if (horizontalDetail) {
+          const key = `Alfeízar-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: "Alfeízar" };
+          const times = (vias * 2) * windowQty;
+          for (let i = 0; i < times; i++) {
+            profileCutsGroup[key].cuts.push(horizontalDetail.size);
+          }
+        }
+      } else {
+        // Fallback for non-sliding parts
+        [...p.results.marco, ...p.results.hojas].forEach((item) => {
+          const key = `${item.piece}-${color}`;
+          if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: item.piece };
+          const times = item.qty * windowQty;
+          for (let i = 0; i < times; i++) {
+            profileCutsGroup[key].cuts.push(item.size);
+          }
+        });
+      }
+    });
+
+    const currentBarLen = barLength || 20;
+    const barLengthSixteenths = currentBarLen * 12 * 16;
+
+    const consolidatedProfiles = Object.values(profileCutsGroup).map((group) => {
+      const sortedCuts = [...group.cuts].sort((a, b) => b - a);
+      const bars: number[][] = [];
+
+      sortedCuts.forEach((cutSize) => {
+        let placed = false;
+        for (const bar of bars) {
+          const used = bar.reduce((s, it) => s + it, 0);
+          if (used + cutSize <= barLengthSixteenths) {
+            bar.push(cutSize);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          bars.push([cutSize]);
+        }
+      });
+
+      return {
+        name: group.rawName,
+        color: group.color,
+        cutsCount: sortedCuts.length,
+        barsNeeded: bars.length,
+      };
+    }).filter((p) => p.barsNeeded > 0);
+
+    let totalWindowsCount = 0;
+    let totalViasCount = 0;
+    currentDetailClient.rawProjects.forEach((p) => {
+      const windowQty = p.qty || 1;
+      totalWindowsCount += windowQty;
+      totalViasCount += (p.vias || 2) * windowQty;
+    });
+
+    const consolidatedAccessories = [
+      { name: "Ruedas de Ventana", qty: totalViasCount * 2, unit: "unidades" },
+      { name: "Kit de Guías / Plásticos", qty: totalWindowsCount, unit: "kit" },
+      { name: "Cierre de Centro (Llavín manual)", qty: totalWindowsCount, unit: "unidades" },
+    ];
+
+    return {
+      profiles: consolidatedProfiles,
+      accessories: consolidatedAccessories,
+    };
+  }, [currentDetailClient, barLength]);
+
   return (
     <div className="flex flex-col min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent/30 selection:text-white overflow-x-hidden uppercase-none print:bg-white print:text-black">
       {/* Background Ambience */}
@@ -3299,158 +3439,116 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Right: Optimized Materials & Glass Lists */}
+                          {/* Right: Consolidated Materials & Glass Lists */}
                           <div className="lg:col-span-5 space-y-6">
                             
-                            {/* Materials Summary / Optimize Aluminum */}
+                            {/* Unified Materials & Profile Purchases Box */}
                             <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl relative overflow-hidden space-y-4">
-                              <div className="flex justify-between items-center mb-2">
+                              <div className="flex justify-between items-center mb-1">
                                 <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                  <Info size={16} className="text-brand-accent shrink-0" /> Perfiles Requeridos
+                                  <Info size={16} className="text-brand-accent shrink-0" /> Compra de Aluminio y Accesorios (Consolidado)
                                 </h3>
                                 <span className="px-2 py-0.5 bg-brand-border rounded text-[8px] font-bold text-brand-muted uppercase tracking-wider">
                                   Largo {barLength || 20}'
                                 </span>
                               </div>
 
-                              <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
-                                {clientBarsSummary.length > 0 ? (
-                                  clientBarsSummary.map((item) => (
-                                    <div 
-                                      key={item.index} 
-                                      className="p-3.5 bg-white/5 border border-white/10 rounded-2xl flex justify-between items-center text-xs"
-                                    >
-                                      <div>
-                                        <p className="font-extrabold text-white uppercase">{item.name}</p>
-                                        <p className="text-[10px] text-brand-muted font-mono">{item.piecesCount} {item.piecesCount === 1 ? "pieza" : "piezas"} cargadas</p>
+                              <div className="border border-white/5 rounded-2xl overflow-hidden bg-white/[0.01]">
+                                <div className="bg-white/[0.03] px-4 py-2 border-b border-white/5 flex justify-between items-center">
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-[#22c55e]">Perfiles de Aluminio a Comprar</span>
+                                  <span className="text-[9px] font-black text-brand-muted uppercase tracking-widest">Barras 20'</span>
+                                </div>
+                                <div className="divide-y divide-white/5 text-xs max-h-[300px] overflow-y-auto">
+                                  {consolidatedMaterials.profiles.length > 0 ? (
+                                    consolidatedMaterials.profiles.map((p, index) => (
+                                      <div key={index} className="px-4 py-3 flex justify-between items-center hover:bg-white/[0.01] transition-colors">
+                                        <div>
+                                          <span className="font-extrabold text-white block capitalize">{p.name.toLowerCase()}</span>
+                                          <span className="text-[10px] text-brand-muted font-bold font-mono">{p.cutsCount} corte(s) requerido(s)</span>
+                                        </div>
+                                        <div className="text-right flex items-center gap-2">
+                                          <span className="text-[8px] px-2 py-0.5 bg-brand-border text-brand-muted rounded-full font-black uppercase">{p.color}</span>
+                                          <span className="px-2.5 py-1 bg-brand-accent/20 border border-brand-accent/30 rounded-xl text-[10px] font-mono font-black text-brand-accent uppercase">
+                                            {p.barsNeeded} {p.barsNeeded === 1 ? "barra" : "barras"}
+                                          </span>
+                                        </div>
                                       </div>
-                                      <div className="text-right">
-                                        <span className="px-2.5 py-1 bg-red-600/25 border border-red-500/20 rounded-xl text-[10px] font-mono font-black text-brand-accent uppercase">
-                                          {item.barsCount} {item.barsCount === 1 ? "barra" : "barras"}
-                                        </span>
-                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="p-4 text-center text-brand-muted opacity-40">No hay perfiles de aluminio requeridos</div>
+                                  )}
+                                </div>
+
+                                <div className="bg-white/[0.03] px-4 py-2 border-y border-white/5">
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Accesorios y Adicionales</span>
+                                </div>
+                                <div className="divide-y divide-white/5 text-xs">
+                                  {consolidatedMaterials.accessories.map((acc, index) => (
+                                    <div key={index} className="px-4 py-3 flex justify-between items-center hover:bg-white/[0.01] transition-colors">
+                                      <span className="font-semibold text-brand-muted capitalize">{acc.name.toLowerCase()}</span>
+                                      <span className="text-white font-mono font-black">{acc.qty} {acc.unit}</span>
                                     </div>
-                                  ))
-                                ) : (
-                                  <div className="py-6 text-center text-brand-muted opacity-40">No hay perfiles listados</div>
-                                )}
+                                  ))}
+                                </div>
                               </div>
                             </div>
 
                             {/* Crystals Summary / Grouped Glass Pieces */}
                             <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl space-y-4">
                               <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                <ClipboardList size={16} className="text-brand-accent shrink-0" /> Lista de Cristales / Vidrios
+                                <ClipboardList size={16} className="text-brand-accent shrink-0" /> Lista de Cristales / Vidrios (Medidas y Cantidad)
                               </h3>
 
-                              <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[250px] overflow-y-auto pr-1">
                                 {clientGlassSummary.length > 0 ? (
                                   clientGlassSummary.map((item, idx) => (
                                     <div 
                                       key={idx} 
-                                      className="p-3.5 bg-white/5 border border-white/10 rounded-2xl flex justify-between items-center text-xs font-mono"
+                                      className="p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col justify-between"
                                     >
-                                      <div>
-                                        <p className="font-black text-emerald-400 text-sm leading-none">{item.dimensions}"</p>
-                                        <p className="text-[10px] text-brand-muted font-sans font-bold mt-1 uppercase">Área pane: {(item.area / item.qty).toFixed(2)} ft²</p>
+                                      <div className="mb-2">
+                                        <span className="block text-[8px] font-black uppercase text-emerald-400 tracking-wider">Vidrio (Ancho x Alto)</span>
+                                        <p className="font-extrabold text-white text-base font-mono mt-0.5">{item.dimensions}"</p>
                                       </div>
-                                      <div className="text-right">
-                                        <span className="block text-white font-sans font-black text-[13px] leading-none">x{item.qty} <sub className="text-[9px] text-brand-muted font-medium lowercase">unds</sub></span>
-                                        <span className="text-[9px] font-sans font-black text-blue-400 uppercase tracking-widest">{item.area.toFixed(1)} ft² total</span>
+                                      <div className="flex justify-between items-baseline border-t border-white/5 pt-2 mt-2">
+                                        <span className="text-[10px] text-brand-muted font-bold font-sans uppercase">Cantidad:</span>
+                                        <span className="text-emerald-400 font-sans font-black text-lg">x{item.qty} <sub className="text-[9px] text-brand-muted font-medium lowercase">unds</sub></span>
                                       </div>
                                     </div>
                                   ))
                                 ) : (
-                                  <div className="py-6 text-center text-brand-muted opacity-40">No hay vidrios requeridos</div>
+                                  <div className="col-span-full py-6 text-center text-brand-muted opacity-40">No hay vidrios requeridos</div>
                                 )}
-                              </div>
-                            </div>
-
-                            {/* Client Accessories */}
-                            <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl space-y-3">
-                              <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                <Info size={16} className="text-brand-accent" /> Accesorios Estimados
-                              </h3>
-                              <div className="space-y-2">
-                                {clientAccessories.map((acc, index) => (
-                                  <div key={index} className="flex justify-between items-center py-2 border-b border-white/5 text-xs text-brand-muted font-bold">
-                                    <span>{acc.name}</span>
-                                    <span className="text-white font-mono font-black">{acc.qty} {acc.unit}</span>
-                                  </div>
-                                ))}
                               </div>
                             </div>
 
                             {/* WhatsApp Share Button */}
                             <button
                               onClick={() => {
-                                let message = `*DETALLE DE MATERIALES Y CORTES - HARMONY GLASS*\n`;
-                                message += ` _Cliente: ${currentDetailClient.name}_\n`;
+                                let message = `*DETALLE DE MATERIALES Y COMPRAS - HARMONY GLASS*\n`;
+                                message += `_Cliente: ${currentDetailClient.name}_\n`;
                                 message += `_Total Ventanas: ${currentDetailClient.projectsCount}_\n`;
-                                message += `_Total Cobrado Mínimo: ${currentDetailClient.adjustedSqFt.toFixed(2)} ft²_\n\n`;
+                                message += `_Total Cobrado Mínimo: ${currentDetailClient.adjustedSqFt.toFixed(2)} ft²_\n`;
+                                message += `_Largo perfil: ${barLength || 20}'_\n\n`;
 
-                                // Loop over each window project
-                                currentDetailClient.rawProjects.forEach((p) => {
-                                  const windowQty = p.qty || 1;
-                                  const systemColor = p.aluminioColor || "Blanco";
-                                  message += `----------------------------------\n`;
-                                  message += `*${p.name.toUpperCase()}* (${p.type} • Vías: ${p.vias} • Cantidad: x${windowQty})\n`;
-                                  message += `*Medida:* ${formatFraction(p.width)}" x ${formatFraction(p.height)}"\n\n`;
-
-                                  // Check if it's a sliding system (P65 or P92)
-                                  if (p.type === "P65" || p.type === "P92") {
-                                    const lateralDetail = p.results.marco.find((item) => item.id === "side");
-                                    const rielDetail = p.results.marco.find((item) => item.id === "riel_up_down");
-                                    const verticalDetail = p.results.hojas.find((item) => item.id === "vert");
-                                    const horizontalDetail = p.results.hojas.find((item) => item.id === "alf_rueda");
-
-                                    const lateralStr = lateralDetail ? `${lateralDetail.qty * windowQty} de ${formatFraction(lateralDetail.size)}"` : `${2 * windowQty} de (N/D)`;
-                                    const rielUpStr = rielDetail ? `${windowQty} de ${formatFraction(rielDetail.size)}"` : `${windowQty} de (N/D)`;
-                                    const rielDownStr = rielDetail ? `${windowQty} de ${formatFraction(rielDetail.size)}"` : `${windowQty} de (N/D)`;
-                                    const llavinStr = verticalDetail ? `${p.vias * windowQty} de ${formatFraction(verticalDetail.size)}"` : `${p.vias * windowQty} de (N/D)`;
-                                    const engancheStr = verticalDetail ? `${p.vias * windowQty} de ${formatFraction(verticalDetail.size)}"` : `${p.vias * windowQty} de (N/D)`;
-                                    const alfeizarStr = horizontalDetail ? `${(p.vias * 2) * windowQty} de ${formatFraction(horizontalDetail.size)}"` : `${(p.vias * 2) * windowQty} de (N/D)`;
-
-                                    message += `*Materiales ${p.type}*\n`;
-                                    message += ` lateral: ${lateralStr} (Color: ${systemColor})\n`;
-                                    message += ` riel arriba: ${rielUpStr} (Color: ${systemColor})\n`;
-                                    message += ` riel abajo: ${rielDownStr} (Color: ${systemColor})\n`;
-                                    message += ` llavin: ${llavinStr} (Color: ${systemColor})\n`;
-                                    message += ` enganche: ${engancheStr} (Color: ${systemColor})\n`;
-                                    message += ` alfeizar: ${alfeizarStr} (Color: ${systemColor})\n`;
-                                    message += ` ruedas: ${p.vias * 2 * windowQty} unidades\n`;
-                                    message += ` kit: ${1 * windowQty} kit\n`;
-                                    message += ` cierre de centro: ${1 * windowQty} unidad\n\n`;
-                                  } else {
-                                    // Non-sliding system (fall back to whatever calculations are performed)
-                                    message += `*Materiales ${p.type}*\n`;
-                                    if (p.results.marco && p.results.marco.length > 0) {
-                                      p.results.marco.forEach((item) => {
-                                        message += ` ${item.piece.toLowerCase()}: ${item.qty * windowQty} de ${formatFraction(item.size)}" (Color: ${systemColor})\n`;
-                                      });
-                                    }
-                                    if (p.results.hojas && p.results.hojas.length > 0) {
-                                      p.results.hojas.forEach((item) => {
-                                        message += ` ${item.piece.toLowerCase()}: ${item.qty * windowQty} de ${formatFraction(item.size)}" (Color: ${systemColor})\n`;
-                                      });
-                                    }
-                                    // Generic accessories
-                                    message += ` ruedas: ${2 * windowQty} unidades\n`;
-                                    message += ` kit: ${1 * windowQty} kit\n`;
-                                    message += ` cierre de centro: ${1 * windowQty} unidad\n\n`;
-                                  }
-
-                                  // Glass specs for this window
-                                  if (p.results.vidrios && p.results.vidrios.length > 0) {
-                                    message += `*Vidrios*\n`;
-                                    p.results.vidrios.forEach((g) => {
-                                      message += ` Medida ${g.dimensions}": ${g.qty * windowQty} unidades\n`;
-                                    });
-                                    message += `\n`;
-                                  }
+                                message += `*MATERIALES P65 Y OTROS (PERFILES EN BARRAS):*\n`;
+                                consolidatedMaterials.profiles.forEach((p) => {
+                                  message += `• ${p.name.toLowerCase()}: ${p.barsNeeded} barra(s) (Color/Ubicación: ${p.color})\n`;
                                 });
 
-                                message += `----------------------------------\n`;
+                                message += `\n*ACCESORIOS Y OTROS:*\n`;
+                                consolidatedMaterials.accessories.forEach((acc) => {
+                                  message += `• ${acc.name.toLowerCase()}: ${acc.qty} ${acc.unit}\n`;
+                                });
+
+                                if (clientGlassSummary.length > 0) {
+                                  message += `\n*VIDRIOS (MEDIDAS Y CANTIDAD):*\n`;
+                                  clientGlassSummary.forEach((g) => {
+                                    message += `• ${g.dimensions}": ${g.qty} unidad(es)\n`;
+                                  });
+                                }
+
+                                message += `\n----------------------------------\n`;
                                 message += `_Generado por Harmony Glass_`;
 
                                 const url = `https://wa.me/18094130846?text=${encodeURIComponent(message)}`;
