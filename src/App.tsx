@@ -1393,6 +1393,7 @@ function DimensionInput({
 
 export default function App() {
   const [windowTag, setWindowTag] = useState<string>("VENTANA 01");
+  const [windowQty, setWindowQty] = useState<number>(1);
   const [clientName, setClientName] = useState<string>("");
   const [clientPhone, setClientPhone] = useState<string>("");
   const [clientLocation, setClientLocation] = useState<string>("");
@@ -2033,6 +2034,7 @@ export default function App() {
       results,
       completedCuts: [],
       status: "pending",
+      qty: windowQty,
       createdAt: Date.now(),
       deliveryDate: deliveryDate,
       aluminioColor: aluminioColor,
@@ -2040,6 +2042,7 @@ export default function App() {
     setOrderWindows((prev) => [...prev, newWindow]);
     setShowResults(false);
     setWindowTag(nextTag);
+    setWindowQty(1);
     setWidthWhole(0);
     setWidthFrac(0);
     setHeightWhole(0);
@@ -2811,14 +2814,48 @@ export default function App() {
                       </header>
 
                       <div className="space-y-6">
-                        <div className="relative group">
-                          <input
-                            type="text"
-                            value={windowTag}
-                            onChange={(e) => setWindowTag(e.target.value)}
-                            placeholder="Etiqueta"
-                            className="w-full h-16 bg-brand-bg border border-brand-border px-6 rounded-2xl text-white font-black text-xl placeholder:text-brand-muted/20 focus:outline-none focus:border-brand-accent transition-all text-center tracking-tighter"
-                          />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="relative group">
+                            <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1 mb-1 block">
+                              Etiqueta / Identificador
+                            </label>
+                            <input
+                              type="text"
+                              value={windowTag}
+                              onChange={(e) => setWindowTag(e.target.value)}
+                              placeholder="Etiqueta"
+                              className="w-full h-14 bg-brand-bg border border-brand-border px-6 rounded-2xl text-white font-black text-lg placeholder:text-brand-muted/20 focus:outline-none focus:border-brand-accent transition-all text-center tracking-tighter"
+                            />
+                          </div>
+
+                          <div className="relative group">
+                            <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1 mb-1 block">
+                              Cantidad de Ventanas
+                            </label>
+                            <div className="flex items-center h-14 bg-brand-bg border border-brand-border rounded-2xl overflow-hidden px-4">
+                              <button
+                                type="button"
+                                onClick={() => setWindowQty((prev) => Math.max(1, prev - 1))}
+                                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition-all text-lg font-bold"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                value={windowQty}
+                                onChange={(e) => setWindowQty(Math.max(1, parseInt(e.target.value) || 1))}
+                                className="flex-1 bg-transparent text-white font-mono font-black text-center text-lg focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setWindowQty((prev) => prev + 1)}
+                                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition-all text-lg font-bold"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2917,7 +2954,7 @@ export default function App() {
                         {orderWindows.filter(p => p.clientName === clientName).map((p) => (
                           <div
                             key={p.id}
-                            className="p-5 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-between"
+                            className="p-5 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-between gap-4"
                           >
                             <div className="flex items-center gap-4">
                               <div className="w-12 h-12 scale-50">
@@ -2936,22 +2973,64 @@ export default function App() {
                                 <p className="text-sm font-black text-white uppercase italic">
                                   {p.type === "PUERTA_COMERCIAL" ? p.name : `${p.name} (${p.vias} Vías - ${p.type})`}
                                 </p>
-                                <p className="text-[10px] font-mono text-brand-muted">
-                                  {formatFraction(p.width)} x{" "}
-                                  {formatFraction(p.height)}
-                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <p className="text-[10px] font-mono text-brand-muted">
+                                    {formatFraction(p.width)} x{" "}
+                                    {formatFraction(p.height)}
+                                  </p>
+                                  <span className="text-[9px] text-[#34d399] font-mono font-black uppercase">
+                                    x{p.qty || 1}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                            <button
-                              onClick={() =>
-                                setOrderWindows((prev) =>
-                                  prev.filter((w) => w.id !== p.id),
-                                )
-                              }
-                              className="text-red-500/40 hover:text-red-500"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className="flex items-center bg-black/25 border border-white/5 rounded-full p-1 gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setOrderWindows((prev) =>
+                                      prev.map((w) =>
+                                        w.id === p.id
+                                          ? { ...w, qty: Math.max(1, (w.qty || 1) - 1) }
+                                          : w
+                                      )
+                                    )
+                                  }
+                                  className="w-6 h-6 rounded-full bg-white/5 text-white flex items-center justify-center text-xs font-bold hover:bg-white/10 active:scale-95 transition-all"
+                                >
+                                  -
+                                </button>
+                                <span className="text-[10px] font-mono font-black text-white px-1 block w-5 text-center">
+                                  {p.qty || 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setOrderWindows((prev) =>
+                                      prev.map((w) =>
+                                        w.id === p.id
+                                          ? { ...w, qty: (w.qty || 1) + 1 }
+                                          : w
+                                      )
+                                    )
+                                  }
+                                  className="w-6 h-6 rounded-full bg-white/5 text-white flex items-center justify-center text-xs font-bold hover:bg-white/10 active:scale-95 transition-all"
+                                >
+                                  +
+                                </button>
+                              </div>
+                              <button
+                                onClick={() =>
+                                  setOrderWindows((prev) =>
+                                    prev.filter((w) => w.id !== p.id),
+                                  )
+                                }
+                                className="text-red-500/40 hover:text-red-500 p-1.5 rounded-full hover:bg-red-500/10 transition-all"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
