@@ -75,47 +75,183 @@ interface WindowProject {
 
 // --- Brand & Logo ---
 
-const BrandLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Clean White Background for the icon itself if needed, but here we use transparency */}
-    {/* Tall Modernist Building */}
-    <motion.rect 
-      initial={{ height: 0 }}
-      animate={{ height: 80 }}
-      transition={{ duration: 1, ease: "easeOut" }}
-      x="30" y="10" width="25" height="80" fill="#dc2626" rx="1" 
-    />
-    <path d="M30 25 H55 M30 40 H55 M30 55 H55 M30 70 H55 M38 10 V90 M46 10 V90" stroke="white" strokeWidth="0.5" opacity="0.3" />
-    
-    {/* Skyscraper 2 */}
-    <motion.rect 
-      initial={{ height: 0 }}
-      animate={{ height: 60 }}
-      transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
-      x="15" y="30" width="15" height="60" fill="#1e3a8a" rx="1" 
-    />
-    
-    {/* Foreground House icon */}
-    <motion.path 
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, delay: 0.8 }}
-      d="M50 55 L75 35 L100 55 V85 H50 Z" fill="#1e40af" 
-    />
-    <path d="M50 55 L75 35 L100 55" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-    <rect x="70" y="65" width="10" height="20" fill="white" rx="1" />
-    <circle cx="78" cy="75" r="1.5" fill="#1e40af" />
-  </svg>
-);
+const BrandLogo = ({ className = "w-16 h-10" }: { className?: string }) => {
+  const strokeColor = "#ef4444"; // Vivid red matching the picture
+  
+  return (
+    <svg viewBox="0 0 140 80" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <motion.g
+        initial={{ opacity: 0.8 }}
+        animate={{ opacity: [0.8, 1, 0.8] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      >
+        {/* Base horizontal line */}
+        <motion.line
+          x1="5"
+          y1="70"
+          x2="135"
+          y2="70"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          style={{ filter: "drop-shadow(0px 0px 3px rgba(239, 68, 68, 0.6))" }}
+        />
+
+        {/* --- LEFT TOWERS/SILHOUETTE --- */}
+        
+        {/* Tower 1 (Leftmost small) */}
+        <motion.path
+          d="M 16,70 L 16,52 L 27,38 L 27,70"
+          stroke={strokeColor}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1.5, delay: 0.2, ease: "easeInOut" }}
+          style={{ filter: "drop-shadow(0px 0px 2px rgba(239, 68, 68, 0.5))" }}
+        />
+
+        {/* Tower 2 (Middle tallest) */}
+        <motion.path
+          d="M 30,70 L 30,22 L 41,8 L 41,70"
+          stroke={strokeColor}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1.5, delay: 0.4, ease: "easeInOut" }}
+          style={{ filter: "drop-shadow(0px 0px 3px rgba(239, 68, 68, 0.6))" }}
+        />
+
+        {/* Tower 3 (Right building/tower) */}
+        <motion.path
+          d="M 44,70 L 44,48 L 51,39 L 51,70"
+          stroke={strokeColor}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1.5, delay: 0.6, ease: "easeInOut" }}
+          style={{ filter: "drop-shadow(0px 0px 2px rgba(239, 68, 68, 0.5))" }}
+        />
+
+        {/* Small vertical thin column between towers and house */}
+        <motion.line
+          x1="55"
+          y1="70"
+          x2="55"
+          y2="60"
+          stroke={strokeColor}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1, delay: 0.8, ease: "easeOut" }}
+          style={{ filter: "drop-shadow(0px 0px 1px rgba(239, 68, 68, 0.4))" }}
+        />
+
+        {/* --- RIGHT GABLE / HOUSE SILHOUETTE --- */}
+
+        {/* Outer Gable (Big outer triangle/roof) */}
+        <motion.path
+          d="M 58,70 L 78,45 L 115,70"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1.5, delay: 0.8, ease: "easeInOut" }}
+          style={{ filter: "drop-shadow(0px 0px 3px rgba(239, 68, 68, 0.6))" }}
+        />
+
+        {/* Inner Gable (Small inner nested roof) */}
+        <motion.path
+          d="M 66,70 L 78,56 L 90,70"
+          stroke={strokeColor}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1.5, delay: 1.0, ease: "easeInOut" }}
+          style={{ filter: "drop-shadow(0px 0px 2px rgba(239, 68, 68, 0.5))" }}
+        />
+
+        {/* Horizontal Window Bar (Grid beam) */}
+        <motion.line
+          x1="71"
+          y1="66"
+          x2="85"
+          y2="66"
+          stroke={strokeColor}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1.2, delay: 1.2, ease: "easeOut" }}
+        />
+
+        {/* Center Vertical Window Divider (Grid) */}
+        <motion.line
+          x1="78"
+          y1="66"
+          x2="78"
+          y2="70"
+          stroke={strokeColor}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1, delay: 1.3, ease: "easeOut" }}
+        />
+
+        {/* Left Vertical Window Divider (Grid) */}
+        <motion.line
+          x1="74"
+          y1="66"
+          x2="74"
+          y2="70"
+          stroke={strokeColor}
+          strokeWidth="2"
+          strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1, delay: 1.4, ease: "easeOut" }}
+        />
+
+        {/* Right Vertical Window Divider (Grid) */}
+        <motion.line
+          x1="82"
+          y1="66"
+          x2="82"
+          y2="70"
+          stroke={strokeColor}
+          strokeWidth="2"
+          strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1, delay: 1.4, ease: "easeOut" }}
+        />
+      </motion.g>
+    </svg>
+  );
+};
 
 const BrandingText = () => (
-  <div className="flex flex-col">
-    <h1 className="text-xl sm:text-2xl font-black tracking-tighter m-0 leading-none uppercase italic">
-      <span className="text-red-600 drop-shadow-[0_2px_0_rgba(0,0,0,1)]">HARMONY</span>
-      <span className="text-blue-400 ml-1.5 drop-shadow-[0_2px_4px_rgba(30,58,138,0.4)]">GLASS</span>
+  <div className="flex flex-col ml-1">
+    <h1 className="text-lg sm:text-xl font-black tracking-widest m-0 leading-none uppercase">
+      <span className="text-white">HARMONY</span>
+      <span className="text-red-500 ml-2">GLASS</span>
     </h1>
-    <span className="text-[10px] sm:text-xs font-bold text-brand-muted uppercase tracking-[0.2em] leading-tight opacity-70">
-      Sistemas de Aluminio y Vidrio
+    <span className="text-[8px] sm:text-[9px] font-black text-brand-muted uppercase tracking-[0.35em] leading-tight opacity-75 mt-1 font-mono">
+      CONTROL DE OBRAS
     </span>
   </div>
 );
@@ -232,10 +368,10 @@ function PrintReport({
         {/* Header Section */}
         <div className="flex justify-between items-center border-b-2 border-black pb-2 print:hidden">
           <div className="flex items-center gap-4">
-            <BrandLogo className="w-10 h-10" />
+            <BrandLogo className="w-18 h-10" />
             <div className="flex flex-col">
               <h1 className="text-xl font-black uppercase tracking-tighter leading-none">
-                <span className="text-red-600">HARMONY</span> <span className="text-blue-700">GLASS</span>
+                <span className="text-red-600">HARMONY</span> <span className="text-red-600">GLASS</span>
               </h1>
               <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Planilla Técnica de Corte</p>
             </div>
@@ -513,10 +649,10 @@ function PrintReport({
 
         <div className="flex justify-between items-center pt-4 border-t border-black/5 transition-opacity hover:opacity-100 opacity-30 italic text-[7px] font-black uppercase tracking-widest leading-none">
           <div className="flex items-center gap-2">
-            <BrandLogo className="w-5 h-5 filter grayscale" />
+            <BrandLogo className="w-10 h-6 filter grayscale" />
             <div className="flex items-center gap-1.5">
               <span className="text-red-700">HARMONY</span> 
-              <span className="text-blue-700 underline decoration-red-700/20 underline-offset-2">GLASS</span> 
+              <span className="text-red-700 underline decoration-red-700/20 underline-offset-2">GLASS</span> 
               <span className="opacity-50">INDUSTRIAL PRODUCTION — SHEET ENHANCED</span>
             </div>
           </div>
@@ -2425,8 +2561,8 @@ export default function App() {
             whileHover={{ scale: 1.05, rotate: 2 }}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="p-1 bg-white/5 rounded-2xl border border-white/10 group-hover:bg-white/10 transition-all shadow-2xl">
-              <BrandLogo className="w-10 h-10 sm:w-12 sm:h-12" />
+            <div className="p-1.5 bg-white/5 rounded-2xl border border-white/10 group-hover:bg-white/10 transition-all shadow-2xl flex items-center justify-center">
+              <BrandLogo className="w-16 h-9 sm:w-20 sm:h-11" />
             </div>
             <BrandingText />
           </motion.div>
@@ -3243,7 +3379,7 @@ export default function App() {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 bg-brand-sidebar border border-brand-border rounded-[2rem] gap-4 shadow-xl">
                           <button
                             onClick={() => setSelectedDetailClient(null)}
-                            className="flex items-center gap-2 text-xs font-black text-brand-muted hover:text-white uppercase tracking-widest border border-white/10 hover:border-white/20 px-4 py-2 bg-white/5 rounded-xl transition-all"
+                            className="flex items-center gap-2 text-xs font-black text-white hover:text-white uppercase tracking-widest border border-red-500/20 hover:border-red-500/40 px-4 py-2 bg-red-600/90 hover:bg-red-600 active:scale-95 rounded-xl transition-all shadow-md shadow-red-900/40"
                           >
                             <ArrowLeft size={14} /> Volver a Clientes
                           </button>
@@ -3940,10 +4076,10 @@ export default function App() {
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex justify-between items-center border-b-4 border-black pb-4 print:hidden">
               <div className="flex items-center gap-4">
-                <BrandLogo className="w-12 h-12" />
+                <BrandLogo className="w-20 h-11" />
                 <div className="flex flex-col">
                   <h1 className="text-2xl font-black uppercase italic tracking-tighter leading-none">
-                    <span className="text-red-600">HARMONY</span> <span className="text-blue-700">GLASS</span>
+                    <span className="text-red-600">HARMONY</span> <span className="text-red-600">GLASS</span>
                   </h1>
                   <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Ficha Técnica Individual</p>
                 </div>
@@ -4062,10 +4198,10 @@ export default function App() {
 
               <div className="pt-10 flex justify-between items-end italic opacity-40 text-[10px] font-black uppercase tracking-[0.4em]">
                 <div className="flex items-center gap-3">
-                  <BrandLogo className="w-8 h-8 filter grayscale" />
+                  <BrandLogo className="w-12 h-7 filter grayscale" />
                   <div className="flex items-center gap-2">
                     <span className="text-red-700">HARMONY</span> 
-                    <span className="text-blue-700 border-l-2 border-black pl-2">GLASS PRODUCTION DIGITAL</span>
+                    <span className="text-red-700 border-l-2 border-black pl-2">GLASS PRODUCTION DIGITAL</span>
                   </div>
                 </div>
                 <div>AUTORIZADO POR: _______________________</div>
@@ -4166,11 +4302,11 @@ export default function App() {
       </nav>
 
       <footer className="py-24 px-4 bg-brand-bg text-center relative z-20 print:hidden items-center flex flex-col justify-center space-y-6">
-        <BrandLogo className="w-16 h-16 opacity-30 grayscale brightness-150" />
+        <BrandLogo className="w-24 h-12 opacity-30 grayscale brightness-150" />
         <div className="flex flex-col items-center">
             <h2 className="text-sm font-black tracking-[0.5em] uppercase italic flex items-center gap-2">
                 <span className="text-red-600">HARMONY</span>
-                <span className="text-blue-500">GLASS</span>
+                <span className="text-red-500">GLASS</span>
             </h2>
             <p className="text-[9px] text-brand-muted uppercase tracking-[0.4em] font-black opacity-30 mt-2">
                 2.7.0
