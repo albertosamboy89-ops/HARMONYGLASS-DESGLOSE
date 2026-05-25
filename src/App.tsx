@@ -32,6 +32,9 @@ import {
   Share2,
   MessageCircle,
   ExternalLink,
+  Database,
+  HelpCircle,
+  Coins,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -1573,6 +1576,8 @@ export default function App() {
 
   // Security State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [activeGuideId, setActiveGuideId] = useState<number | null>(null);
   const [passInput, setPassInput] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [pendingDeleteUnfinishedId, setPendingDeleteUnfinishedId] = useState<string | null>(null);
@@ -4557,16 +4562,14 @@ export default function App() {
         }
       `}</style>
 
-      {/* Botón de WhatsApp Flotante (Fantasmita de Ayuda) */}
-      <motion.a
-        href="https://wa.me/18094130846"
-        target="_blank"
-        rel="noopener noreferrer"
+      {/* Botón de WhatsApp Flotante (Fantasmita de Ayuda que abre el Asistente Harmony) */}
+      <motion.button
+        onClick={() => setIsHelpModalOpen(true)}
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 0.85, scale: 1 }}
         whileHover={{ opacity: 1, scale: 1.05 }}
-        className="fixed bottom-20 right-6 z-[200] flex flex-col items-center gap-1 group print:hidden select-none"
-        title="Ayuda Directa por WhatsApp"
+        className="fixed bottom-20 right-6 z-[200] flex flex-col items-center gap-1 group print:hidden select-none cursor-pointer border-0 bg-transparent outline-none focus:outline-none"
+        title="Asistente Harmony"
       >
         {/* Globito de diálogo que dice "Ayuda" */}
         <motion.div 
@@ -4638,7 +4641,170 @@ export default function App() {
             <MessageCircle size={10} className="fill-white" />
           </div>
         </motion.div>
-      </motion.a>
+      </motion.button>
+
+      {/* Modal del Asistente Harmony */}
+      <AnimatePresence>
+        {isHelpModalOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4 print:hidden">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.35 }}
+              className="bg-[#0b0f19] border border-white/10 rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl flex flex-col relative"
+            >
+              {/* Header Gradient Glow */}
+              <div className="absolute top-0 left-0 right-0 h-[60px] bg-gradient-to-b from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
+
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 pb-4 border-b border-white/5 relative z-10">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 relative flex">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                  </span>
+                  <h3 className="text-xs font-black uppercase tracking-[0.25em] text-white">
+                    Asistente Harmony
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsHelpModalOpen(false);
+                    setActiveGuideId(null);
+                  }}
+                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-brand-muted hover:text-white hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh] relative z-10">
+                <p className="text-[11px] font-bold text-brand-muted/80 uppercase tracking-widest pl-1 font-mono">
+                  Seleccione una opción para ver la guía interactiva:
+                </p>
+
+                {/* Guides Container */}
+                <div className="space-y-3">
+                  {[
+                    {
+                      id: 1,
+                      title: "¿Cómo hacer un respaldo?",
+                      icon: <Database size={16} className="text-emerald-400" />,
+                      iconBg: "bg-emerald-500/10 border-emerald-500/20",
+                      prefix: "📦",
+                      desc: "Para resguardar tus datos, presiona el botón 'Descargar' (el ícono de la nube con flecha hacia abajo) en la cabecera. Esto guardará un archivo .json con tus proyectos y finanzas en tu dispositivo para transferirlo o guardarlo seguro."
+                    },
+                    {
+                      id: 2,
+                      title: "¿Cómo restaurar/importar?",
+                      icon: <Upload size={16} className="text-blue-400" />,
+                      iconBg: "bg-blue-500/10 border-blue-500/20",
+                      prefix: "📥",
+                      desc: "Si deseas transferir tus datos a otro equipo, presionas el botón 'Importar' (el ícono de la carpeta con flecha hacia arriba) en la cabecera del panel. Seleccionas el archivo .json descargado previamente para restaurar toda la base de datos de inmediato."
+                    },
+                    {
+                      id: 3,
+                      title: "Entender la Caja Integral",
+                      icon: <Coins size={16} className="text-rose-400" />,
+                      iconBg: "bg-rose-500/10 border-rose-500/20",
+                      prefix: "💵",
+                      desc: "La Caja Chica Integral consolida todos los movimientos: Entradas (adelantos de clientes) y Salidas (gastos de materiales o egresos generales). Te da un balance neto en tiempo real sobre la rentabilidad actual de tus talleres."
+                    },
+                    {
+                      id: 4,
+                      title: "Gestionar Obras y Adelantos",
+                      icon: <HelpCircle size={16} className="text-amber-400" />,
+                      iconBg: "bg-amber-500/10 border-amber-500/20",
+                      prefix: "🏗️",
+                      desc: "Cada cliente tiene múltiples obras asociadas. Puedes registrar los adelantos que hace cada cliente en el botón de finanzas del cliente y la planilla calculará automáticamente cuánto resta cobrar."
+                    }
+                  ].map((guide) => {
+                    const isOpen = activeGuideId === guide.id;
+                    return (
+                      <div
+                        key={guide.id}
+                        className={`border rounded-2xl overflow-hidden transition-all duration-300 ${
+                          isOpen
+                            ? "bg-white/[0.03] border-emerald-500/20 shadow-lg shadow-emerald-950/20"
+                            : "bg-white/[0.01] border-white/5 hover:bg-white/[0.02] hover:border-white/10"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setActiveGuideId(isOpen ? null : guide.id)}
+                          className="w-full p-4 flex items-center justify-between text-left gap-3 group cursor-pointer border-none bg-transparent outline-none"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${guide.iconBg}`}>
+                              {guide.icon}
+                            </div>
+                            <span className="text-[13px] font-bold text-white/90 group-hover:text-white transition-colors">
+                              {guide.prefix} {guide.title}
+                            </span>
+                          </div>
+                          <motion.div
+                            animate={{ rotate: isOpen ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="text-brand-muted/40 group-hover:text-white transition-colors"
+                          >
+                            <ChevronDown size={16} />
+                          </motion.div>
+                        </button>
+
+                        <AnimatePresence initial={false}>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25 }}
+                            >
+                              <div className="px-4 pb-4 pt-1 font-mono text-[11px] leading-relaxed text-brand-muted border-t border-white/5 bg-black/10">
+                                {guide.desc}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Acciones Rápidas Section (Replaced by direct WhatsApp button as per request) */}
+                <div className="border-t border-white/5 pt-5 space-y-3">
+                  <div className="pl-1">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-muted/60 block font-mono">
+                      Acciones Rápidas:
+                    </span>
+                  </div>
+
+                  <motion.a
+                    href="https://wa.me/18094130846"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl flex items-center justify-center gap-3 font-extrabold uppercase text-xs shadow-xl shadow-emerald-950/20 transition-all duration-300 select-none cursor-pointer border-none"
+                  >
+                    <MessageCircle size={20} className="fill-white/10" strokeWidth={2.5} />
+                    WhatsApp Directo: 8094130846
+                  </motion.a>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-white/5 text-center bg-black/20">
+                <span className="text-[9px] font-bold text-brand-muted/40 uppercase tracking-[0.3em] font-mono">
+                  Harmony Glass Control de Obras v1.0.0
+                </span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
