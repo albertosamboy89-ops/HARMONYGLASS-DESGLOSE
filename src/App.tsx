@@ -1533,11 +1533,21 @@ function DimensionInput({
 export default function App() {
   const [windowTag, setWindowTag] = useState<string>("VENTANA 01");
   const [windowQty, setWindowQty] = useState<number>(1);
-  const [clientName, setClientName] = useState<string>("");
-  const [clientPhone, setClientPhone] = useState<string>("");
-  const [clientLocation, setClientLocation] = useState<string>("");
-  const [aluminioColor, setAluminioColor] = useState<string>("Blanco");
-  const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [clientName, setClientName] = useState<string>(() => {
+    return localStorage.getItem("v-cut-draft-client-name") || "";
+  });
+  const [clientPhone, setClientPhone] = useState<string>(() => {
+    return localStorage.getItem("v-cut-draft-client-phone") || "";
+  });
+  const [clientLocation, setClientLocation] = useState<string>(() => {
+    return localStorage.getItem("v-cut-draft-client-location") || "";
+  });
+  const [aluminioColor, setAluminioColor] = useState<string>(() => {
+    return localStorage.getItem("v-cut-draft-aluminio-color") || "Blanco";
+  });
+  const [deliveryDate, setDeliveryDate] = useState<string>(() => {
+    return localStorage.getItem("v-cut-draft-delivery-date") || "";
+  });
   const [widthWhole, setWidthWhole] = useState<number>(0);
   const [widthFrac, setWidthFrac] = useState<number>(0);
   const [heightWhole, setHeightWhole] = useState<number>(0);
@@ -1557,7 +1567,15 @@ export default function App() {
   const [showResults, setShowResults] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  const [projects, setProjects] = useState<WindowProject[]>([]);
+  const [projects, setProjects] = useState<WindowProject[]>(() => {
+    try {
+      const saved = localStorage.getItem("v-cut-projects");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to parse projects", e);
+      return [];
+    }
+  });
   const [selectedProject, setSelectedProject] = useState<WindowProject | null>(
     null,
   );
@@ -1570,9 +1588,23 @@ export default function App() {
   // Navigation & Order Creation State
   const [activeView, setActiveView] = useState<
     "dashboard" | "history" | "new-order" | "unfinished" | "detail"
-  >("dashboard");
-  const [orderStep, setOrderStep] = useState<1 | 2 | 3>(1);
-  const [orderWindows, setOrderWindows] = useState<WindowProject[]>([]);
+  >(() => {
+    const saved = localStorage.getItem("v-cut-active-view");
+    return (saved as "dashboard" | "history" | "new-order" | "unfinished" | "detail") || "dashboard";
+  });
+  const [orderStep, setOrderStep] = useState<1 | 2 | 3>(() => {
+    const saved = localStorage.getItem("v-cut-draft-order-step");
+    return saved ? (parseInt(saved) as 1 | 2 | 3) : 1;
+  });
+  const [orderWindows, setOrderWindows] = useState<WindowProject[]>(() => {
+    try {
+      const saved = localStorage.getItem("v-cut-temp-order");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to parse temp-order", e);
+      return [];
+    }
+  });
 
   // Security State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -1590,42 +1622,23 @@ export default function App() {
   const [isPrintMode, setIsPrintMode] = useState(false);
   const [isSinglePrintMode, setIsSinglePrintMode] = useState(false);
   const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
-  const [clientPricing, setClientPricing] = useState<Record<string, number>>({});
-  const [linearPrice, setLinearPrice] = useState<number>(0);
-  const [barLength, setBarLength] = useState<number>(20);
-
-  // Load from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("v-cut-projects");
-    if (saved) {
-      try {
-        setProjects(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load projects", e);
-      }
+  const [clientPricing, setClientPricing] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem("v-cut-pricing");
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error("Failed to parse clientPricing", e);
+      return {};
     }
-    const savedPricing = localStorage.getItem("v-cut-pricing");
-    if (savedPricing) {
-      try {
-        setClientPricing(JSON.parse(savedPricing));
-      } catch (e) {
-        console.error("Failed to load pricing", e);
-      }
-    }
-    const savedLinearPrice = localStorage.getItem("v-cut-linear-price");
-    if (savedLinearPrice) setLinearPrice(parseFloat(savedLinearPrice) || 0);
-    const savedBarLength = localStorage.getItem("v-cut-bar-length");
-    if (savedBarLength) setBarLength(parseFloat(savedBarLength) || 20);
-
-    const savedOrder = localStorage.getItem("v-cut-temp-order");
-    if (savedOrder) {
-      try {
-        setOrderWindows(JSON.parse(savedOrder));
-      } catch (e) {
-        console.error("Failed to load buffer", e);
-      }
-    }
-  }, []);
+  });
+  const [linearPrice, setLinearPrice] = useState<number>(() => {
+    const saved = localStorage.getItem("v-cut-linear-price");
+    return saved ? parseFloat(saved) || 0 : 0;
+  });
+  const [barLength, setBarLength] = useState<number>(() => {
+    const saved = localStorage.getItem("v-cut-bar-length");
+    return saved ? parseFloat(saved) || 20 : 20;
+  });
 
   // Save to localStorage
   useEffect(() => {
@@ -1647,6 +1660,35 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
   }, [orderWindows]);
+
+  // Save draft fields to localStorage
+  useEffect(() => {
+    localStorage.setItem("v-cut-draft-client-name", clientName);
+  }, [clientName]);
+
+  useEffect(() => {
+    localStorage.setItem("v-cut-draft-client-phone", clientPhone);
+  }, [clientPhone]);
+
+  useEffect(() => {
+    localStorage.setItem("v-cut-draft-client-location", clientLocation);
+  }, [clientLocation]);
+
+  useEffect(() => {
+    localStorage.setItem("v-cut-draft-aluminio-color", aluminioColor);
+  }, [aluminioColor]);
+
+  useEffect(() => {
+    localStorage.setItem("v-cut-draft-delivery-date", deliveryDate);
+  }, [deliveryDate]);
+
+  useEffect(() => {
+    localStorage.setItem("v-cut-draft-order-step", orderStep.toString());
+  }, [orderStep]);
+
+  useEffect(() => {
+    localStorage.setItem("v-cut-active-view", activeView);
+  }, [activeView]);
 
   const groupedUnfinished = useMemo(() => {
     return orderWindows.reduce((acc, p) => {
