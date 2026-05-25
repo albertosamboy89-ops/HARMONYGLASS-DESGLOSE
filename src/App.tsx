@@ -4790,7 +4790,7 @@ export default function App() {
                     className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl flex items-center justify-center gap-3 font-extrabold uppercase text-xs shadow-xl shadow-emerald-950/20 transition-all duration-300 select-none cursor-pointer border-none"
                   >
                     <MessageCircle size={20} className="fill-white/10" strokeWidth={2.5} />
-                    WhatsApp Directo: 8094130846
+                    WhatsApp
                   </motion.a>
                 </div>
               </div>
