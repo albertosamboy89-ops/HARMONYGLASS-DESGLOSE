@@ -938,12 +938,14 @@ const CLIENT_COLORS = [
 function ClientDashboard({
   projects,
   onClientClick,
+  onDeleteClient,
   selectedClientName,
   title,
   subtitle,
 }: {
   projects: WindowProject[];
   onClientClick?: (clientName: string) => void;
+  onDeleteClient?: (clientName: string) => void;
   selectedClientName?: string | null;
   title?: string;
   subtitle?: string;
@@ -1069,11 +1071,26 @@ function ClientDashboard({
                     >
                       Cliente
                     </p>
-                    {isComplete && (
-                      <span className="px-2 py-0.5 bg-emerald-500 text-white rounded-full text-[7px] font-black uppercase tracking-widest animate-pulse">
-                        Completado
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5 z-20">
+                      {isComplete && (
+                        <span className="px-2 py-0.5 bg-emerald-500 text-white rounded-full text-[7px] font-black uppercase tracking-widest animate-pulse">
+                          Completado
+                        </span>
+                      )}
+                      {onDeleteClient && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteClient(name);
+                          }}
+                          className="p-1 px-1.5 text-red-500 bg-red-500/10 hover:bg-red-500/20 active:scale-95 border border-red-500/20 rounded-md transition-all text-[8px] font-bold uppercase tracking-widest flex items-center gap-1"
+                          title="Eliminar Cliente"
+                        >
+                          <Trash2 size={10} strokeWidth={2.5} />
+                          <span>Eliminar</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <h3
                     className={`text-xl font-black italic truncate pr-4 ${isComplete ? "text-emerald-100" : "text-white"}`}
@@ -1809,7 +1826,7 @@ export default function App() {
   const [sheetW, setSheetW] = useState<number>(130);
   const [sheetH, setSheetH] = useState<number>(84);
   const [onlyPending, setOnlyPending] = useState<boolean>(true);
-  const [glassDetailTab, setGlassDetailTab] = useState<"opt2d" | "summary">("opt2d");
+  const [glassDetailTab, setGlassDetailTab] = useState<"opt2d" | "summary">("summary");
 
   // Navigation & Order Creation State
   const [activeView, setActiveView] = useState<
@@ -3531,6 +3548,7 @@ export default function App() {
                 <ClientDashboard
                   projects={projects.filter((p) => p.status === "pending")}
                   onClientClick={(name) => setSelectedClientName(name)}
+                  onDeleteClient={deleteClientGroup}
                   selectedClientName={selectedClientName}
                   title="Panel de Control"
                   subtitle="Producción Activa"
@@ -3541,6 +3559,7 @@ export default function App() {
                 <ClientDashboard
                   projects={projects.filter((p) => p.status === "completed")}
                   onClientClick={(name) => setSelectedClientName(name)}
+                  onDeleteClient={deleteClientGroup}
                   selectedClientName={selectedClientName}
                   title="Historial"
                   subtitle="Ordenes Finalizadas"
@@ -3739,17 +3758,17 @@ export default function App() {
                           <div className="flex bg-neutral-900/60 backdrop-blur-md border border-white/5 p-1 rounded-2xl gap-1">
                             <button
                               type="button"
-                              onClick={() => setGlassDetailTab("opt2d")}
-                              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${glassDetailTab === "opt2d" ? "bg-red-600 text-white shadow-lg" : "text-brand-muted hover:text-white hover:bg-white/5"}`}
-                            >
-                              <Layers size={14} /> 🔬 Optimizar Vidrios 2D
-                            </button>
-                            <button
-                              type="button"
                               onClick={() => setGlassDetailTab("summary")}
                               className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${glassDetailTab === "summary" ? "bg-red-600 text-white shadow-lg" : "text-brand-muted hover:text-white hover:bg-white/5"}`}
                             >
                               <ClipboardList size={14} /> 📋 Compra de Materiales
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGlassDetailTab("opt2d")}
+                              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${glassDetailTab === "opt2d" ? "bg-red-600 text-white shadow-lg" : "text-brand-muted hover:text-white hover:bg-white/5"}`}
+                            >
+                              <Layers size={14} /> 🔬 Optimizar Vidrios 2D
                             </button>
                           </div>
 
@@ -3927,8 +3946,6 @@ export default function App() {
                                                     <th className="py-2.5 px-4 w-8">#</th>
                                                     <th className="py-2.5 px-3">Proyecto / Ventana</th>
                                                     <th className="py-2.5 px-3">Medida Solicitada</th>
-                                                    <th className="py-2.5 px-3">Posición colocada</th>
-                                                    <th className="py-2.5 px-3">Orientación</th>
                                                   </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-white/5 font-mono text-[10px]">
@@ -3940,12 +3957,6 @@ export default function App() {
                                                       </td>
                                                       <td className="py-2.5 px-3 font-semibold text-white uppercase">{p.projectName}</td>
                                                       <td className="py-2.5 px-3 font-black text-[#22c55e]">{p.originalDimensions}</td>
-                                                      <td className="py-2.5 px-3 text-white/70">W: {p.w}" x H: {p.h}" (X: {p.x.toFixed(1)}, Y: {p.y.toFixed(1)})</td>
-                                                      <td className="py-2.5 px-3">
-                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${p.isRotated ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
-                                                          {p.isRotated ? "🔄 Girado 90°" : "▶️ Normal"}
-                                                        </span>
-                                                      </td>
                                                     </tr>
                                                   ))}
                                                 </tbody>
@@ -4875,8 +4886,6 @@ export default function App() {
                               <th className="border border-black p-2 w-10 text-center">#</th>
                               <th className="border border-black p-2 text-left">PROYECTO / VENTANA</th>
                               <th className="border border-black p-2 text-center w-36">MEDIDA CORTE</th>
-                              <th className="border border-black p-2 text-right w-48 font-bold">POSICIÓN (ANCH x ALTO)</th>
-                              <th className="border border-black p-2 text-center w-28">GIRO</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -4885,10 +4894,6 @@ export default function App() {
                                 <td className="border border-black p-2 text-center font-black">{idx + 1}</td>
                                 <td className="border border-black p-2 uppercase text-[10px]">{p.projectName}</td>
                                 <td className="border border-black p-2 text-center text-sm font-black">{p.originalDimensions}</td>
-                                <td className="border border-black p-2 text-right font-mono text-[10px] text-gray-600">W: {p.w}" x H: {p.h}" (X: {p.x.toFixed(1)}, Y: {p.y.toFixed(1)})</td>
-                                <td className="border border-black p-2 text-center text-[10px] font-black">
-                                  {p.isRotated ? "GIRADO 90°" : "NORMAL"}
-                                </td>
                               </tr>
                             ))}
                           </tbody>
