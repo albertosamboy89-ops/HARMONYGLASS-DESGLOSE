@@ -33,6 +33,7 @@ import {
   MessageCircle,
   ExternalLink,
   Database,
+  Layers,
   HelpCircle,
   Coins,
 } from "lucide-react";
@@ -279,6 +280,227 @@ const FRACTIONS = [
   { label: "7/8", value: 14 },
   { label: "15/16", value: 15 },
 ];
+
+// --- 2D Glass Cutting Optimization Definitions ---
+
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface PlacedPiece {
+  id: string;
+  projectName: string;
+  originalDimensions: string;
+  w: number; // Placed width (inches)
+  h: number; // Placed height (inches)
+  x: number; // Left coordinate (inches)
+  y: number; // Top coordinate (inches)
+  color: { bg: string; border: string; text: string };
+  isRotated: boolean;
+}
+
+export interface Sheet {
+  id: number;
+  width: number;
+  height: number;
+  freeRects: Rect[];
+  placedPieces: PlacedPiece[];
+}
+
+export const PALETTE = [
+  { bg: "bg-emerald-500/20", border: "border-emerald-500", text: "text-emerald-400" },
+  { bg: "bg-blue-500/20", border: "border-blue-500", text: "text-blue-400" },
+  { bg: "bg-purple-500/20", border: "border-purple-500", text: "text-purple-400" },
+  { bg: "bg-amber-500/20", border: "border-amber-500", text: "text-amber-400" },
+  { bg: "bg-rose-500/20", border: "border-rose-500", text: "text-rose-400" },
+  { bg: "bg-cyan-500/20", border: "border-cyan-500", text: "text-cyan-400" },
+  { bg: "bg-indigo-500/20", border: "border-indigo-500", text: "text-indigo-400" },
+  { bg: "bg-fuchsia-500/20", border: "border-fuchsia-500", text: "text-fuchsia-400" },
+  { bg: "bg-orange-500/20", border: "border-orange-500", text: "text-orange-400" },
+  { bg: "bg-teal-500/20", border: "border-teal-500", text: "text-teal-400" },
+];
+
+function splitFreeRect(fr: Rect, pw: number, ph: number, splitHorizontal: boolean): Rect[] {
+  const result: Rect[] = [];
+  if (splitHorizontal) {
+    if (fr.w - pw > 0.001 && ph > 0.001) {
+      result.push({ x: fr.x + pw, y: fr.y, w: fr.w - pw, h: ph });
+    }
+    if (fr.w > 0.001 && fr.h - ph > 0.001) {
+      result.push({ x: fr.x, y: fr.y + ph, w: fr.w, h: fr.h - ph });
+    }
+  } else {
+    if (fr.w - pw > 0.001 && fr.h > 0.001) {
+      result.push({ x: fr.x + pw, y: fr.y, w: fr.w - pw, h: fr.h });
+    }
+    if (pw > 0.001 && fr.h - ph > 0.001) {
+      result.push({ x: fr.x, y: fr.y + ph, w: pw, h: fr.h - ph });
+    }
+  }
+  return result;
+}
+
+export function packPieces2D(
+  pieces: { id: string; projectName: string; originalDimensions: string; w: number; h: number; color: typeof PALETTE[0] }[],
+  sheetW: number = 130,
+  sheetH: number = 84
+): Sheet[] {
+  // Sort pieces by area descending as a primary heuristic, and then by max dimension descending.
+  const sortedPieces = [...pieces].sort((a, b) => {
+    const areaA = a.w * a.h;
+    const areaB = b.w * b.h;
+    if (Math.abs(areaB - areaA) > 0.001) {
+      return areaB - areaA;
+    }
+    return Math.max(b.w, b.h) - Math.max(a.w, a.h);
+  });
+
+  const sheets: Sheet[] = [];
+
+  for (const piece of sortedPieces) {
+    let placed = false;
+
+    // Try to place in existing sheets
+    for (const sheet of sheets) {
+      let bestRectIdx = -1;
+      let rotated = false;
+      let minScore = Infinity;
+
+      for (let i = 0; i < sheet.freeRects.length; i++) {
+        const fr = sheet.freeRects[i];
+
+        // Try normal orientation
+        if (fr.w >= piece.w - 0.001 && fr.h >= piece.h - 0.001) {
+          const score = Math.min(fr.w - piece.w, fr.h - piece.h);
+          if (score < minScore) {
+            minScore = score;
+            bestRectIdx = i;
+            rotated = false;
+          }
+        }
+        // Try rotated orientation
+        if (Math.abs(piece.w - piece.h) > 0.001 && fr.w >= piece.h - 0.001 && fr.h >= piece.w - 0.001) {
+          const score = Math.min(fr.w - piece.h, fr.h - piece.w);
+          if (score < minScore) {
+            minScore = score;
+            bestRectIdx = i;
+            rotated = true;
+          }
+        }
+      }
+
+      if (bestRectIdx !== -1) {
+        const fr = sheet.freeRects[bestRectIdx];
+        sheet.freeRects.splice(bestRectIdx, 1);
+
+        const pw = rotated ? piece.h : piece.w;
+        const ph = rotated ? piece.w : piece.h;
+
+        const pPiece: PlacedPiece = {
+          id: piece.id,
+          projectName: piece.projectName,
+          originalDimensions: piece.originalDimensions,
+          w: pw,
+          h: ph,
+          x: fr.x,
+          y: fr.y,
+          color: piece.color,
+          isRotated: rotated,
+        };
+        sheet.placedPieces.push(pPiece);
+
+        const remainW = fr.w - pw;
+        const remainH = fr.h - ph;
+        const splitHoriz = remainW < remainH;
+
+        const newFree = splitFreeRect(fr, pw, ph, splitHoriz);
+        sheet.freeRects.push(...newFree);
+
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) {
+      // Create a new sheet
+      const newSheetIdx = sheets.length + 1;
+      const initialFreeRect: Rect = { x: 0, y: 0, w: sheetW, h: sheetH };
+
+      const canFitNormal = sheetW >= piece.w - 0.001 && sheetH >= piece.h - 0.001;
+      const canFitRotated = sheetW >= piece.h - 0.001 && sheetH >= piece.w - 0.001;
+
+      if (!canFitNormal && !canFitRotated) {
+        // Exceeds board size! Fit as much as we can up to the boundaries.
+        const cappedW = Math.min(piece.w, sheetW);
+        const cappedH = Math.min(piece.h, sheetH);
+
+        const newSheet: Sheet = {
+          id: newSheetIdx,
+          width: sheetW,
+          height: sheetH,
+          freeRects: [],
+          placedPieces: [
+            {
+              id: piece.id,
+              projectName: piece.projectName,
+              originalDimensions: piece.originalDimensions + " (EXCEDE PLANCHA)",
+              w: cappedW,
+              h: cappedH,
+              x: 0,
+              y: 0,
+              color: { bg: "bg-red-500/20", border: "border-red-500", text: "text-red-400" },
+              isRotated: false,
+            },
+          ],
+        };
+
+        if (sheetW - cappedW > 0.001) {
+          newSheet.freeRects.push({ x: cappedW, y: 0, w: sheetW - cappedW, h: cappedH });
+        }
+        if (sheetH - cappedH > 0.001) {
+          newSheet.freeRects.push({ x: 0, y: cappedH, w: sheetW, h: sheetH - cappedH });
+        }
+
+        sheets.push(newSheet);
+        continue;
+      }
+
+      const rotated = !canFitNormal;
+      const pw = rotated ? piece.h : piece.w;
+      const ph = rotated ? piece.w : piece.h;
+
+      const pPiece: PlacedPiece = {
+        id: piece.id,
+        projectName: piece.projectName,
+        originalDimensions: piece.originalDimensions,
+        w: pw,
+        h: ph,
+        x: 0,
+        y: 0,
+        color: piece.color,
+        isRotated: rotated,
+      };
+
+      const remainW = sheetW - pw;
+      const remainH = sheetH - ph;
+      const splitHoriz = remainW < remainH;
+
+      const newSheet: Sheet = {
+        id: newSheetIdx,
+        width: sheetW,
+        height: sheetH,
+        freeRects: splitFreeRect(initialFreeRect, pw, ph, splitHoriz),
+        placedPieces: [pPiece],
+      };
+      sheets.push(newSheet);
+    }
+  }
+
+  return sheets;
+}
 
 function formatFraction(sixteenths: number): string {
   const whole = Math.floor(sixteenths / 16);
@@ -1584,6 +1806,10 @@ export default function App() {
   );
   const [selectedDetailClient, setSelectedDetailClient] = useState<string | null>(null);
   const [expandedWindowId, setExpandedWindowId] = useState<string | null>(null);
+  const [sheetW, setSheetW] = useState<number>(130);
+  const [sheetH, setSheetH] = useState<number>(84);
+  const [onlyPending, setOnlyPending] = useState<boolean>(true);
+  const [glassDetailTab, setGlassDetailTab] = useState<"opt2d" | "summary">("opt2d");
 
   // Navigation & Order Creation State
   const [activeView, setActiveView] = useState<
@@ -1621,6 +1847,7 @@ export default function App() {
   const [pendingChangeProfile, setPendingChangeProfile] = useState(false);
   const [isPrintMode, setIsPrintMode] = useState(false);
   const [isSinglePrintMode, setIsSinglePrintMode] = useState(false);
+  const [isGlassPrintMode, setIsGlassPrintMode] = useState(false);
   const [singlePrintProject, setSinglePrintProject] = useState<WindowProject | null>(null);
   const [clientPricing, setClientPricing] = useState<Record<string, number>>(() => {
     try {
@@ -2447,6 +2674,69 @@ export default function App() {
     return Object.values(glassMap);
   }, [currentDetailClient]);
 
+  const unpackedGlassPieces = useMemo(() => {
+    if (!currentDetailClient) return [];
+    
+    const filteredProjects = currentDetailClient.rawProjects.filter((p) => {
+      return !onlyPending || p.status === "pending";
+    });
+
+    const pieces: {
+      id: string;
+      projectName: string;
+      originalDimensions: string;
+      w: number;
+      h: number;
+      color: typeof PALETTE[0];
+    }[] = [];
+
+    const uniqueDims = Array.from(
+      new Set<string>(
+        filteredProjects.flatMap((p) =>
+          (p.results?.vidrios || [])
+            .filter((v) => !!v.dimensions)
+            .map((v) => v.dimensions!)
+        )
+      )
+    );
+
+    const dimColorMap: Record<string, typeof PALETTE[0]> = {};
+    uniqueDims.forEach((dim, idx) => {
+      dimColorMap[dim] = PALETTE[idx % PALETTE.length];
+    });
+
+    filteredProjects.forEach((p) => {
+      if (p.results?.vidrios) {
+        p.results.vidrios.forEach((vidrio) => {
+          if (vidrio.dimensions) {
+            const dims = vidrio.dimensions;
+            const [wStr, hStr] = dims.split(" x ");
+            const wVal = parseFractionInches(wStr);
+            const hVal = parseFractionInches(hStr);
+            const qty = (vidrio.qty || 1) * (p.qty || 1);
+
+            for (let i = 0; i < qty; i++) {
+              pieces.push({
+                id: `${p.id}-${vidrio.id}-${i}`,
+                projectName: p.name || p.type || "Ventana",
+                originalDimensions: dims,
+                w: wVal,
+                h: hVal,
+                color: dimColorMap[dims] || PALETTE[0],
+              });
+            }
+          }
+        });
+      }
+    });
+
+    return pieces;
+  }, [currentDetailClient, onlyPending]);
+
+  const optimizedGlassSheets = useMemo(() => {
+    return packPieces2D(unpackedGlassPieces, sheetW, sheetH);
+  }, [unpackedGlassPieces, sheetW, sheetH]);
+
   const clientAccessories = useMemo(() => {
     if (!currentDetailClient) return [];
     let totalWindowsCount = 0;
@@ -2851,7 +3141,6 @@ export default function App() {
                         { id: "P65", desc: "Series 65 Premium" },
                         { id: "P92", desc: "Industrial Heavy" },
                         { id: "VENTILADA", desc: "Flujo de Aire" },
-                        { id: "GAVETAS", desc: "Sistema de Gavetas" },
                         { id: "PUERTA_COMERCIAL", desc: "Perfil de Alto Tráfico" },
                         { id: "COCINA_MODULAR", desc: "Muebles de Cocina" },
                       ] as const
@@ -3028,11 +3317,10 @@ export default function App() {
                             />
                           </>
                         </div>
-
-                        <div className="space-y-4">
+                                              <div className="space-y-4">
                            <label className="text-[8px] font-black text-brand-accent uppercase tracking-widest pl-1">
                              {windowType === "GAVETAS" 
-                               ? "Cantidad de Gavetas" 
+                               ? "Cantidad de Vidrios" 
                                : windowType === "PUERTA_COMERCIAL" 
                                  ? "Cantidad de Hojas" 
                                  : windowType === "COCINA_MODULAR"
@@ -3059,7 +3347,8 @@ export default function App() {
                                  <span
                                    className={`text-[9px] font-black uppercase tracking-widest transition-colors mt-2 ${vias === v ? "text-brand-accent" : "text-brand-muted group-hover:text-white"}`}
                                  >
-                                   {v} {windowType === "GAVETAS" ? "Gavetas" : windowType === "COCINA_MODULAR" ? (v === 1 ? "Puerta" : "Puertas") : v === 1 ? "Hoja" : "Hojas"}
+                                   {v} {windowType === "GAVETAS" ? "Vidrios" : windowType === "COCINA_MODULAR" ? (v === 1 ? "Puerta" : "Puertas") : v === 1 ? "Hoja" : "Hojas"}
+
                                  </span>
                                  {vias === v && (
                                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-accent text-white flex items-center justify-center shadow-md">
@@ -3446,171 +3735,396 @@ export default function App() {
                         {/* Interactive layout: top = optimized materials, bottom = Window breakdown */}
                         <div className="space-y-8">
                           
-                          {/* Top: Consolidated Materials & Glass Lists */}
-                          <div className="space-y-6">
-                            
-                            {/* Unified Materials, Glass & Accessories Purchase Box */}
-                            <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl relative overflow-hidden space-y-6">
-                              <div className="flex justify-between items-center mb-1">
-                                <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                  <ClipboardList size={16} className="text-brand-accent shrink-0" /> Resumen de Compra de Materiales
-                                </h3>
-                                <span className="px-2 py-0.5 bg-brand-border rounded text-[8px] font-bold text-brand-muted uppercase tracking-wider font-mono">
-                                  Barras 250"
-                                </span>
-                              </div>
-
-                              <div className="space-y-6">
-                                {/* Grid container for Profiles and Glass side-by-side */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                  
-                                  {/* Profiles Box (Cuadrito bonito) */}
-                                  <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl space-y-3">
-                                    <div className="border-b border-white/10 pb-1.5 flex justify-between items-center">
-                                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                                        P65 ({consolidatedMaterials.profiles[0]?.color || "Blanco"})
-                                      </span>
-                                    </div>
-                                    <table className="w-full text-left text-xs">
-                                      <thead>
-                                        <tr className="text-brand-muted uppercase text-[9px] tracking-widest border-b border-white/5">
-                                          <th className="py-1 font-bold">perfil</th>
-                                          <th className="py-1 text-right font-bold w-12">canti</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-white/[0.02]">
-                                        {consolidatedMaterials.profiles.length > 0 ? (
-                                          consolidatedMaterials.profiles.map((p, idx) => (
-                                            <tr key={idx} className="hover:bg-white/[0.01]">
-                                              <td className="py-2 font-semibold text-white/90 capitalize text-[11px]">{p.name}</td>
-                                              <td className="py-2 text-right font-mono font-black text-brand-accent text-[11px]">{p.barsNeeded}</td>
-                                            </tr>
-                                          ))
-                                        ) : (
-                                          <tr>
-                                            <td colSpan={2} className="py-2 text-center text-[10px] italic text-brand-muted opacity-40">Sin perfiles</td>
-                                          </tr>
-                                        )}
-                                      </tbody>
-                                    </table>
-                                  </div>
-
-                                  {/* Glass Box (Cuadrito bonito) */}
-                                  <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl space-y-3">
-                                    <div className="border-b border-white/10 pb-1.5 flex justify-between items-center">
-                                      <span className="text-[10px] font-black uppercase tracking-widest text-[#22c55e]">
-                                        Detalle de Cristales
-                                      </span>
-                                    </div>
-                                    <table className="w-full text-left text-xs">
-                                      <thead>
-                                        <tr className="text-brand-muted uppercase text-[9px] tracking-widest border-b border-white/5">
-                                          <th className="py-1 font-bold">medida</th>
-                                          <th className="py-1 text-right font-bold w-12">canti</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-white/[0.02]">
-                                        {clientGlassSummary.length > 0 ? (
-                                          clientGlassSummary.map((item, idx) => (
-                                            <tr key={idx} className="hover:bg-white/[0.01]">
-                                              <td className="py-2 font-mono text-white/90 text-[11px]">{item.dimensions}"</td>
-                                              <td className="py-2 text-right font-mono font-black text-[#22c55e] text-[11px]">x{item.qty}</td>
-                                            </tr>
-                                          ))
-                                        ) : (
-                                          <tr>
-                                            <td colSpan={2} className="py-2 text-center text-[10px] italic text-brand-muted opacity-40">Sin cristales</td>
-                                          </tr>
-                                        )}
-                                      </tbody>
-                                    </table>
-                                  </div>
-
-                                </div>
-
-                                {/* Divider & Accessories Section (Dividido de último) */}
-                                <div className="border-t border-white/10 pt-4 space-y-3">
-                                  <div className="flex justify-between items-center pb-1">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">
-                                      Accesorios Requeridos
-                                    </span>
-                                  </div>
-                                  <div className="divide-y divide-white/5 text-xs bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden">
-                                    {consolidatedMaterials.accessories.map((acc, index) => (
-                                      <div key={index} className="px-4 py-2.5 flex justify-between items-center hover:bg-white/[0.02] transition-colors">
-                                        <span className="font-semibold text-brand-muted capitalize text-[11px]">{acc.name.toLowerCase()}</span>
-                                        <span className="text-white font-mono font-black text-[11px]">{acc.qty} {acc.unit}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-
-                              </div>
-
-                              {/* WhatsApp Share Button */}
-                              <button
-                                onClick={() => {
-                                  const formatWhatsAppTable = (items: { name: string; qty: string }[], header1: string, header2: string): string => {
-                                    const col1Width = 18;
-                                    const col2Width = 8;
-                                    const borderLine = `+${"-".repeat(col1Width + 2)}+${"-".repeat(col2Width + 2)}+\n`;
-                                    
-                                    let table = "```\n";
-                                    table += borderLine;
-                                    const h1 = header1.toUpperCase().padEnd(col1Width);
-                                    const h2 = header2.toUpperCase().padEnd(col2Width);
-                                    table += `| ${h1} | ${h2} |\n`;
-                                    table += borderLine;
-                                    
-                                    items.forEach((item) => {
-                                      const namePart = item.name.toLowerCase().slice(0, col1Width).padEnd(col1Width);
-                                      const qtyPart = item.qty.slice(0, col2Width).padEnd(col2Width);
-                                      table += `| ${namePart} | ${qtyPart} |\n`;
-                                    });
-                                    
-                                    table += borderLine;
-                                    table += "```";
-                                    return table;
-                                  };
-
-                                  const activeColor = consolidatedMaterials.profiles[0]?.color || "Blanco";
-                                  let message = `*P65 (${activeColor.toUpperCase()})*\n`;
-
-                                  const profileLines = consolidatedMaterials.profiles.map(p => ({
-                                    name: p.name,
-                                    qty: String(p.barsNeeded)
-                                  }));
-                                  message += formatWhatsAppTable(profileLines, "perfil", "canti") + "\n\n";
-
-                                  if (clientGlassSummary.length > 0) {
-                                    message += `*Vidrios*\n`;
-                                    const glassLines = clientGlassSummary.map(g => ({
-                                      name: g.dimensions,
-                                      qty: String(g.qty)
-                                    }));
-                                    message += formatWhatsAppTable(glassLines, "medida", "canti") + "\n\n";
-                                  }
-
-                                  if (consolidatedMaterials.accessories.length > 0) {
-                                    message += `*Accesorios*\n`;
-                                    const accLines = consolidatedMaterials.accessories.map(acc => ({
-                                      name: acc.name,
-                                      qty: String(acc.qty)
-                                    }));
-                                    message += formatWhatsAppTable(accLines, "detalle", "canti") + "\n\n";
-                                  }
-
-                                  const url = `https://wa.me/18094130846?text=${encodeURIComponent(message)}`;
-                                  window.open(url, "_blank");
-                                }}
-                                className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl flex items-center justify-center gap-3 font-extrabold uppercase text-xs shadow-xl transition-all duration-300"
-                              >
-                                <MessageCircle size={20} className="fill-white/10" strokeWidth={2.5} /> Enviar Detalle por WhatsApp
-                              </button>
-
-                            </div>
-
+                          {/* Intercambio de pestañas: Optimización ó Resumen de Compra de Materiales */}
+                          <div className="flex bg-neutral-900/60 backdrop-blur-md border border-white/5 p-1 rounded-2xl gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setGlassDetailTab("opt2d")}
+                              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${glassDetailTab === "opt2d" ? "bg-red-600 text-white shadow-lg" : "text-brand-muted hover:text-white hover:bg-white/5"}`}
+                            >
+                              <Layers size={14} /> 🔬 Optimizar Vidrios 2D
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGlassDetailTab("summary")}
+                              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${glassDetailTab === "summary" ? "bg-red-600 text-white shadow-lg" : "text-brand-muted hover:text-white hover:bg-white/5"}`}
+                            >
+                              <ClipboardList size={14} /> 📋 Compra de Materiales
+                            </button>
                           </div>
+
+                          {glassDetailTab === "opt2d" ? (
+                            /* SECCIÓN OPTIMIZACIÓN EN 2D */
+                            <div className="space-y-6">
+                              {/* Configuration controls card */}
+                              <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl space-y-6">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 pb-4">
+                                  <div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                      <Layers size={16} className="text-red-500" /> Configuración de Planchas de Cristal
+                                    </h3>
+                                    <p className="text-[10px] text-brand-muted uppercase mt-1">Configura las planchas y filtros de optimización en 2D</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsGlassPrintMode(true)}
+                                      className="px-4 py-2 bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5"
+                                    >
+                                      <Printer size={12} /> Imprimir Plan
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                  {/* Width */}
+                                  <div className="space-y-1.5">
+                                    <label className="block text-[8px] font-black uppercase tracking-widest text-brand-muted">Ancho Plancha (In)</label>
+                                    <input
+                                      type="number"
+                                      value={sheetW}
+                                      onChange={(e) => setSheetW(Math.max(12, parseFloat(e.target.value) || 0))}
+                                      className="w-full h-11 bg-black/40 border border-brand-border rounded-xl px-4 text-xs font-mono font-black text-white focus:outline-none focus:border-brand-accent transition-colors"
+                                    />
+                                  </div>
+                                  {/* Height */}
+                                  <div className="space-y-1.5">
+                                    <label className="block text-[8px] font-black uppercase tracking-widest text-brand-muted">Alto Plancha (In)</label>
+                                    <input
+                                      type="number"
+                                      value={sheetH}
+                                      onChange={(e) => setSheetH(Math.max(12, parseFloat(e.target.value) || 0))}
+                                      className="w-full h-11 bg-black/40 border border-brand-border rounded-xl px-4 text-xs font-mono font-black text-white focus:outline-none focus:border-brand-accent transition-colors"
+                                    />
+                                  </div>
+                                  {/* OnlyPending switch */}
+                                  <div className="space-y-1.5 flex flex-col justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => setOnlyPending(!onlyPending)}
+                                      className={`w-full h-11 rounded-xl text-center border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${onlyPending ? "bg-red-600/20 border-red-500/40 text-red-400" : "bg-white/5 border-white/10 text-brand-muted hover:text-white"}`}
+                                    >
+                                      <Clock size={12} />
+                                      {onlyPending ? "Solo 'En Producción'" : "Todos los Cristales"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Optimización results overview */}
+                              {unpackedGlassPieces.length === 0 ? (
+                                <div className="py-20 text-center opacity-40 border border-dashed border-white/10 rounded-[2.5rem] bg-brand-sidebar/40">
+                                  <Layers className="mx-auto mb-4 text-brand-muted" size={40} />
+                                  <h4 className="text-sm font-black uppercase tracking-[0.3em] text-white">Sin vidrios disponibles</h4>
+                                  <p className="text-[10px] text-brand-muted mt-2 max-w-md mx-auto leading-relaxed">
+                                    {onlyPending 
+                                      ? "No hay vidrios en proyectos que marquen como 'En Producción' (por terminar). Cambie el filtro para ver todos, o agregue ventanas en la sección Nuevo." 
+                                      : "No hay cristales definidos para el cliente seleccionado."
+                                    }
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-6">
+                                  {/* Overview Analytics Card */}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="p-4 bg-brand-sidebar border border-brand-border rounded-2xl text-center">
+                                      <span className="block text-[8px] font-black uppercase tracking-wider text-brand-muted mb-1">Total Cristales 💎</span>
+                                      <span className="text-xl font-black text-white font-mono">{unpackedGlassPieces.length}</span>
+                                    </div>
+                                    <div className="p-4 bg-brand-sidebar border border-brand-border rounded-2xl text-center">
+                                      <span className="block text-[8px] font-black uppercase tracking-wider text-brand-muted mb-1">Total Planchas 🗺️</span>
+                                      <span className="text-xl font-black text-red-500 font-mono">{optimizedGlassSheets.length}</span>
+                                    </div>
+                                    <div className="p-4 bg-brand-sidebar border border-brand-border rounded-2xl text-center">
+                                      <span className="block text-[8px] font-black uppercase tracking-wider text-brand-muted mb-1">Eficiencia Promedio</span>
+                                      <span className="text-xl font-black text-emerald-400 font-mono">
+                                        {(() => {
+                                          const tArea = unpackedGlassPieces.reduce((acc, p) => acc + (p.w * p.h), 0);
+                                          const sArea = optimizedGlassSheets.length * sheetW * sheetH;
+                                          return sArea > 0 ? ((tArea / sArea) * 100).toFixed(1) : "0";
+                                        })()}%
+                                      </span>
+                                    </div>
+                                    <div className="p-4 bg-brand-sidebar border border-brand-border rounded-2xl text-center">
+                                      <span className="block text-[8px] font-black uppercase tracking-wider text-brand-muted mb-1">Área Total Usada</span>
+                                      <span className="text-xl font-black text-blue-400 font-mono">
+                                        {(unpackedGlassPieces.reduce((acc, p) => acc + (p.w * p.h), 0) / 144).toFixed(1)} <sub className="text-[10px]">ft²</sub>
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Glass sheets rendering */}
+                                  <div className="space-y-8">
+                                    {optimizedGlassSheets.map((sheet) => {
+                                      // Calculate area efficiency for this particular sheet:
+                                      const sheetArea = sheet.width * sheet.height;
+                                      const usedArea = sheet.placedPieces.reduce((acc, p) => acc + (p.w * p.h), 0);
+                                      const efficiency = sheetArea > 0 ? (usedArea / sheetArea) * 100 : 0;
+
+                                      return (
+                                        <div 
+                                          key={sheet.id} 
+                                          className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl space-y-6"
+                                        >
+                                          {/* Sheet Label Info */}
+                                          <div className="flex justify-between items-center bg-black/20 p-4 border border-white/5 rounded-2xl">
+                                            <div className="flex items-center gap-2">
+                                              <span className="w-6 h-6 rounded-full bg-red-600/10 text-red-500 border border-red-500/20 flex items-center justify-center font-black font-mono text-xs shadow-md">
+                                                {sheet.id}
+                                              </span>
+                                              <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                                                Plancha {sheet.id} <span className="text-brand-muted">({sheet.width} x {sheet.height} in)</span>
+                                              </h4>
+                                            </div>
+                                            <div className="flex gap-4 text-xs font-mono font-bold">
+                                              <span className="text-brand-muted whitespace-nowrap">Cortes: {sheet.placedPieces.length}</span>
+                                              <span className="text-emerald-400 whitespace-nowrap">Uso: {efficiency.toFixed(1)}%</span>
+                                            </div>
+                                          </div>
+
+                                          {/* Interactive Visual Graphic Board (The visual plancha) */}
+                                          <div className="relative w-full aspect-[110/71] bg-[#070b13] border border-white/5 rounded-2xl overflow-hidden shadow-2xl transition-all">
+                                            {/* Rulers / gridlines or clean layout bounds */}
+                                            {sheet.placedPieces.map((p) => {
+                                              const leftPct = (p.x / sheet.width) * 100;
+                                              const topPct = (p.y / sheet.height) * 100;
+                                              const widthPct = (p.w / sheet.width) * 100;
+                                              const heightPct = (p.h / sheet.height) * 100;
+
+                                              return (
+                                                <div
+                                                  key={p.id}
+                                                  style={{
+                                                    left: `${leftPct}%`,
+                                                    top: `${topPct}%`,
+                                                    width: `${widthPct}%`,
+                                                    height: `${heightPct}%`,
+                                                  }}
+                                                  className={`absolute border transition-all duration-300 flex flex-col justify-center items-center text-center p-1 overflow-hidden group ${p.color.bg} ${p.color.border}`}
+                                                  title={`${p.projectName} • ${p.originalDimensions}`}
+                                                >
+                                                  <span className="text-[7px] sm:text-[9px] md:text-xs font-black text-white leading-tight font-sans tracking-tight break-all">
+                                                    {p.originalDimensions}
+                                                  </span>
+                                                  <span className="text-[5px] sm:text-[7px] opacity-80 text-white font-mono leading-none truncate max-w-full">
+                                                    {p.projectName} {p.isRotated && "🔄"}
+                                                  </span>
+                                                  <span className="text-[5px] sm:text-[6px] font-mono text-brand-muted mt-0.5 whitespace-nowrap">
+                                                    {p.w}" x {p.h}"
+                                                  </span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+
+                                          {/* Table listing cuts */}
+                                          <div className="space-y-2">
+                                            <p className="text-[8px] font-black text-brand-muted uppercase tracking-[0.3em] pl-1">Lista de Cortes de esta Plancha</p>
+                                            <div className="border border-white/5 bg-black/20 rounded-2xl overflow-hidden">
+                                              <table className="w-full text-left text-xs text-brand-muted">
+                                                <thead>
+                                                  <tr className="border-b border-white/5 text-[9px] font-black uppercase tracking-widest text-[#22c55e]/90 bg-white/[0.01]">
+                                                    <th className="py-2.5 px-4 w-8">#</th>
+                                                    <th className="py-2.5 px-3">Proyecto / Ventana</th>
+                                                    <th className="py-2.5 px-3">Medida Solicitada</th>
+                                                    <th className="py-2.5 px-3">Posición colocada</th>
+                                                    <th className="py-2.5 px-3">Orientación</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-white/5 font-mono text-[10px]">
+                                                  {sheet.placedPieces.map((p, idx) => (
+                                                    <tr key={p.id} className="hover:bg-white/[0.01]">
+                                                      <td className="py-2.5 px-4 font-black">
+                                                        <span className={`inline-block w-2.5 h-2.5 rounded border ${p.color.bg} ${p.color.border} mr-1 align-middle`} />
+                                                        {idx + 1}
+                                                      </td>
+                                                      <td className="py-2.5 px-3 font-semibold text-white uppercase">{p.projectName}</td>
+                                                      <td className="py-2.5 px-3 font-black text-[#22c55e]">{p.originalDimensions}</td>
+                                                      <td className="py-2.5 px-3 text-white/70">W: {p.w}" x H: {p.h}" (X: {p.x.toFixed(1)}, Y: {p.y.toFixed(1)})</td>
+                                                      <td className="py-2.5 px-3">
+                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${p.isRotated ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
+                                                          {p.isRotated ? "🔄 Girado 90°" : "▶️ Normal"}
+                                                        </span>
+                                                      </td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            /* RESUMEN DE COMPRA ORIGINAL */
+                            <div className="space-y-6">
+                              {/* Unified Materials, Glass & Accessories Purchase Box */}
+                              <div className="bg-brand-sidebar border border-brand-border p-6 rounded-[2rem] shadow-xl relative overflow-hidden space-y-6">
+                                <div className="flex justify-between items-center mb-1">
+                                  <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                    <ClipboardList size={16} className="text-brand-accent shrink-0" /> Resumen de Compra de Materiales
+                                  </h3>
+                                  <span className="px-2 py-0.5 bg-brand-border rounded text-[8px] font-bold text-brand-muted uppercase tracking-wider font-mono">
+                                    Barras 250"
+                                  </span>
+                                </div>
+
+                                <div className="space-y-6">
+                                  {/* Grid container for Profiles and Glass side-by-side */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    
+                                    {/* Profiles Box (Cuadrito bonito) */}
+                                    <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl space-y-3">
+                                      <div className="border-b border-white/10 pb-1.5 flex justify-between items-center">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                                          P65 ({consolidatedMaterials.profiles[0]?.color || "Blanco"})
+                                        </span>
+                                      </div>
+                                      <table className="w-full text-left text-xs">
+                                        <thead>
+                                          <tr className="text-brand-muted uppercase text-[9px] tracking-widest border-b border-white/5">
+                                            <th className="py-1 font-bold">perfil</th>
+                                            <th className="py-1 text-right font-bold w-12">canti</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/[0.02]">
+                                          {consolidatedMaterials.profiles.length > 0 ? (
+                                            consolidatedMaterials.profiles.map((p, idx) => (
+                                              <tr key={idx} className="hover:bg-white/[0.01]">
+                                                <td className="py-2 font-semibold text-white/90 capitalize text-[11px]">{p.name}</td>
+                                                <td className="py-2 text-right font-mono font-black text-brand-accent text-[11px]">{p.barsNeeded}</td>
+                                              </tr>
+                                            ))
+                                          ) : (
+                                            <tr>
+                                              <td colSpan={2} className="py-2 text-center text-[10px] italic text-brand-muted opacity-40">Sin perfiles</td>
+                                            </tr>
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+
+                                    {/* Glass Box (Cuadrito bonito) */}
+                                    <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl space-y-3">
+                                      <div className="border-b border-white/10 pb-1.5 flex justify-between items-center">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-[#22c55e]">
+                                          Detalle de Cristales
+                                        </span>
+                                      </div>
+                                      <table className="w-full text-left text-xs">
+                                        <thead>
+                                          <tr className="text-brand-muted uppercase text-[9px] tracking-widest border-b border-white/5">
+                                            <th className="py-1 font-bold">medida</th>
+                                            <th className="py-1 text-right font-bold w-12">canti</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/[0.02]">
+                                          {clientGlassSummary.length > 0 ? (
+                                            clientGlassSummary.map((item, idx) => (
+                                              <tr key={idx} className="hover:bg-white/[0.01]">
+                                                <td className="py-2 font-mono text-white/90 text-[11px]">{item.dimensions}"</td>
+                                                <td className="py-2 text-right font-mono font-black text-[#22c55e] text-[11px]">x{item.qty}</td>
+                                              </tr>
+                                            ))
+                                          ) : (
+                                            <tr>
+                                              <td colSpan={2} className="py-2 text-center text-[10px] italic text-brand-muted opacity-40">Sin cristales</td>
+                                            </tr>
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+
+                                  </div>
+
+                                  {/* Divider & Accessories Section (Dividido de último) */}
+                                  <div className="border-t border-white/10 pt-4 space-y-3">
+                                    <div className="flex justify-between items-center pb-1">
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">
+                                        Accesorios Requeridos
+                                      </span>
+                                    </div>
+                                    <div className="divide-y divide-white/5 text-xs bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden">
+                                      {consolidatedMaterials.accessories.map((acc, index) => (
+                                        <div key={index} className="px-4 py-2.5 flex justify-between items-center hover:bg-white/[0.02] transition-colors">
+                                          <span className="font-semibold text-brand-muted capitalize text-[11px]">{acc.name.toLowerCase()}</span>
+                                          <span className="text-white font-mono font-black text-[11px]">{acc.qty} {acc.unit}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                </div>
+
+                                {/* WhatsApp Share Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const formatWhatsAppTable = (items: { name: string; qty: string }[], header1: string, header2: string): string => {
+                                      const col1Width = 18;
+                                      const col2Width = 8;
+                                      const borderLine = `+${"-".repeat(col1Width + 2)}+${"-".repeat(col2Width + 2)}+\n`;
+                                      
+                                      let table = "```\n";
+                                      table += borderLine;
+                                      const h1 = header1.toUpperCase().padEnd(col1Width);
+                                      const h2 = header2.toUpperCase().padEnd(col2Width);
+                                      table += `| ${h1} | ${h2} |\n`;
+                                      table += borderLine;
+                                      
+                                      items.forEach((item) => {
+                                        const namePart = item.name.toLowerCase().slice(0, col1Width).padEnd(col1Width);
+                                        const qtyPart = item.qty.slice(0, col2Width).padEnd(col2Width);
+                                        table += `| ${namePart} | ${qtyPart} |\n`;
+                                      });
+                                      
+                                      table += borderLine;
+                                      table += "```";
+                                      return table;
+                                    };
+
+                                    const activeColor = consolidatedMaterials.profiles[0]?.color || "Blanco";
+                                    let message = `*P65 (${activeColor.toUpperCase()})*\n`;
+
+                                    const profileLines = consolidatedMaterials.profiles.map(p => ({
+                                      name: p.name,
+                                      qty: String(p.barsNeeded)
+                                    }));
+                                    message += formatWhatsAppTable(profileLines, "perfil", "canti") + "\n\n";
+
+                                    if (clientGlassSummary.length > 0) {
+                                      message += `*Vidrios*\n`;
+                                      const glassLines = clientGlassSummary.map(g => ({
+                                        name: g.dimensions,
+                                        qty: String(g.qty)
+                                      }));
+                                      message += formatWhatsAppTable(glassLines, "medida", "canti") + "\n\n";
+                                    }
+
+                                    if (consolidatedMaterials.accessories.length > 0) {
+                                      message += `*Accesorios*\n`;
+                                      const accLines = consolidatedMaterials.accessories.map(acc => ({
+                                        name: acc.name,
+                                        qty: String(acc.qty)
+                                      }));
+                                      message += formatWhatsAppTable(accLines, "detalle", "canti") + "\n\n";
+                                    }
+
+                                    const url = `https://wa.me/18094130846?text=${encodeURIComponent(message)}`;
+                                    window.open(url, "_blank");
+                                  }}
+                                  className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl flex items-center justify-center gap-3 font-extrabold uppercase text-xs shadow-xl transition-all duration-300"
+                                >
+                                  <MessageCircle size={20} className="fill-white/10" strokeWidth={2.5} /> Enviar Detalle por WhatsApp
+                                </button>
+
+                              </div>
+                            </div>
+                          )}
 
                           {/* Bottom: Window Breakdown */}
                           <div className="space-y-4">
@@ -4252,6 +4766,148 @@ export default function App() {
                   </div>
                 </div>
                 <div>AUTORIZADO POR: _______________________</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isGlassPrintMode && currentDetailClient && (
+        <div className="fixed inset-0 z-[500] bg-white text-black p-6 overflow-y-auto font-sans print:p-0 print:relative print:block print:z-0 print:bg-white print:min-h-screen">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="flex justify-between items-center border-b-4 border-black pb-4 print:hidden">
+              <div className="flex items-center gap-4">
+                <BrandLogo className="w-20 h-11 pointer-events-none" />
+                <div className="flex flex-col">
+                  <h1 className="text-2xl font-black uppercase italic tracking-tighter leading-none">
+                    <span className="text-red-600">HARMONY</span> <span className="text-red-600">GLASS</span>
+                  </h1>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Plan de Optimización de Vidrios 2D</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => window.print()}
+                  className="px-6 h-12 bg-black text-white rounded-xl font-black uppercase text-xs flex items-center gap-2 shadow-xl hover:bg-gray-900 transition-all"
+                >
+                  <Printer size={16} /> Imprimir Plan
+                </button>
+                <button
+                  onClick={() => setIsGlassPrintMode(false)}
+                  className="px-6 h-12 bg-gray-100 text-black border border-gray-200 rounded-xl font-black uppercase text-xs flex items-center gap-2"
+                >
+                  <X size={16} /> Cerrar
+                </button>
+              </div>
+            </div>
+
+            <div className="border-[6px] border-black p-8 space-y-8 bg-white shadow-2xl print:shadow-none print:border-[4px]">
+              <div className="flex justify-between items-start gap-8 border-b-2 border-black pb-6">
+                <div className="space-y-4 flex-1">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">CLIENTE / CONTENEDOR</p>
+                    <h2 className="text-4xl font-black uppercase italic leading-tight">{currentDetailClient.name}</h2>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">PLAN DE CORTE POR PLANCHAS</p>
+                    <h3 className="text-xl font-black uppercase text-red-600">Total Planchas: {optimizedGlassSheets.length} • Vidrios: {unpackedGlassPieces.length}</h3>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">DIMENSIONES PLANCHAS</p>
+                  <span className="text-2xl font-mono font-black">{sheetW}" x {sheetH}"</span>
+                </div>
+              </div>
+
+              <div className="space-y-12">
+                {optimizedGlassSheets.map((sheet) => {
+                  const sheetArea = sheet.width * sheet.height;
+                  const usedArea = sheet.placedPieces.reduce((acc, p) => acc + (p.w * p.h), 0);
+                  const efficiency = sheetArea > 0 ? (usedArea / sheetArea) * 100 : 0;
+
+                  return (
+                    <div key={sheet.id} className="space-y-6 page-break-after border-b-2 border-dashed border-gray-300 pb-10 last:border-b-0 print:pb-0">
+                      <div className="flex justify-between items-center bg-gray-100 p-4 border border-black rounded-lg">
+                        <span className="text-base font-black uppercase">
+                          PLANCHA {sheet.id} <span className="text-gray-500">({sheet.width}" x {sheet.height}" - Uso: {efficiency.toFixed(1)}%)</span>
+                        </span>
+                        <span className="font-mono text-sm font-black text-black">Cortes: {sheet.placedPieces.length}</span>
+                      </div>
+
+                      {/* Black & White optimized high contrast printer-friendly visual */}
+                      <div className="relative w-full aspect-[110/71] bg-white border-2 border-black rounded-lg overflow-hidden">
+                        {sheet.placedPieces.map((p) => {
+                          const leftPct = (p.x / sheet.width) * 100;
+                          const topPct = (p.y / sheet.height) * 100;
+                          const widthPct = (p.w / sheet.width) * 100;
+                          const heightPct = (p.h / sheet.height) * 100;
+
+                          return (
+                            <div
+                              key={p.id}
+                              style={{
+                                left: `${leftPct}%`,
+                                top: `${topPct}%`,
+                                width: `${widthPct}%`,
+                                height: `${heightPct}%`,
+                              }}
+                              className="absolute border-2 border-black bg-white flex flex-col justify-center items-center text-center p-1 overflow-hidden"
+                            >
+                              <span className="text-[9px] sm:text-xs font-black text-black leading-tight select-none">
+                                {p.originalDimensions}
+                              </span>
+                              <span className="text-[6px] sm:text-[8px] font-mono text-gray-700 leading-none truncate max-w-full uppercase font-black">
+                                {p.projectName} {p.isRotated && "🔄"}
+                              </span>
+                              <span className="text-[6px] sm:text-[7px] font-mono text-gray-400">
+                                {p.w}" x {p.h}"
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Clear text list of cuts for this sheet */}
+                      <div>
+                        <table className="w-full border-collapse border-2 border-black text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 text-black font-black uppercase tracking-wider text-[10px] border-b-2 border-black">
+                              <th className="border border-black p-2 w-10 text-center">#</th>
+                              <th className="border border-black p-2 text-left">PROYECTO / VENTANA</th>
+                              <th className="border border-black p-2 text-center w-36">MEDIDA CORTE</th>
+                              <th className="border border-black p-2 text-right w-48 font-bold">POSICIÓN (ANCH x ALTO)</th>
+                              <th className="border border-black p-2 text-center w-28">GIRO</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sheet.placedPieces.map((p, idx) => (
+                              <tr key={p.id} className="border-b border-black font-semibold text-black">
+                                <td className="border border-black p-2 text-center font-black">{idx + 1}</td>
+                                <td className="border border-black p-2 uppercase text-[10px]">{p.projectName}</td>
+                                <td className="border border-black p-2 text-center text-sm font-black">{p.originalDimensions}</td>
+                                <td className="border border-black p-2 text-right font-mono text-[10px] text-gray-600">W: {p.w}" x H: {p.h}" (X: {p.x.toFixed(1)}, Y: {p.y.toFixed(1)})</td>
+                                <td className="border border-black p-2 text-center text-[10px] font-black">
+                                  {p.isRotated ? "GIRADO 90°" : "NORMAL"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-10 flex justify-between items-end italic opacity-40 text-[10px] font-black uppercase tracking-[0.4em]">
+                <div className="flex items-center gap-3">
+                  <BrandLogo className="w-12 h-7 filter grayscale pointer-events-none" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-red-700">HARMONY</span> 
+                    <span className="text-red-700 border-l-2 border-black pl-2">GLASS PRODUCTION DIGITAL</span>
+                  </div>
+                </div>
+                <div>CORTADOR: _______________________</div>
               </div>
             </div>
           </div>
