@@ -663,11 +663,11 @@ function PrintReport({
                     <tr className="bg-white text-black font-black uppercase tracking-tighter text-[7px] border-b-2 border-black">
                       <th className="border border-black px-1 py-1 w-12">#</th>
                       <th className="border border-black px-1 py-1 w-20">HUECO</th>
-                      <th className="border border-black px-1 py-1">DINTEL</th>
-                      <th className="border border-black px-1 py-1">JAMBA</th>
-                      <th className="border border-black px-1 py-1">LATERAL</th>
-                      <th className="border border-black px-1 py-1">CABEZAL</th>
-                      <th className="border border-black px-1 py-1 w-32">
+                      <th className="border border-black px-1 py-1 w-[75px] text-[7px]">DINTEL</th>
+                      <th className="border border-black px-1 py-1 w-[75px] text-[7px]">JAMBA</th>
+                      <th className="border border-black px-1 py-1 w-[75px] text-[7px]">LATERAL</th>
+                      <th className="border border-black px-1 py-1 w-[75px] text-[7px]">CABEZAL</th>
+                      <th className="border border-black px-1 py-1 w-[160px] text-[9px] bg-red-50/40">
                         CRISTAL
                       </th>
                     </tr>
@@ -677,13 +677,13 @@ function PrintReport({
                       <th className="border border-black px-1 py-1 w-20">
                         Hueco
                       </th>
-                      <th className="border border-black px-1 py-1">Jamba</th>
-                      <th className="border border-black px-1 py-1">
+                      <th className="border border-black px-1 py-1 w-[75px] text-[7px]">Jamba</th>
+                      <th className="border border-black px-1 py-1 w-[75px] text-[7px]">
                         Alf / Rueda
                       </th>
-                      <th className="border border-black px-1 py-1">Lateral</th>
-                      <th className="border border-black px-1 py-1">Rieles</th>
-                      <th className="border border-black px-1 py-1 w-32">
+                      <th className="border border-black px-1 py-1 w-[75px] text-[7px]">Lateral</th>
+                      <th className="border border-black px-1 py-1 w-[75px] text-[7px]">Rieles</th>
+                      <th className="border border-black px-1 py-1 w-[160px] text-[9px] bg-red-50/40">
                         CRISTAL (VIDRIO)
                       </th>
                     </tr>
@@ -745,34 +745,34 @@ function PrintReport({
                               {formatDimensionSet(p.width, p.height)}
                             </div>
                           </td>
-                          <td className="border border-black px-0.5 py-0.5">
+                          <td className="border border-black px-0.5 py-1">
                             <div className="flex flex-col leading-none">
-                              <span className="text-[12px] font-black text-black">{getS(combinedMarco, "DINTEL")}</span>
-                              <span className="text-[9px] font-bold text-black opacity-40">x1</span>
+                              <span className="text-[10.5px] font-black text-black/80">{getS(combinedMarco, "DINTEL")}</span>
+                              <span className="text-[8px] font-bold text-black opacity-40">x1</span>
                             </div>
                           </td>
-                          <td className="border border-black px-0.5 py-0.5">
+                          <td className="border border-black px-0.5 py-1">
                             <div className="flex flex-col leading-none">
-                              <span className="text-[12px] font-black text-black">{getS(combinedMarco, "JAMBA")}</span>
-                              <span className="text-[9px] font-bold text-black opacity-40">x2</span>
+                              <span className="text-[10.5px] font-black text-black/80">{getS(combinedMarco, "JAMBA")}</span>
+                              <span className="text-[8px] font-bold text-black opacity-40">x2</span>
                             </div>
                           </td>
-                          <td className="border border-black px-0.5 py-0.5">
+                          <td className="border border-black px-0.5 py-1">
                             <div className="flex flex-col leading-none">
-                              <span className="text-[12px] font-black text-black">{getS(combinedHoja, "LATERAL")}</span>
-                              <span className="text-[9px] font-bold text-black opacity-40">x{p.vias * 2}</span>
+                              <span className="text-[10.5px] font-black text-black/80">{getS(combinedHoja, "LATERAL")}</span>
+                              <span className="text-[8px] font-bold text-black opacity-40">x{p.vias * 2}</span>
                             </div>
                           </td>
-                          <td className="border border-black px-0.5 py-0.5">
+                          <td className="border border-black px-0.5 py-1">
                             <div className="flex flex-col leading-none">
-                              <span className="text-[12px] font-black text-black">{getS(combinedHoja, "CABEZAL")}</span>
-                              <span className="text-[9px] font-bold text-black opacity-40">x{p.vias * 2}</span>
+                              <span className="text-[10.5px] font-black text-black/80">{getS(combinedHoja, "CABEZAL")}</span>
+                              <span className="text-[8px] font-bold text-black opacity-40">x{p.vias * 2}</span>
                             </div>
                           </td>
-                          <td className="border border-black px-1 py-0.5 font-black text-black">
-                             <div className="flex items-center justify-center gap-2">
-                              <span className="text-[13px] tracking-tight tabular-nums leading-none">{getD(combinedVidrio, "Cristal")}</span>
-                              <span className="text-[9px] font-bold text-black opacity-40">x{p.vias}</span>
+                          <td className="border border-black px-1.5 py-1 font-black text-black bg-red-50/20">
+                             <div className="flex items-center justify-center gap-1.5">
+                              <span className="text-[12.5px] tracking-tight tabular-nums leading-none font-black text-red-700">{getD(combinedVidrio, "Cristal")}</span>
+                              <span className="text-[8px] font-bold text-black opacity-40">x{p.vias}</span>
                             </div>
                           </td>
                         </tr>
@@ -806,56 +806,56 @@ function PrintReport({
                           </div>
                         </td>
 
-                        <td className="border border-black px-0.5 py-0.5">
+                        <td className="border border-black px-0.5 py-1">
                           <div className="flex items-center justify-center gap-1 leading-none">
-                            <span className="text-[12px] font-black text-black">
+                            <span className="text-[11px] font-black text-black/80">
                               {getS(combinedHoja, "Jamba")}
                             </span>
-                            <span className="text-[9px] font-bold text-black opacity-40">
+                            <span className="text-[8px] font-bold text-black opacity-40">
                               x{p.vias * 2}
                             </span>
                           </div>
                         </td>
-                        <td className="border border-black px-0.5 py-0.5">
+                        <td className="border border-black px-0.5 py-1">
                           <div className="flex items-center justify-center gap-1 leading-none">
-                            <span className="text-[12px] font-black text-black">
+                            <span className="text-[11px] font-black text-black/80">
                               {getS(combinedHoja, "Alf / Rueda")}
                             </span>
-                            <span className="text-[9px] font-bold text-black opacity-40">
+                            <span className="text-[8px] font-bold text-black opacity-40">
                               x{p.vias * 2}
                             </span>
                           </div>
                         </td>
-                        <td className="border border-black px-0.5 py-0.5">
+                        <td className="border border-black px-0.5 py-1">
                           <div className="flex items-center justify-center gap-1 leading-none">
-                            <span className="text-[12px] font-black text-black">
+                            <span className="text-[11px] font-black text-black/80">
                               {getS(combinedMarco, "Lateral")}
                             </span>
-                            <span className="text-[9px] font-bold text-black opacity-40">
+                            <span className="text-[8px] font-bold text-black opacity-40">
                               x2
                             </span>
                           </div>
                         </td>
-                        <td className="border border-black px-0.5 py-0.5">
+                        <td className="border border-black px-0.5 py-1">
                           <div className="flex items-center justify-center gap-1 leading-none">
-                            <span className="text-[12px] font-black text-black">
+                            <span className="text-[11px] font-black text-black/80">
                               {getS(combinedMarco, "Rieles")}
                             </span>
-                            <span className="text-[9px] font-bold text-black opacity-40">
+                            <span className="text-[8px] font-bold text-black opacity-40">
                               x2
                             </span>
                           </div>
                         </td>
 
-                        <td className="border border-black px-1 py-0.5 font-black text-black">
-                          <div className="flex flex-col items-center justify-center gap-1.5 py-1">
+                        <td className="border border-black px-1.5 py-1 font-black text-black bg-red-50/20">
+                          <div className="flex flex-col items-center justify-center gap-1 py-0.5">
                             {combinedVidrio.map((v, vIdx) => (
                               <div key={vIdx} className="flex items-center justify-center gap-1 leading-none">
-                                <span className="text-[12px] tracking-tight tabular-nums leading-none font-black text-black">
+                                <span className="text-[12.5px] tracking-tight tabular-nums leading-none font-black text-red-700">
                                   {v.dimensions || formatFraction(v.size)}
                                 </span>
                                 <span className="text-[8px] font-bold text-black/55 whitespace-nowrap">
-                                  ({v.piece.includes("Menos") ? "M. 3/8\"" : "Ppal."}) x{v.qty}
+                                  {v.piece.includes("Menos") ? `(M. 3/8") x${v.qty}` : `x${v.qty}`}
                                 </span>
                               </div>
                             ))}
@@ -5394,35 +5394,35 @@ export default function App() {
                   {[
                     {
                       id: 1,
-                      title: "¿Cómo hacer un respaldo?",
-                      icon: <Database size={16} className="text-emerald-400" />,
-                      iconBg: "bg-emerald-500/10 border-emerald-500/20",
-                      prefix: "📦",
-                      desc: "Para resguardar tus datos, presiona el botón 'Descargar' (el ícono de la nube con flecha hacia abajo) en la cabecera. Esto guardará un archivo .json con tus proyectos y finanzas en tu dispositivo para transferirlo o guardarlo seguro."
+                      title: "Cálculos y Deducciones de Marcos",
+                      icon: <HelpCircle size={16} className="text-amber-400" />,
+                      iconBg: "bg-amber-500/10 border-amber-500/20",
+                      prefix: "📐",
+                      desc: "La calculadora técnica de Harmony calcula cortes automáticos para aluminio con precisión de 1/16\". Para sistemas P65, P92, Puertas Comerciales y Módulos de Cocina, el sistema descuenta cabezales, traslapes, silleras, jambas y guías con extrema exactitud. Los vidrios correspondientes se calculan restando el descuento estándar (Ancho - 2.87\" y Alto - 3\" para series corredizas)."
                     },
                     {
                       id: 2,
-                      title: "¿Cómo restaurar/importar?",
-                      icon: <Upload size={16} className="text-blue-400" />,
-                      iconBg: "bg-blue-500/10 border-blue-500/20",
-                      prefix: "📥",
-                      desc: "Si deseas transferir tus datos a otro equipo, presionas el botón 'Importar' (el ícono de la carpeta con flecha hacia arriba) en la cabecera del panel. Seleccionas el archivo .json descargado previamente para restaurar toda la base de datos de inmediato."
+                      title: "Optimización de Vidrios 2D",
+                      icon: <Database size={16} className="text-emerald-400" />,
+                      iconBg: "bg-emerald-500/10 border-emerald-500/20",
+                      prefix: "🔮",
+                      desc: "En la pestaña 'Compra de Materiales / Optimizar Vidrios 2D' puedes ingresar las dimensiones de tus planchas de cristal (ej: 130\" x 84\"). El sistema organizará todas las hojas de vidrios de tus proyectos en un mapa de corte bidimensional interactivo. Te indicará la cantidad de planchas necesarias y el desperdicio estimado para maximizar el uso del material."
                     },
                     {
                       id: 3,
-                      title: "Entender la Caja Integral",
+                      title: "Control de Obras, Status, Caja Chica",
                       icon: <Coins size={16} className="text-rose-400" />,
                       iconBg: "bg-rose-500/10 border-rose-500/20",
                       prefix: "💵",
-                      desc: "La Caja Chica Integral consolida todos los movimientos: Entradas (adelantos de clientes) y Salidas (gastos de materiales o egresos generales). Te da un balance neto en tiempo real sobre la rentabilidad actual de tus talleres."
+                      desc: "Crea tus clientes en el dashboard y agrégales obras específicas. El sistema genera una planilla de corte para perfiles de aluminio y otra para vidrios. Registra los adelantos recibidos y los gastos operativos en el módulo de finanzas: el balance neto y el cobro pendiente se actualizan en tiempo real para mantener control de caja."
                     },
                     {
                       id: 4,
-                      title: "Gestionar Obras y Adelantos",
-                      icon: <HelpCircle size={16} className="text-amber-400" />,
-                      iconBg: "bg-amber-500/10 border-amber-500/20",
-                      prefix: "🏗️",
-                      desc: "Cada cliente tiene múltiples obras asociadas. Puedes registrar los adelantos que hace cada cliente en el botón de finanzas del cliente y la planilla calculará automáticamente cuánto resta cobrar."
+                      title: "Resguardo de Datos de Clientes",
+                      icon: <Upload size={16} className="text-blue-400" />,
+                      iconBg: "bg-blue-500/10 border-blue-500/20",
+                      prefix: "📦",
+                      desc: "Nunca pierdas tu listado de clientes ni tus cálculos. En la parte superior de la cabecera cuentas con el botón 'Descargar Respaldo' de datos (formato .json) para guardar en tu dispositivo, y el botón 'Importar Datos' para restablecer en segundos toda la información calculada si cambias de equipo o navegador."
                     }
                   ].map((guide) => {
                     const isOpen = activeGuideId === guide.id;
