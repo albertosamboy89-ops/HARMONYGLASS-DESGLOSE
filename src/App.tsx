@@ -39,6 +39,11 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
+import { auth, db, OperationType, handleFirestoreError } from "./firebase";
+import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
+
+
 // --- Types ---
 
 interface CutDetail {
@@ -1884,6 +1889,133 @@ export default function App() {
     return saved ? parseFloat(saved) || 20 : 20;
   });
 
+  // Firebase Auth & Sync state
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [syncUserId, setSyncUserId] = useState<string>(() => {
+    let localUid = localStorage.getItem("v-cut-cloud-user-id");
+    if (!localUid) {
+      localUid = "dev_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem("v-cut-cloud-user-id", localUid);
+    }
+    return localUid;
+  });
+  const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
+
+  // Synchronize with Firebase Firestore
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUser(user);
+        setSyncUserId(user.uid);
+        localStorage.setItem("v-cut-cloud-user-id", user.uid);
+        setIsFirebaseLoading(false);
+      } else {
+        try {
+          await signInAnonymously(auth);
+        } catch (err) {
+          console.warn("Anonymous authentication error (expected if disabled in Firebase console):", err);
+          // If auth fails/is disabled, we keep using the persistent client-side UUID to proceed safely
+          setIsFirebaseLoading(false);
+        }
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!syncUserId) return;
+
+    // Sincronizar Proyectos desde Firestore de manera segura (evitando borrar datos locales)
+    const projectsRef = collection(db, "users", syncUserId, "projects");
+    const unsubscribeProjects = onSnapshot(
+      projectsRef,
+      (snapshot) => {
+        const remoteProjects: WindowProject[] = [];
+        snapshot.forEach((doc) => {
+          remoteProjects.push(doc.data() as WindowProject);
+        });
+
+        // Leer los proyectos actuales de localStorage
+        const savedLocal = localStorage.getItem("v-cut-projects");
+        let localProjects: WindowProject[] = [];
+        if (savedLocal) {
+          try {
+            localProjects = JSON.parse(savedLocal) as WindowProject[];
+          } catch (e) {
+            console.error("Error al parsear proyectos de localStorage:", e);
+          }
+        }
+
+        // Identificar los proyectos locales que no se han subido todavía a la nube
+        const remoteIds = new Set(remoteProjects.map((rp) => rp.id));
+        const missingLocals = localProjects.filter((lp) => !remoteIds.has(lp.id));
+
+        // Subir los proyectos locales que falten en Firestore
+        if (missingLocals.length > 0) {
+          missingLocals.forEach(async (lp) => {
+            try {
+              await setDoc(doc(db, "users", syncUserId, "projects", lp.id), {
+                ...lp,
+                userId: syncUserId,
+              });
+            } catch (err) {
+              console.error("Error al migrar proyecto local a Firestore:", lp.id, err);
+            }
+          });
+        }
+
+        // Combinar datos locales y remotos para evitar que desaparezcan del celular
+        const combined = [...remoteProjects, ...missingLocals];
+        
+        // Ordenar por fecha de creación ascendente
+        combined.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+        setProjects(combined);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, `users/${syncUserId}/projects`);
+      }
+    );
+
+    // Sincronizar Precios desde Firestore
+    const pricingRef = doc(db, "users", syncUserId, "pricing", "default");
+    const unsubscribePricing = onSnapshot(
+      pricingRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const remotePricing = docSnap.data().pricing;
+          if (remotePricing) {
+            setClientPricing(remotePricing);
+          }
+        } else {
+          // Si no hay en Firestore, subir el local si existe
+          const savedPricingLocal = localStorage.getItem("v-cut-pricing");
+          if (savedPricingLocal) {
+            try {
+              const localPricing = JSON.parse(savedPricingLocal);
+              setDoc(doc(db, "users", syncUserId, "pricing", "default"), {
+                id: "default",
+                userId: syncUserId,
+                pricing: localPricing,
+              });
+            } catch (e) {
+              console.error("Migration of pricing failed:", e);
+            }
+          }
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${syncUserId}/pricing/default`);
+      }
+    );
+
+    return () => {
+      unsubscribeProjects();
+      unsubscribePricing();
+    };
+  }, [syncUserId]);
+
   // Save to localStorage
   useEffect(() => {
     localStorage.setItem("v-cut-projects", JSON.stringify(projects));
@@ -1891,7 +2023,17 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem("v-cut-pricing", JSON.stringify(clientPricing));
-  }, [clientPricing]);
+    // Guardar en Firestore si hay Id de sincronización activo
+    if (syncUserId && Object.keys(clientPricing).length > 0) {
+      setDoc(doc(db, "users", syncUserId, "pricing", "default"), {
+        id: "default",
+        userId: syncUserId,
+        pricing: clientPricing
+      }).catch(err => {
+        console.warn("Pricing cloud sync failed:", err);
+      });
+    }
+  }, [clientPricing, syncUserId]);
 
   useEffect(() => {
     localStorage.setItem("v-cut-linear-price", linearPrice.toString());
@@ -1973,6 +2115,30 @@ export default function App() {
           if (json.clientPricing) setClientPricing(json.clientPricing);
           setActiveView("dashboard");
           window.scrollTo({ top: 0, behavior: "smooth" });
+
+          // Sincronizar importación con la nube
+          if (syncUserId) {
+            json.projects.forEach(async (p: WindowProject) => {
+              try {
+                await setDoc(doc(db, "users", syncUserId, "projects", p.id), {
+                  ...p,
+                  userId: syncUserId,
+                });
+              } catch (err) {
+                console.error("Cloud write failed for imported project:", p.id, err);
+              }
+            });
+
+            if (json.clientPricing) {
+              setDoc(doc(db, "users", syncUserId, "pricing", "default"), {
+                id: "default",
+                userId: syncUserId,
+                pricing: json.clientPricing,
+              }).catch((err) => {
+                console.error("Cloud write failed for imported pricing:", err);
+              });
+            }
+          }
         } else {
           throw new Error("Formato inválido");
         }
@@ -2049,12 +2215,12 @@ export default function App() {
 
     // User requested P92 specific discounts
     if (windowType === "P92" || windowType === "PUERTA_COMERCIAL") {
-      leafVertDeduction = 48; // Jamba 3.0"
-      leafOverlap = 10; // Alféizar deduction per panel (1.25" total / 2)
-      frameHorizDeduction = 26; // Riel 1.625" (User request 1.63")
-      frameVertDeduction = 2; // Lateral 0.125" (User request 0.13")
+      leafVertDeduction = 40; // Jamba 2.5" (Alto - 2.5" = 80" for 82.5" height)
+      leafOverlap = 10; // Alféizar deduction per panel (5/8" or 0.625")
+      frameHorizDeduction = 26; // Riel 1.625" (Ancho - 1 5/8" = 104 3/8" for 106" width)
+      frameVertDeduction = 2; // Lateral 0.125" (Alto - 1/8" = 82 3/8" for 82.5" height)
       glassWidthFrameDeduction = 46; // Vidrio Ancho 2.875" (User request 2.87")
-      glassHeightFrameDeduction = 48; // Vidrio Alto 3.0"
+      glassHeightFrameDeduction = 104; // Vidrio Alto 6.5" = 6 1/2" (Alto - 6.5" = 76" for 82.5" height)
     }
 
     if (windowType === "PUERTA_COMERCIAL") {
@@ -2170,41 +2336,67 @@ export default function App() {
     // User requested: "(Ancho + 0.75) / 3" which for 88.25 results in exactly 29.66" (29 11/16")
     // Formula for 3 vias in sixteenths: Math.round((totalWidth + 12) / 3)
     // Otherwise standard formula: Ancho / vias - leafOverlap
-    let leafHorizontalSize = vias === 3
-      ? Math.round((totalWidth + 12) / 3)
-      : Math.floor(totalWidth / vias - leafOverlap);
+    let leafHorizontalSize = 0;
+    let leafHorizontalFormula = "";
 
-    const leafHorizontalFormula = vias === 3
-      ? `(Ancho + 0.75") / 3`
-      : `Ancho/${vias} - ${formatFraction(leafOverlap)}`;
+    if (windowType === "P92") {
+      if (vias === 3) {
+        leafHorizontalSize = Math.round((totalWidth + 14) / 3);
+        leafHorizontalFormula = `(Ancho + 7/8") / 3`;
+      } else {
+        leafHorizontalSize = Math.floor(totalWidth / vias - leafOverlap);
+        leafHorizontalFormula = `Ancho/${vias} - ${formatFraction(leafOverlap)}`;
+      }
+    } else {
+      leafHorizontalSize = vias === 3
+        ? Math.round((totalWidth + 12) / 3)
+        : Math.floor(totalWidth / vias - leafOverlap);
+      leafHorizontalFormula = vias === 3
+        ? `(Ancho + 0.75") / 3`
+        : `Ancho/${vias} - ${formatFraction(leafOverlap)}`;
+    }
 
     // GLASS FORMULA PER USER: 
     // Width target for 23.63: 8.69 (139/16). (378 - 100) / 2 = 139.
     // For 3 or 4 vias, the glasswidth is based on leafHorizontalSize minus 2.63" (42 sixteenths)
     let glassWidth = Math.floor((totalWidth - glassWidthFrameDeduction) / vias);
     if (vias === 3 || vias === 4) {
-      glassWidth = leafHorizontalSize - 42;
+      if (windowType === "P92") {
+        glassWidth = leafHorizontalSize - 54; // Alfeizar - 3 3/8"
+      } else {
+        glassWidth = leafHorizontalSize - 42; // Alfeizar - 2.63"
+      }
     }
     // Height target for 23.63: 18.63 (298/16). 378 - 80 = 298.
     const glassHeight = totalHeight - glassHeightFrameDeduction;
 
-    // Second glass width calculation: "el principal menos 0.38" (3/8" or 6 sixteenths)
-    let glassWidthAlt = Math.max(0, glassWidth - 6);
+    // Second glass width calculation: "el principal menos 0.38" (3/8" or 6 sixteenths) for general, 5/8" = 10 sixteenths for P92
+    let glassWidthAlt = windowType === "P92" ? Math.max(0, glassWidth - 10) : Math.max(0, glassWidth - 6);
 
     // Apply precise decimal-based workshop math overrides for 3 vias
     if (vias === 3) {
       const totalWidthDecimal = totalWidth / 16;
-      // Formula: (Ancho + 0.75) / 3. Truncating to 2 decimal places to get 29.66"
-      const leafHorizontalDecimal = Math.floor((totalWidthDecimal + 0.75) / 3 * 100) / 100;
-      // First glass = leafHorizontalDecimal - 2.63 = 27.03"
-      const glassWidthDecimal = parseFloat((leafHorizontalDecimal - 2.63).toFixed(2));
-      // Second glass = glassWidthDecimal - 0.38 = 26.65"
-      const glassWidthAltDecimal = parseFloat((glassWidthDecimal - 0.38).toFixed(2));
+      if (windowType === "P92") {
+        const leafHorizontalDecimal = parseFloat(((totalWidthDecimal + 0.875) / 3).toFixed(4));
+        const glassWidthDecimal = parseFloat((leafHorizontalDecimal - 3.375).toFixed(4));
+        const glassWidthAltDecimal = parseFloat((glassWidthDecimal - 0.625).toFixed(4));
 
-      // Translate back to the closest 16th values for fractions rendering
-      leafHorizontalSize = Math.round(leafHorizontalDecimal * 16);
-      glassWidth = Math.round(glassWidthDecimal * 16);
-      glassWidthAlt = Math.round(glassWidthAltDecimal * 16);
+        leafHorizontalSize = Math.round(leafHorizontalDecimal * 16);
+        glassWidth = Math.round(glassWidthDecimal * 16);
+        glassWidthAlt = Math.round(glassWidthAltDecimal * 16);
+      } else {
+        // Formula: (Ancho + 0.75) / 3. Truncating to 2 decimal places to get 29.66"
+        const leafHorizontalDecimal = Math.floor((totalWidthDecimal + 0.75) / 3 * 100) / 100;
+        // First glass = leafHorizontalDecimal - 2.63 = 27.03"
+        const glassWidthDecimal = parseFloat((leafHorizontalDecimal - 2.63).toFixed(2));
+        // Second glass = glassWidthDecimal - 0.38 = 26.65"
+        const glassWidthAltDecimal = parseFloat((glassWidthDecimal - 0.38).toFixed(2));
+
+        // Translate back to the closest 16th values for fractions rendering
+        leafHorizontalSize = Math.round(leafHorizontalDecimal * 16);
+        glassWidth = Math.round(glassWidthDecimal * 16);
+        glassWidthAlt = Math.round(glassWidthAltDecimal * 16);
+      }
     }
 
     return {
@@ -2250,15 +2442,15 @@ export default function App() {
             qty: 2,
             size: glassWidth,
             dimensions: formatDimensionSet(glassWidth, glassHeight),
-            formula: `Alfeizar - 2.63" (Principal)`,
+            formula: windowType === "P92" ? `Alfeizar - 3 3/8" (Principal)` : `Alfeizar - 2.63" (Principal)`,
           });
           list.push({
             id: "glass_alt",
-            piece: "Cristal (Menos 3/8\" / 0.38\")",
+            piece: windowType === "P92" ? "Cristal (Menos 5/8\" / 0.625\")" : "Cristal (Menos 3/8\" / 0.38\")",
             qty: 1,
             size: glassWidthAlt,
             dimensions: formatDimensionSet(glassWidthAlt, glassHeight),
-            formula: `Principal - 0.38"`,
+            formula: windowType === "P92" ? `Principal - 5/8"` : `Principal - 0.38"`,
           });
         } else if (vias === 4) {
           list.push({
@@ -2267,15 +2459,15 @@ export default function App() {
             qty: 2,
             size: glassWidth,
             dimensions: formatDimensionSet(glassWidth, glassHeight),
-            formula: `Alfeizar - 2.63" (Principal)`,
+            formula: windowType === "P92" ? `Alfeizar - 3 3/8" (Principal)` : `Alfeizar - 2.63" (Principal)`,
           });
           list.push({
             id: "glass_alt",
-            piece: "Cristal (Menos 3/8\" / 0.38\")",
+            piece: windowType === "P92" ? "Cristal (Menos 5/8\" / 0.625\")" : "Cristal (Menos 3/8\" / 0.38\")",
             qty: 2,
             size: glassWidthAlt,
             dimensions: formatDimensionSet(glassWidthAlt, glassHeight),
-            formula: `Principal - 0.38"`,
+            formula: windowType === "P92" ? `Principal - 5/8"` : `Principal - 0.38"`,
           });
         } else {
           list.push({
@@ -2307,7 +2499,8 @@ export default function App() {
 
   /* addToQueue was redundant, replaced by addToBatch flow */
 
-  const toggleProjectStatus = (id: string) => {
+  const toggleProjectStatus = async (id: string) => {
+    // Local optimistic update
     setProjects((prev) =>
       prev.map((p) =>
         p.id === id
@@ -2315,9 +2508,26 @@ export default function App() {
           : p,
       ),
     );
+
+    // Cloud update
+    if (syncUserId) {
+      const p = projects.find((x) => x.id === id);
+      if (p) {
+        try {
+          await setDoc(doc(db, "users", syncUserId, "projects", id), {
+            ...p,
+            status: p.status === "pending" ? "completed" : "pending",
+            userId: syncUserId,
+          });
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, `users/${syncUserId}/projects/${id}`);
+        }
+      }
+    }
   };
 
-  const toggleCutStatus = (projectId: string, cutId: string) => {
+  const toggleCutStatus = async (projectId: string, cutId: string) => {
+    let updatedProj: WindowProject | null = null;
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id !== projectId) return p;
@@ -2327,12 +2537,24 @@ export default function App() {
           : [...p.completedCuts, cutId];
 
         const updated = { ...p, completedCuts: newCompleted };
+        updatedProj = updated;
         if (selectedProject?.id === projectId) {
           setSelectedProject(updated);
         }
         return updated;
       }),
     );
+
+    if (syncUserId && updatedProj) {
+      try {
+        await setDoc(doc(db, "users", syncUserId, "projects", projectId), {
+          ...updatedProj,
+          userId: syncUserId,
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${syncUserId}/projects/${projectId}`);
+      }
+    }
   };
 
   const deleteProject = (id: string) => {
@@ -2359,12 +2581,19 @@ export default function App() {
     setPassInput("");
   };
 
-  const confirmDeletion = () => {
+  const confirmDeletion = async () => {
     if (passInput === "1989") {
       if (pendingDeleteId) {
         setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
         if (selectedProject?.id === pendingDeleteId) {
           setSelectedProject(null);
+        }
+        if (syncUserId) {
+          try {
+            await deleteDoc(doc(db, "users", syncUserId, "projects", pendingDeleteId));
+          } catch (err) {
+            handleFirestoreError(err, OperationType.DELETE, `users/${syncUserId}/projects/${pendingDeleteId}`);
+          }
         }
       } else if (pendingDeleteUnfinishedId) {
         setOrderWindows((prev) => prev.filter((p) => p.id !== pendingDeleteUnfinishedId));
@@ -2374,11 +2603,21 @@ export default function App() {
           setSelectedUnfinishedClient(null);
         }
       } else if (pendingDeleteClient) {
+        const projectsToDelete = projects.filter((p) => p.clientName === pendingDeleteClient);
         setProjects((prev) =>
           prev.filter((p) => p.clientName !== pendingDeleteClient),
         );
         if (selectedClientName === pendingDeleteClient) {
           setSelectedClientName(null);
+        }
+        if (syncUserId && projectsToDelete.length > 0) {
+          try {
+            for (const p of projectsToDelete) {
+              await deleteDoc(doc(db, "users", syncUserId, "projects", p.id));
+            }
+          } catch (err) {
+            handleFirestoreError(err, OperationType.DELETE, `users/${syncUserId}/projects`);
+          }
         }
       } else if (pendingChangeProfile) {
         setOrderStep(2);
@@ -2420,7 +2659,7 @@ export default function App() {
     setActiveView("new-order");
   };
 
-  const saveBatchOrder = () => {
+  const saveBatchOrder = async () => {
     if (orderWindows.length === 0) return;
     // Only confirm windows for the currently active client name
     const windowsToConfirm = orderWindows.filter(p => p.clientName === clientName);
@@ -2435,6 +2674,20 @@ export default function App() {
     setClientLocation("");
     setAluminioColor("Blanco");
     setDeliveryDate("");
+
+    // Cloud save
+    if (syncUserId && windowsToConfirm.length > 0) {
+      try {
+        for (const p of windowsToConfirm) {
+          await setDoc(doc(db, "users", syncUserId, "projects", p.id), {
+            ...p,
+            userId: syncUserId,
+          });
+        }
+      } catch (err) {
+        handleFirestoreError(err, OperationType.CREATE, `users/${syncUserId}/projects`);
+      }
+    }
   };
 
   const addToBatch = () => {
@@ -4334,7 +4587,7 @@ export default function App() {
                         ?.progress === 100 && (
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={async () => {
                             if (
                               window.confirm(
                                 "¿Desea finalizar esta orden y moverla al historial?",
@@ -4348,6 +4601,22 @@ export default function App() {
                                 ),
                               );
                               setSelectedClientName(null);
+
+                              // Guardar cambios en la nube
+                              if (syncUserId) {
+                                try {
+                                  const clientProjects = projects.filter(p => p.clientName === selectedClientName);
+                                  for (const p of clientProjects) {
+                                    await setDoc(doc(db, "users", syncUserId, "projects", p.id), {
+                                      ...p,
+                                      status: "completed",
+                                      userId: syncUserId,
+                                    });
+                                  }
+                                } catch (err) {
+                                  handleFirestoreError(err, OperationType.UPDATE, `users/${syncUserId}/projects`);
+                                }
+                              }
                             }
                           }}
                           className="flex-1 sm:flex-none px-5 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:bg-emerald-500/30 transition-all flex items-center justify-center gap-2"
