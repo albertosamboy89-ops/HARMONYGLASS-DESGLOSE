@@ -80,6 +80,7 @@ interface WindowProject {
   createdAt: number;
   deliveryDate?: string;
   aluminioColor?: string;
+  synced?: boolean;
 }
 
 // --- Brand & Logo ---
@@ -1949,7 +1950,8 @@ export default function App() {
 
         // Identificar los proyectos locales que no se han subido todavía a la nube
         const remoteIds = new Set(remoteProjects.map((rp) => rp.id));
-        const missingLocals = localProjects.filter((lp) => !remoteIds.has(lp.id));
+        // Un proyecto local se considera "no subido" si no está en remoteIds Y además NO tiene synced: true
+        const missingLocals = localProjects.filter((lp) => !remoteIds.has(lp.id) && !lp.synced);
 
         // Subir los proyectos locales que falten en Firestore
         if (missingLocals.length > 0) {
@@ -1957,6 +1959,7 @@ export default function App() {
             try {
               await setDoc(doc(db, "users", syncUserId, "projects", lp.id), {
                 ...lp,
+                synced: true,
                 userId: syncUserId,
               });
             } catch (err) {
@@ -1966,7 +1969,9 @@ export default function App() {
         }
 
         // Combinar datos locales y remotos para evitar que desaparezcan del celular
-        const combined = [...remoteProjects, ...missingLocals];
+        // Nos aseguramos de que todos los remotos tengan synced: true
+        const remotesWithSynced = remoteProjects.map((rp) => ({ ...rp, synced: true }));
+        const combined = [...remotesWithSynced, ...missingLocals];
         
         // Ordenar por fecha de creación ascendente
         combined.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -2122,6 +2127,7 @@ export default function App() {
               try {
                 await setDoc(doc(db, "users", syncUserId, "projects", p.id), {
                   ...p,
+                  synced: true,
                   userId: syncUserId,
                 });
               } catch (err) {
@@ -2520,6 +2526,7 @@ export default function App() {
           await setDoc(doc(db, "users", syncUserId, "projects", id), {
             ...p,
             status: p.status === "pending" ? "completed" : "pending",
+            synced: true,
             userId: syncUserId,
           });
         } catch (err) {
@@ -2552,6 +2559,7 @@ export default function App() {
       try {
         await setDoc(doc(db, "users", syncUserId, "projects", projectId), {
           ...updatedProj,
+          synced: true,
           userId: syncUserId,
         });
       } catch (err) {
@@ -2665,7 +2673,7 @@ export default function App() {
   const saveBatchOrder = async () => {
     if (orderWindows.length === 0) return;
     // Only confirm windows for the currently active client name
-    const windowsToConfirm = orderWindows.filter(p => p.clientName === clientName);
+    const windowsToConfirm = orderWindows.filter(p => p.clientName === clientName).map(p => ({ ...p, synced: true }));
     if (windowsToConfirm.length === 0) return;
 
     setProjects((prev) => [...prev, ...windowsToConfirm]);
@@ -2684,6 +2692,7 @@ export default function App() {
         for (const p of windowsToConfirm) {
           await setDoc(doc(db, "users", syncUserId, "projects", p.id), {
             ...p,
+            synced: true,
             userId: syncUserId,
           });
         }
@@ -4617,6 +4626,7 @@ export default function App() {
                                     await setDoc(doc(db, "users", syncUserId, "projects", p.id), {
                                       ...p,
                                       status: "completed",
+                                      synced: true,
                                       userId: syncUserId,
                                     });
                                   }
@@ -5328,12 +5338,26 @@ export default function App() {
                       {selectedProject.name}
                     </h2>
                   </div>
-                  <button
-                    onClick={() => setSelectedProject(null)}
-                    className="p-2 sm:p-3 bg-white/5 rounded-xl sm:rounded-2xl text-brand-muted hover:text-white transition-all shrink-0"
-                  >
-                    <Plus size={20} className="rotate-45" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSinglePrintProject(selectedProject);
+                        setIsSinglePrintMode(true);
+                      }}
+                      className="p-2 sm:p-3 bg-brand-accent/10 border border-brand-accent/20 rounded-xl sm:rounded-2xl text-brand-accent hover:bg-brand-accent/20 hover:text-white transition-all flex items-center gap-1.5"
+                      title="Imprimir Ficha"
+                    >
+                      <Printer size={20} />
+                      <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">Ficha</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedProject(null)}
+                      className="p-2 sm:p-3 bg-white/5 rounded-xl sm:rounded-2xl text-brand-muted hover:text-white transition-all shrink-0"
+                    >
+                      <Plus size={20} className="rotate-45" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-4 sm:gap-6">
