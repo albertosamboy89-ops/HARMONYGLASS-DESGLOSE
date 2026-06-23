@@ -50,8 +50,6 @@
 
     /* Reset layouts of parent containers */
     #root,
-    .flex,
-    .grid,
     div[class*="min-h-screen"],
     main {
       display: block !important;

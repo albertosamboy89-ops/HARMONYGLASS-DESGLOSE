@@ -1950,6 +1950,22 @@ export default function App() {
 
         // Identificar los proyectos locales que no se han subido todavía a la nube
         const remoteIds = new Set(remoteProjects.map((rp) => rp.id));
+
+        // MIGRACIÓN: Si un proyecto local ya existe en Firestore, nos aseguramos de que esté marcado como synced: true
+        let localUpdated = false;
+        const migratedLocalProjects = localProjects.map((lp) => {
+          if (remoteIds.has(lp.id) && !lp.synced) {
+            localUpdated = true;
+            return { ...lp, synced: true };
+          }
+          return lp;
+        });
+
+        if (localUpdated) {
+          localStorage.setItem("v-cut-projects", JSON.stringify(migratedLocalProjects));
+          localProjects = migratedLocalProjects;
+        }
+
         // Un proyecto local se considera "no subido" si no está en remoteIds Y además NO tiene synced: true
         const missingLocals = localProjects.filter((lp) => !remoteIds.has(lp.id) && !lp.synced);
 
@@ -2051,6 +2067,16 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("v-cut-temp-order", JSON.stringify(orderWindows));
   }, [orderWindows]);
+
+  // Abrir cuadro de diálogo de impresión automáticamente cuando se activa el modo de impresión
+  useEffect(() => {
+    if (isPrintMode || isSinglePrintMode || isGlassPrintMode) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500); // 500ms para permitir que el DOM se renderice por completo antes de imprimir
+      return () => clearTimeout(timer);
+    }
+  }, [isPrintMode, isSinglePrintMode, isGlassPrintMode]);
 
   // Save draft fields to localStorage
   useEffect(() => {
