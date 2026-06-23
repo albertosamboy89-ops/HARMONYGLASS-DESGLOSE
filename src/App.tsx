@@ -984,10 +984,10 @@ function ClientDashboard({
       if (p.status === "completed") groups[p.clientName].done++;
 
       const totalCuts =
-        p.results.marco.length +
-        p.results.hojas.length +
-        p.results.vidrios.length;
-      groups[p.clientName].pendingCuts += totalCuts - p.completedCuts.length;
+        (p.results?.marco?.length || 0) +
+        (p.results?.hojas?.length || 0) +
+        (p.results?.vidrios?.length || 0);
+      groups[p.clientName].pendingCuts += totalCuts - (p.completedCuts?.length || 0);
 
       if (p.createdAt < groups[p.clientName].entryDate) {
         groups[p.clientName].entryDate = p.createdAt;
@@ -1191,7 +1191,7 @@ function PurchaseDetail({
   const piecesByName: Record<string, { size: number; qty: number }[]> = {};
   projects.forEach((p) => {
     if (!p.width || !p.height) return; // Skip windows with zero dimensions
-    [...p.results.marco, ...p.results.hojas].forEach((item) => {
+    [...(p.results?.marco || []), ...(p.results?.hojas || [])].forEach((item) => {
       if (!piecesByName[item.piece]) piecesByName[item.piece] = [];
       piecesByName[item.piece].push({ size: item.size, qty: item.qty * (p.qty || 1) });
     });
@@ -1410,31 +1410,31 @@ function ResultsBreakdown({
         { 
           title: "PUERTA", 
           items: [
-            results.marco.find(i => i.id === "dintel")!,
-            results.hojas.find(i => i.id === "lateral")!,
-            results.marco.find(i => i.id === "jamba")!,
-            results.hojas.find(i => i.id === "cabezal")!,
-          ], 
+            results?.marco?.find(i => i.id === "dintel")!,
+            results?.hojas?.find(i => i.id === "lateral")!,
+            results?.marco?.find(i => i.id === "jamba")!,
+            results?.hojas?.find(i => i.id === "cabezal")!,
+          ].filter(Boolean), 
           color: "blue" 
         },
         { 
           title: "CRISTAL", 
-          items: results.vidrios, 
+          items: results?.vidrios || [], 
           color: "emerald" 
         },
       ]
     : [
         { 
           title: windowType === "GAVETAS" ? "M. MOLDURAS" : windowType === "COCINA_MODULAR" ? "ESTRUCTURA" : "M. Marco", 
-          items: results.marco, 
+          items: results?.marco || [], 
           color: "blue" 
         },
         { 
           title: windowType === "GAVETAS" ? "M. FACIAS" : windowType === "COCINA_MODULAR" ? "PUERTAS" : "M. Hojas", 
-          items: results.hojas, 
+          items: results?.hojas || [], 
           color: "purple" 
         },
-        { title: "M. Cristal", items: results.vidrios, color: "emerald" },
+        { title: "M. Cristal", items: results?.vidrios || [], color: "emerald" },
       ];
 
   return (
@@ -2216,7 +2216,7 @@ export default function App() {
     // User requested P92 specific discounts
     if (windowType === "P92" || windowType === "PUERTA_COMERCIAL") {
       leafVertDeduction = 40; // Jamba 2.5" (Alto - 2.5" = 80" for 82.5" height)
-      leafOverlap = vias === 2 ? 8 : 14; // For 2-vías, alféizar y rueda overlap deduction is 1/2" (8 sixteenths) to get 23.12" from 47.25". Otherwise 7/8" (14 sixteenths).
+      leafOverlap = vias === 2 ? 6 : 14; // For 2-vías, alféizar y rueda overlap deduction is 3/8" (6 sixteenths) to get exactly 31.125" for 63" width. Otherwise 7/8" (14 sixteenths).
       frameHorizDeduction = 26; // Riel 1.625" (Ancho - 1 5/8" = 104 3/8" for 106" width)
       frameVertDeduction = 2; // Lateral 0.125" (Alto - 1/8" = 82 3/8" for 82.5" height)
       glassWidthFrameDeduction = 46; // Vidrio Ancho 2.875" (User request 2.87")
@@ -2343,6 +2343,9 @@ export default function App() {
       if (vias === 3) {
         leafHorizontalSize = Math.round((totalWidth + 14) / 3);
         leafHorizontalFormula = `(Ancho + 7/8") / 3`;
+      } else if (vias === 2) {
+        leafHorizontalSize = Math.floor((totalWidth - 16) / 2);
+        leafHorizontalFormula = `(Ancho - 1") / 2`;
       } else {
         leafHorizontalSize = Math.floor(totalWidth / vias - leafOverlap);
         leafHorizontalFormula = `Ancho/${vias} - ${formatFraction(leafOverlap)}`;
@@ -2405,14 +2408,14 @@ export default function App() {
           piece: "Laterales",
           qty: 2,
           size: sideRailsSize,
-          formula: `Alto - ${formatFraction(frameVertDeduction)}`,
+          formula: (windowType === "P92" && vias === 2) ? `Alto - 0.12"` : `Alto - ${formatFraction(frameVertDeduction)}`,
         },
         {
           id: "riel_up_down",
           piece: "Rieles (Arr/Aba)",
           qty: 2,
           size: sillSize,
-          formula: `Ancho - ${formatFraction(frameHorizDeduction)}`,
+          formula: (windowType === "P92" && vias === 2) ? `Ancho - 1.63"` : `Ancho - ${formatFraction(frameHorizDeduction)}`,
         },
       ],
       hojas: [
@@ -2421,7 +2424,7 @@ export default function App() {
           piece: "Jamba / Llavín",
           qty: vias * 2,
           size: leafVerticalSize,
-          formula: `Alto - ${formatFraction(leafVertDeduction)}`,
+          formula: (windowType === "P92" && vias === 2) ? `Alto - 2.5"` : `Alto - ${formatFraction(leafVertDeduction)}`,
         },
         {
           id: "alf_rueda",
@@ -2737,19 +2740,19 @@ export default function App() {
     setHRightFrac(0);
   };
 
-  const pendingProjects = projects
+   const pendingProjects = projects
     .filter((p) => p.status === "pending")
     .sort((a, b) => {
       const aTotal =
-        a.results.marco.length +
-        a.results.hojas.length +
-        a.results.vidrios.length;
-      const aDone = a.completedCuts.length === aTotal;
+        (a.results?.marco?.length || 0) +
+        (a.results?.hojas?.length || 0) +
+        (a.results?.vidrios?.length || 0);
+      const aDone = (a.completedCuts?.length || 0) === aTotal;
       const bTotal =
-        b.results.marco.length +
-        b.results.hojas.length +
-        b.results.vidrios.length;
-      const bDone = b.completedCuts.length === bTotal;
+        (b.results?.marco?.length || 0) +
+        (b.results?.hojas?.length || 0) +
+        (b.results?.vidrios?.length || 0);
+      const bDone = (b.completedCuts?.length || 0) === bTotal;
       if (aDone === bDone) return 0;
       return aDone ? 1 : -1;
     });
@@ -2770,7 +2773,11 @@ export default function App() {
       
       groups[client].count++;
       
-      const isWindowDone = p.completedCuts.length === (p.results.marco.length + p.results.hojas.length + p.results.vidrios.length);
+      const totalWindowCuts =
+        (p.results?.marco?.length || 0) +
+        (p.results?.hojas?.length || 0) +
+        (p.results?.vidrios?.length || 0);
+      const isWindowDone = (p.completedCuts?.length || 0) === totalWindowCuts;
       if (isWindowDone) groups[client].done++;
 
       if (p.status === "pending") groups[client].pending.push(p);
@@ -2796,13 +2803,13 @@ export default function App() {
         const totalCuts = clientProjects.reduce(
           (sum, p) =>
             sum +
-            p.results.marco.length +
-            p.results.hojas.length +
-            p.results.vidrios.length,
+            (p.results?.marco?.length || 0) +
+            (p.results?.hojas?.length || 0) +
+            (p.results?.vidrios?.length || 0),
           0,
         );
         const doneCuts = clientProjects.reduce(
-          (sum, p) => sum + p.completedCuts.length,
+          (sum, p) => sum + (p.completedCuts?.length || 0),
           0,
         );
         const progress =
@@ -2885,7 +2892,7 @@ export default function App() {
     if (currentDetailClient) {
       currentDetailClient.rawProjects.forEach((p) => {
         if (!p.width || !p.height) return;
-        [...p.results.marco, ...p.results.hojas].forEach((item) => {
+        [...(p.results?.marco || []), ...(p.results?.hojas || [])].forEach((item) => {
           if (!piecesByName[item.piece]) piecesByName[item.piece] = [];
           piecesByName[item.piece].push({ size: item.size, qty: item.qty * (p.qty || 1) });
         });
@@ -3031,10 +3038,10 @@ export default function App() {
       const color = p.aluminioColor || "Blanco";
 
       if (p.type === "P65" || p.type === "P92") {
-        const lateralDetail = p.results.marco.find((item) => item.id === "side");
-        const rielDetail = p.results.marco.find((item) => item.id === "riel_up_down");
-        const verticalDetail = p.results.hojas.find((item) => item.id === "vert");
-        const horizontalDetail = p.results.hojas.find((item) => item.id === "alf_rueda");
+        const lateralDetail = p.results?.marco?.find((item) => item.id === "side");
+        const rielDetail = p.results?.marco?.find((item) => item.id === "riel_up_down");
+        const verticalDetail = p.results?.hojas?.find((item) => item.id === "vert");
+        const horizontalDetail = p.results?.hojas?.find((item) => item.id === "alf_rueda");
 
         const vias = p.vias || 2;
 
@@ -3099,7 +3106,7 @@ export default function App() {
         }
       } else {
         // Fallback for non-sliding parts
-        [...p.results.marco, ...p.results.hojas].forEach((item) => {
+        [...(p.results?.marco || []), ...(p.results?.hojas || [])].forEach((item) => {
           const key = `${item.piece.toLowerCase()}-${color}`;
           if (!profileCutsGroup[key]) profileCutsGroup[key] = { cuts: [], color, rawName: item.piece.toLowerCase() };
           const times = item.qty * windowQty;
@@ -4482,7 +4489,7 @@ export default function App() {
                                                 <span className="text-blue-400">
                                                   {(() => {
                                                     let totalGlass = 0;
-                                                    p.results.vidrios.forEach((vidrio) => {
+                                                    (p.results?.vidrios || []).forEach((vidrio) => {
                                                       if (vidrio.dimensions) {
                                                         const [wStr, hStr] = vidrio.dimensions.split(" x ");
                                                         totalGlass += (parseFractionInches(wStr) * parseFractionInches(hStr)) / 144 * (vidrio.qty || 1);
@@ -4757,11 +4764,11 @@ export default function App() {
                                     <AnimatePresence mode="popLayout">
                                       {group.pending.map((project) => {
                                         const totalCuts =
-                                          project.results.marco.length +
-                                          project.results.hojas.length +
-                                          project.results.vidrios.length;
+                                          (project.results?.marco?.length || 0) +
+                                          (project.results?.hojas?.length || 0) +
+                                          (project.results?.vidrios?.length || 0);
                                         const isFullyCut =
-                                          project.completedCuts.length ===
+                                          (project.completedCuts?.length || 0) ===
                                           totalCuts;
                                         return (
                                           <motion.div
@@ -4834,7 +4841,7 @@ export default function App() {
                                               <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{
-                                                  width: `${Math.round((project.completedCuts.length / totalCuts) * 100)}%`,
+                                                  width: `${totalCuts > 0 ? Math.round(((project.completedCuts?.length || 0) / totalCuts) * 100) : 0}%`,
                                                 }}
                                                 className={`h-full ${isFullyCut ? "bg-red-500" : "bg-brand-accent"}`}
                                               />
@@ -4999,11 +5006,11 @@ export default function App() {
 
                 <div className="grid grid-cols-1 gap-6">
                   {[
-                    { label: singlePrintProject.type === "GAVETAS" ? "MOLDURAS" : "MARCO", items: singlePrintProject.results.marco },
-                    { label: singlePrintProject.type === "GAVETAS" ? "FACIAS" : "HOJAS", items: singlePrintProject.results.hojas },
-                    { label: "CRISTAL / VIDRIO", items: singlePrintProject.results.vidrios },
+                    { label: singlePrintProject.type === "GAVETAS" ? "MOLDURAS" : "MARCO", items: singlePrintProject.results?.marco || [] },
+                    { label: singlePrintProject.type === "GAVETAS" ? "FACIAS" : "HOJAS", items: singlePrintProject.results?.hojas || [] },
+                    { label: "CRISTAL / VIDRIO", items: singlePrintProject.results?.vidrios || [] },
                   ].map((cat) => {
-                    if (cat.items.length === 0) return null;
+                    if (!cat.items || cat.items.length === 0) return null;
                     return (
                       <div key={cat.label} className="space-y-2">
                         <div className="bg-black text-white px-3 py-1 inline-block text-[10px] font-black uppercase tracking-widest">
@@ -5391,10 +5398,10 @@ export default function App() {
                     </span>
                   </div>
                   <div className="text-[9px] font-mono text-brand-muted uppercase">
-                    {selectedProject.completedCuts.length} de{" "}
-                    {selectedProject.results.marco.length +
-                      selectedProject.results.hojas.length +
-                      selectedProject.results.vidrios.length}{" "}
+                    {(selectedProject.completedCuts?.length || 0)} de{" "}
+                    {(selectedProject.results?.marco?.length || 0) +
+                      (selectedProject.results?.hojas?.length || 0) +
+                      (selectedProject.results?.vidrios?.length || 0)}{" "}
                     CORTES
                   </div>
                 </div>
