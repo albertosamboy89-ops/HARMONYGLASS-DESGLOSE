@@ -696,9 +696,9 @@ function PrintReport({
                 </thead>
                 <tbody className="font-mono font-bold">
                   {typeProjects.map((p, pIdx) => {
-                    const combinedHoja = p.results.hojas;
-                    const combinedMarco = p.results.marco;
-                    const combinedVidrio = p.results.vidrios;
+                    const combinedHoja = p.results?.hojas || [];
+                    const combinedMarco = p.results?.marco || [];
+                    const combinedVidrio = p.results?.vidrios || [];
  
                     if (type === "GAVETAS") {
                       const moldura = combinedMarco.find(m => m.id === "moldura");
@@ -2216,7 +2216,7 @@ export default function App() {
     // User requested P92 specific discounts
     if (windowType === "P92" || windowType === "PUERTA_COMERCIAL") {
       leafVertDeduction = 40; // Jamba 2.5" (Alto - 2.5" = 80" for 82.5" height)
-      leafOverlap = 10; // Alféizar deduction per panel (5/8" or 0.625")
+      leafOverlap = vias === 2 ? 8 : 14; // For 2-vías, alféizar y rueda overlap deduction is 1/2" (8 sixteenths) to get 23.12" from 47.25". Otherwise 7/8" (14 sixteenths).
       frameHorizDeduction = 26; // Riel 1.625" (Ancho - 1 5/8" = 104 3/8" for 106" width)
       frameVertDeduction = 2; // Lateral 0.125" (Alto - 1/8" = 82 3/8" for 82.5" height)
       glassWidthFrameDeduction = 46; // Vidrio Ancho 2.875" (User request 2.87")
@@ -2360,12 +2360,10 @@ export default function App() {
     // Width target for 23.63: 8.69 (139/16). (378 - 100) / 2 = 139.
     // For 3 or 4 vias, the glasswidth is based on leafHorizontalSize minus 2.63" (42 sixteenths)
     let glassWidth = Math.floor((totalWidth - glassWidthFrameDeduction) / vias);
-    if (vias === 3 || vias === 4) {
-      if (windowType === "P92") {
-        glassWidth = leafHorizontalSize - 54; // Alfeizar - 3 3/8"
-      } else {
-        glassWidth = leafHorizontalSize - 42; // Alfeizar - 2.63"
-      }
+    if (windowType === "P92") {
+      glassWidth = leafHorizontalSize - 54; // Alfeizar - 3 3/8"
+    } else if (vias === 3 || vias === 4) {
+      glassWidth = leafHorizontalSize - 42; // Alfeizar - 2.63"
     }
     // Height target for 23.63: 18.63 (298/16). 378 - 80 = 298.
     const glassHeight = totalHeight - glassHeightFrameDeduction;
@@ -2476,7 +2474,9 @@ export default function App() {
             qty: vias,
             size: glassWidth,
             dimensions: formatDimensionSet(glassWidth, glassHeight),
-            formula: `(Ancho - ${formatFraction(glassWidthFrameDeduction)}) / ${vias} | Alto - ${formatFraction(glassHeightFrameDeduction)}`,
+            formula: windowType === "P92"
+              ? `Alfeizar - 3 3/8" | Alto - 6 1/2"`
+              : `(Ancho - ${formatFraction(glassWidthFrameDeduction)}) / ${vias} | Alto - ${formatFraction(glassHeightFrameDeduction)}`,
           });
         }
         return list;
